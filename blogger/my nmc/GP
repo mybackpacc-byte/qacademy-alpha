@@ -1,0 +1,2181 @@
+<!-- =================== QAcademy — GP Course Page (Guard v3) =================== -->
+
+<!-- 0) PAGE FLAGS + CENTRAL CONFIG (must come BEFORE Guard v3) -->
+<script>
+  /* Page identity */
+  window.QA_PAGE_KIND = 'course';
+  window.QA_COURSE_ID = 'GP';
+
+  /* Central config (single source of truth for URLs/slugs used on this page) */
+  window.QA_CONFIG = window.QA_CONFIG || {};
+
+  // Auth (PortalAuthv2 / Auth v3)
+  window.QA_CONFIG.AUTH_URL       = window.QA_CONFIG.AUTH_URL       || 'https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec';
+  window.QA_CONFIG.LOGIN_SLUG     = window.QA_CONFIG.LOGIN_SLUG     || 'login_23';
+  window.QA_CONFIG.DASHBOARD_SLUG = window.QA_CONFIG.DASHBOARD_SLUG || 'dashboard_23';
+
+  // Quiz/Builder API (Builder + Fixed + Announcements live here)
+  window.QA_CONFIG.BUILDER_API_URL = window.QA_CONFIG.BUILDER_API_URL || 'https://script.google.com/macros/s/AKfycbx_CDJU5juEDxybplqBlYjJP0tAS52-HIOWE6is19Ub7NqhaV_16MnFmstJpWcdorHT/exec';
+  window.QA_CONFIG.ANNOUNCEMENTS_URL = window.QA_CONFIG.ANNOUNCEMENTS_URL || window.QA_CONFIG.BUILDER_API_URL;
+
+  // Messaging API (separate web app) + Messages page slug
+  // ✅ Set these if your messaging webapp/page uses a different URL/slug
+  window.QA_CONFIG.MESSAGING_URL  = window.QA_CONFIG.MESSAGING_URL  ||"https://script.google.com/macros/s/AKfycbyyPv8GxEZ4trRpHFVG1IzctDn_1utELw62WBqbJVGmHdRH0PLI5h1jsROsRnA0VGt4/exec";
+  window.QA_CONFIG.MESSAGES_SLUG  = window.QA_CONFIG.MESSAGES_SLUG  || 'messages';
+
+  // Slugs (pages)
+  window.QA_CONFIG.ANNOUNCEMENTS_SLUG = window.QA_CONFIG.ANNOUNCEMENTS_SLUG || 'announcement';
+  window.QA_CONFIG.FIXED_QUIZZES_SLUG = window.QA_CONFIG.FIXED_QUIZZES_SLUG || 'fixed-quizzes';
+  window.QA_CONFIG.BUILDER_SLUG       = window.QA_CONFIG.BUILDER_SLUG       || 'quiz-builder';
+  window.QA_CONFIG.HISTORY_SLUG       = window.QA_CONFIG.HISTORY_SLUG       || 'learning-history';
+  window.QA_CONFIG.INSTANT_RUNNER_URL = window.QA_CONFIG.INSTANT_RUNNER_URL || 'https://nursing2000a.blogspot.com/p/instant-ruuner-for-quiz-builder.html';
+  window.QA_CONFIG.TIMED_RUNNER_URL   = window.QA_CONFIG.TIMED_RUNNER_URL   || 'https://nursing2000a.blogspot.com/p/timed-ruuner-for-quiz-builder.html';
+</script>
+
+<!-- 1) QAcademy — Guard v3 (Auth v3 + Products + Subscriptions) -->
+<script>
+(function () {
+  'use strict';
+
+  /* ============== CONFIG (PER SITE + PER PAGE) ============== */
+
+  var cfg = (window.QA_CONFIG && typeof window.QA_CONFIG === 'object') ? window.QA_CONFIG : {};
+
+  var AUTH_URL       = cfg.AUTH_URL || '';
+  var LOGIN_SLUG     = cfg.LOGIN_SLUG || 'login_23';
+  var DASHBOARD_SLUG = cfg.DASHBOARD_SLUG || 'dashboard_23';
+
+  var PAGE_KIND     = window.QA_PAGE_KIND || 'course';
+  var COURSE_ID     = window.QA_COURSE_ID || null;
+  var REQUIRE_ADMIN = (typeof window.QA_REQUIRE_ADMIN === 'boolean')
+    ? window.QA_REQUIRE_ADMIN
+    : (String(PAGE_KIND).toLowerCase() === 'admin');
+
+  /* ============== EXPORTED STATE ============== */
+
+  window.QA_GUARD_STATE      = 'pending';
+  window.QA_GUARD_BLOCK_TYPE = null;
+
+  var guardResolve, guardReject;
+  window.qaGuardReady = new Promise(function (resolve, reject) {
+    guardResolve = resolve;
+    guardReject  = reject;
+  });
+
+  function persistGuardState(state, blockType) {
+    window.QA_GUARD_STATE      = state;
+    window.QA_GUARD_BLOCK_TYPE = blockType || null;
+  }
+
+  /* ============== NAVIGATION HELPERS ============== */
+
+  function buildPageUrl(slug) {
+    slug = String(slug || '').replace(/^\s+|\s+$/g, '');
+    if (!slug) return '/';
+    return '/p/' + slug + '.html';
+  }
+
+  function go(url) {
+    window.location.replace(url);
+  }
+
+  function qaGoToLogin(reason) {
+    var url = buildPageUrl(LOGIN_SLUG);
+    if (reason) {
+      var sep = url.indexOf('?') === -1 ? '?' : '&';
+      url += sep + 'reason=' + encodeURIComponent(reason);
+    }
+    go(url);
+  }
+
+  function qaGoToDashboard() {
+    go(buildPageUrl(DASHBOARD_SLUG));
+  }
+
+  function qaLogout() {
+    try {
+      localStorage.removeItem('qa_token');
+      localStorage.removeItem('qa_user_id');
+    } catch (e) {}
+    qaGoToLogin('logout');
+  }
+
+  window.qaGoToLogin     = qaGoToLogin;
+  window.qaGoToDashboard = qaGoToDashboard;
+  window.qaLogout        = qaLogout;
+
+  /* ============== OVERLAY (LOADER + BLOCKED UI) ============== */
+
+  var overlayId = 'qa-guard-overlay';
+
+  function ensureOverlay() {
+    var el = document.getElementById(overlayId);
+    if (el) return el;
+
+    el = document.createElement('div');
+    el.id = overlayId;
+    el.style.position   = 'fixed';
+    el.style.inset      = '0';
+    el.style.zIndex     = '99999';
+    el.style.background = 'rgba(15,23,42,0.86)';
+    el.style.display    = 'flex';
+    el.style.alignItems = 'center';
+    el.style.justifyContent = 'center';
+    el.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    el.style.padding    = '16px';
+    el.style.boxSizing  = 'border-box';
+
+    el.innerHTML =
+      '<div id="qa-guard-overlay-inner" style="max-width:420px;width:100%;background:#ffffff;border-radius:16px;padding:18px 20px;box-shadow:0 18px 45px rgba(15,23,42,0.45);text-align:center;">' +
+        '<div id="qa-guard-overlay-title" style="font-size:18px;font-weight:600;margin-bottom:6px;color:#0b7a75;">Checking your access...</div>' +
+        '<div id="qa-guard-overlay-body" style="font-size:14px;color:#475569;margin-bottom:14px;">Please wait a moment.</div>' +
+        '<div id="qa-guard-overlay-actions" style="font-size:13px;color:#94a3b8;"></div>' +
+      '</div>';
+
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function showOverlay(title, body, actionsHtml) {
+    var el = ensureOverlay();
+    var t  = el.querySelector('#qa-guard-overlay-title');
+    var b  = el.querySelector('#qa-guard-overlay-body');
+    var a  = el.querySelector('#qa-guard-overlay-actions');
+
+    if (t && typeof title === 'string') t.textContent = title;
+    if (b && typeof body === 'string')  b.textContent = body;
+    if (a) a.innerHTML = actionsHtml || '';
+
+    el.style.display = 'flex';
+  }
+
+  function hideOverlay() {
+    var el = document.getElementById(overlayId);
+    if (el) el.style.display = 'none';
+  }
+
+  function buildBlockedActions(type) {
+    var btnStyle = 'display:inline-flex;align-items:center;justify-content:center;padding:8px 14px;border-radius:999px;border:none;background:#0b7a75;color:#ffffff;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;';
+    if (type === 'no_course_access' || type === 'admin_required' || type === 'account_issue') {
+      return '<button type="button" onclick="qaGoToDashboard()" style="' + btnStyle + '">Go to Dashboard</button>';
+    }
+    if (type === 'session_expired') {
+      return '<button type="button" onclick="qaGoToLogin(\'session_expired\')" style="' + btnStyle + '">Go to Login</button>';
+    }
+    return '';
+  }
+
+  function handleBlocked(type, title, body) {
+    persistGuardState('blocked', type);
+    var actionsHtml = buildBlockedActions(type);
+    showOverlay(title, body, actionsHtml);
+    guardResolve({ ok: false, blocked: true, type: type });
+  }
+
+  /* ============== MAIN GUARD LOGIC ============== */
+
+  function runGuard() {
+    showOverlay('Checking your access...', 'Please wait while we verify your session.', '');
+
+    var token = null;
+    try {
+      token = localStorage.getItem('qa_token');
+    } catch (e) {
+      token = null;
+    }
+
+    if (!token) {
+      handleBlocked('session_expired', 'Sign in required', 'Your session has ended. Please sign in again.');
+      qaGoToLogin('no_token');
+      return;
+    }
+
+    if (!AUTH_URL) {
+      hideOverlay();
+      persistGuardState('error', 'missing_auth_url');
+      var err = new Error('Guard misconfigured: AUTH_URL is missing.');
+      guardReject(err);
+      console.error(err);
+      return;
+    }
+
+    fetch(AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ action: 'verify', token: token })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data || data.ok !== true) {
+          var errCode = (data && data.error) || 'unknown_error';
+
+          if (errCode === 'missing_token' || errCode === 'not_found' || errCode === 'expired') {
+            try {
+              localStorage.removeItem('qa_token');
+              localStorage.removeItem('qa_user_id');
+            } catch (e) {}
+            handleBlocked('session_expired', 'Sign in required', 'Your session has ended. Please sign in again.');
+            qaGoToLogin('session_expired');
+            return;
+          }
+
+          if (errCode === 'user_missing' || errCode === 'user_inactive' || errCode === 'user_expired') {
+            handleBlocked('account_issue', 'Account issue', 'There is a problem with your account. Please contact QAcademy support.');
+            return;
+          }
+
+          persistGuardState('error', errCode);
+          hideOverlay();
+          var err1 = new Error('Guard verify failed: ' + errCode);
+          guardReject(err1);
+          console.error(err1);
+          return;
+        }
+
+        var u         = data.user   || {};
+        var flags     = data.flags  || {};
+        var access    = (data.access && typeof data.access === 'object') ? data.access : {};
+        var courseIds = Array.isArray(access.courses) ? access.courses.slice() : [];
+        var upperIds  = courseIds.map(function (c) {
+          return String(c || '').trim().toUpperCase();
+        }).filter(Boolean);
+        var coursesMeta = Array.isArray(data.courses) ? data.courses : [];
+
+        var QA_USER = {
+          id:                   u.user_id || '',
+          user_id:              u.user_id || '',
+          username:             u.username || '',
+          email:                u.email || '',
+          name:                 u.name || '',
+          forename:             u.forename || '',
+          surname:              u.surname || '',
+          phone_number:         u.phone_number || '',
+          program_id:           u.program_id || '',
+          cohort:               u.cohort || '',
+          avatar_url:           u.avatar_url || '',
+          role:                 u.role || '',
+          is_admin:             !!(flags && flags.is_admin),
+          must_change_password: !!u.must_change_password,
+          user_expires_utc:     u.expires_utc || ''
+        };
+
+        var QA_ACCESS = {
+          courseIds:          upperIds,
+          access_expires_utc: access.expires_utc || '',
+          coursesMeta:        coursesMeta,
+          hasCourse: function (courseId) {
+            var cid = String(courseId || '').trim().toUpperCase();
+            if (!cid) return false;
+            return this.courseIds.indexOf(cid) !== -1;
+          }
+        };
+
+        window.QA_USER   = QA_USER;
+        window.QA_ACCESS = QA_ACCESS;
+
+        try {
+          if (QA_USER.user_id) {
+            localStorage.setItem('qa_user_id', QA_USER.user_id);
+          }
+        } catch (e) {}
+
+        var kind = String(PAGE_KIND || '').toLowerCase();
+        var cid  = COURSE_ID ? String(COURSE_ID).trim().toUpperCase() : '';
+
+        if (kind === 'dashboard') {
+          persistGuardState('ready', null);
+          hideOverlay();
+          guardResolve({ ok: true, blocked: false, kind: kind });
+          return;
+        }
+
+        if (kind === 'admin' || REQUIRE_ADMIN) {
+          if (!QA_USER.is_admin) {
+            handleBlocked('admin_required', 'Admin access required', 'This page is only available to QAcademy admins.');
+            return;
+          }
+          persistGuardState('ready', null);
+          hideOverlay();
+          guardResolve({ ok: true, blocked: false, kind: kind });
+          return;
+        }
+
+        if (
+          kind === 'course' ||
+          kind === 'builder' ||
+          kind === 'runner_instant' ||
+          kind === 'runner_timed' ||
+          kind === 'history_course'
+        ) {
+          if (!cid) {
+            persistGuardState('error', 'missing_course_id');
+            hideOverlay();
+            var err2 = new Error('Guard misconfigured: QA_COURSE_ID is missing for course-tied page.');
+            guardReject(err2);
+            console.error(err2);
+            return;
+          }
+
+          if (!QA_ACCESS.hasCourse(cid)) {
+            handleBlocked(
+              'no_course_access',
+              'No access to this course',
+              'Your current subscription does not include this course. Please go back to your dashboard to see the courses you have access to.'
+            );
+            return;
+          }
+
+          persistGuardState('ready', null);
+          hideOverlay();
+          guardResolve({ ok: true, blocked: false, kind: kind, course_id: cid });
+          return;
+        }
+
+        if (kind === 'history') {
+          persistGuardState('ready', null);
+          hideOverlay();
+          guardResolve({ ok: true, blocked: false, kind: kind });
+          return;
+        }
+
+        persistGuardState('ready', null);
+        hideOverlay();
+        guardResolve({ ok: true, blocked: false, kind: kind });
+      })
+      .catch(function (err) {
+        persistGuardState('error', 'network');
+        console.error('Guard network/error', err);
+        showOverlay(
+          'Network problem',
+          'We could not verify your access due to a network error. Please check your connection and reload this page.',
+          ''
+        );
+        guardReject(err);
+      });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runGuard);
+  } else {
+    runGuard();
+  }
+})();
+</script>
+
+<!-- 2) PAGE CONTENT (hidden until Guard v3 passes) -->
+<div id="qa-app" style="display:none">
+
+  <!-- TOP ACTIONS: Dashboard + History + Logout -->
+  <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+    <a
+      id="qa-top-dashboard"
+      href="/p/dashboard_23.html"
+      style="display:inline-block;padding:8px 12px;border-radius:10px;border:1px solid #0b7a75;
+             color:#0b7a75;font-weight:600;text-decoration:none;font-size:13px;background:#f3faf9;"
+    >
+      Dashboard
+    </a>
+    <a
+      id="qa-top-history"
+      href="#"
+      style="display:inline-block;padding:8px 12px;border-radius:10px;border:1px solid #0b7a75;
+             color:#0b7a75;font-weight:600;text-decoration:none;font-size:13px;background:#f3faf9;"
+    >
+      Learning history
+    </a>
+    <a
+      href="#"
+      onclick="qaLogout(); return false;"
+      style="display:inline-block;padding:8px 12px;border-radius:10px;border:1px solid #0b7a75;
+             color:#0b7a75;font-weight:600;text-decoration:none;font-size:13px;"
+    >
+      Logout
+    </a>
+  </div>
+
+  <!-- Mini CSS -->
+  <style>
+    .gp-course-header-card {
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, .06);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin: 0 0 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .04);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .gp-course-header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .gp-course-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .gp-course-meta {
+      font-size: 13px;
+      color: #4a5a56;
+    }
+    .gp-course-user {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 13px;
+      color: #4b5563;
+    }
+    .gp-course-line {
+      line-height: 1.4;
+    }
+
+    .gp-status-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    .gp-status--active {
+      background: #ecfbf8;
+      border-color: #c7ebe1;
+      color: #0a6c67;
+    }
+    .gp-status--expiring {
+      background: #fff9ea;
+      border-color: #f2ddaa;
+      color: #6a4a0a;
+    }
+    .gp-status--expired {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #b91c1c;
+    }
+
+    /* ✅ Course header Messages chip */
+    .qa-msg-wrap{
+      margin-left:auto;
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap:4px;
+    }
+    .qa-msg-row{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .qa-msg-chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(11,122,117,.25);
+      background:#f3faf9;
+      color:#0b7a75;
+      font-weight:800;
+      font-size:12.5px;
+      text-decoration:none;
+      white-space:nowrap;
+    }
+    .qa-msg-badge{
+      min-width:22px;
+      height:22px;
+      padding:0 7px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:999px;
+      background:#94a3b8;
+      color:#fff;
+      font-size:12px;
+      font-weight:900;
+      line-height:1;
+    }
+    .qa-msg-help{
+      font-size:12px;
+      color:#64748b;
+    }
+
+    .gp-wrap {
+      max-width: 980px;
+      margin: 24px auto;
+      font-family: system-ui, Segoe UI, Roboto, sans-serif;
+    }
+    .gp-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin: 12px 0 16px;
+      flex-wrap: wrap;
+    }
+    .gp-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    .gp-sec {
+      border: 1px solid rgba(0, 0, 0, .06);
+      background: #fff;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+    .gp-sec > summary {
+      list-style: none;
+      cursor: pointer;
+      user-select: none;
+      padding: 14px;
+      font-weight: 800;
+      color: #0b7a75;
+      border-bottom: 1px solid rgba(0, 0, 0, .06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .gp-sec > summary::-webkit-details-marker { display: none; }
+    .gp-body { padding: 14px; }
+    .gp-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+    }
+    .gp-card {
+      border: 1px solid rgba(0, 0, 0, .08);
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, .04);
+    }
+    .gp-card a {
+      font-weight: 600;
+      text-decoration: none;
+      color: #0b3d3b;
+    }
+    .gp-meta {
+      color: #6b7b79;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    .gp-empty {
+      display: none;
+      color: #6b7b79;
+      font-size: 14px;
+    }
+    .chev { transition: transform .2s ease; color: #5b6a68; }
+    details[open] > summary .chev { transform: rotate(180deg); }
+
+    .gp-main {
+      border: 1px solid rgba(0, 0, 0, .06);
+      background: #ffffff;
+      border-radius: 14px;
+      margin-bottom: 16px;
+      overflow: hidden;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, .04);
+    }
+    .gp-main > summary {
+      list-style: none;
+      cursor: pointer;
+      user-select: none;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      color: #0b7a75;
+      border-bottom: 1px solid rgba(0, 0, 0, .04);
+    }
+    .gp-main > summary::-webkit-details-marker { display: none; }
+    .gp-main-label { display: flex; flex-direction: column; gap: 3px; }
+    .gp-main-label span:first-child { font-size: 14px; font-weight: 700; }
+    .gp-main-label span:last-child { font-size: 12px; color: #5b6a68; }
+    .gp-main-body { padding: 12px 14px; }
+
+    .gp-main--builder > summary {
+      background: linear-gradient(90deg, rgba(11, 122, 117, 0.08), #fefefe);
+      border-bottom-color: rgba(11, 122, 117, 0.25);
+    }
+    .gp-main--fixed > summary {
+      background: linear-gradient(90deg, rgba(133, 153, 152, 0.10), #fefefe);
+      border-bottom-color: rgba(133, 153, 152, 0.30);
+    }
+    .gp-main--legacy > summary {
+      background: linear-gradient(90deg, #f6f7f8, #ffffff);
+      border-bottom-color: rgba(148, 163, 184, 0.35);
+    }
+
+    .gp-card-fixed {
+      padding: 10px 11px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, .04);
+      border-radius: 12px;
+      border: 1px solid rgba(0, 0, 0, .08);
+      background: #ffffff;
+    }
+
+    /* Mode-based colours for preview + fixed cards */
+    .gp-card-fixed.gp-card--instant {
+      border-left: 3px solid #0b7a75;
+      background: linear-gradient(135deg, rgba(11, 122, 117, 0.05), #ffffff);
+    }
+    .gp-card-fixed.gp-card--timed {
+      border-left: 3px solid #f2c94c;
+      background: linear-gradient(135deg, rgba(242, 201, 76, 0.10), #ffffff);
+    }
+    .gp-card-fixed .gp-meta { font-size: 12px; }
+    .gp-card-fixed button { font-size: 12px; }
+
+    /* Floating "Back to top" button */
+    .qa-back-top-btn {
+      position: fixed;
+      right: 14px;
+      bottom: 18px;
+      width: 46px;
+      height: 46px;
+      border-radius: 999px;
+      border: none;
+      background: #0b7a75;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .18);
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .22s ease, transform .16s ease, box-shadow .16s ease;
+      z-index: 9999;
+    }
+    .qa-back-top-btn--visible { opacity: 1; pointer-events: auto; }
+
+    @media (hover:hover) {
+      .qa-back-top-btn:hover {
+        transform: translateY(-1px) scale(1.03);
+        box-shadow: 0 14px 30px rgba(0, 0, 0, .22);
+      }
+    }
+    @media (max-width:600px) {
+      .qa-back-top-btn { right: 12px; bottom: 14px; }
+    }
+    @media (min-width:900px) {
+      .gp-grid { grid-template-columns: 1fr 1fr; }
+      .gp-sec > summary { cursor: default; pointer-events: none; }
+      .chev { display: inline-block; }
+    }
+  </style>
+
+  <style>
+    /* ===== QAcademy Announcement Rich Content (Course Page) ===== */
+    .qa-ann-body p{ margin:6px 0; line-height:1.55; }
+    .qa-ann-body img{ max-width:100%; height:auto; display:block; border-radius:10px; margin:6px 0; }
+    .qa-ann-body a{ color:#0b7a75; font-weight:600; text-decoration:none; }
+    .qa-ann-body a:hover{ text-decoration:underline; }
+
+    /* Optional "button link" style: <a data-qa="btn" ...> */
+    .qa-ann-body a[data-qa="btn"]{
+      display:inline-block; padding:8px 14px; border-radius:999px;
+      background:#0b7a75; color:#fff !important; font-size:13px; font-weight:700;
+      text-decoration:none; margin:4px 0;
+    }
+  </style>
+
+  <div id="qa-gp" class="gp-wrap">
+
+    <!-- Compact Course Header Card -->
+    <div class="gp-course-header-card">
+      <div class="gp-course-header-top">
+        <div class="gp-course-title">General Paper (All Students)</div>
+
+        <!-- ✅ Right side: status + messages chip, helper under messages -->
+        <div class="qa-msg-wrap">
+          <div class="qa-msg-row">
+            <span id="qa-course-status-chip" class="gp-status-chip gp-status--active">Active</span>
+
+            <a id="qa-msg-chip" class="qa-msg-chip" href="/p/messages.html">
+              <span style="display:inline-flex;align-items:center;gap:6px;">💬 <span>Messages</span></span>
+              <span id="qa-msg-badge" class="qa-msg-badge">0</span>
+            </a>
+          </div>
+          <div id="qa-msg-help" class="qa-msg-help">Ask a question about this course</div>
+        </div>
+      </div>
+
+      <div class="gp-course-meta">
+        <span>Course ID: <span id="qa-course-id-text">GP</span></span>
+      </div>
+
+      <div class="gp-course-user">
+        <div id="qa-course-user-line" class="gp-course-line"></div>
+        <div id="qa-course-access-line" class="gp-course-line"></div>
+      </div>
+    </div>
+
+    <!-- Course-level Announcements -->
+    <div
+      id="qa-course-ann-card"
+      style="
+        margin:0 0 16px;
+        background:#ffffff;
+        border:1px solid rgba(0,0,0,.06);
+        border-radius:14px;
+        padding:12px 14px;
+        box-shadow:0 4px 12px rgba(0,0,0,.04);
+      "
+    >
+      <div
+        style="
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:8px;
+          flex-wrap:wrap;
+          margin-bottom:4px;
+        "
+      >
+        <div>
+          <h2 style="margin:0;font-size:15px;color:#0b7a75;font-weight:800;">
+            Announcements for this course
+          </h2>
+          <p id="qa-course-ann-sub" style="margin:2px 0 0;font-size:13px;color:#5b6a68;">
+            Loading announcements...
+          </p>
+        </div>
+
+        <a
+          id="qa-course-ann-view-all"
+          href="/p/announcement.html"
+          style="
+            font-size:12.5px;
+            color:#0b7a75;
+            text-decoration:none;
+            font-weight:600;
+            white-space:nowrap;
+          "
+        >
+          View all →
+        </a>
+      </div>
+
+      <div id="qa-course-ann-body">
+        <p style="margin:6px 0 0;font-size:13px;color:#5b6a68;">
+          Please wait while we check for updates.
+        </p>
+      </div>
+    </div>
+
+    <!-- MAIN BLOCK 1: Custom Quiz Builder -->
+    <details class="gp-main gp-main--builder" id="gp-main-builder">
+      <summary>
+        <div class="gp-main-label">
+          <span>Custom quizzes (build your own)</span>
+          <span>Create a quiz using only General Paper questions with your chosen topics and difficulty.</span>
+        </div>
+        <span class="chev">▼</span>
+      </summary>
+      <div class="gp-main-body">
+        <div
+          style="
+            margin:4px 0 0 0;
+            background:#ffffff;
+            border:1px solid rgba(0,0,0,.06);
+            border-radius:12px;
+            padding:12px 14px;
+            box-shadow:0 4px 12px rgba(0,0,0,.04);
+          "
+        >
+          <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;">
+            <div style="max-width:70%;">
+              <div style="font-size:14px;font-weight:700;color:#0b7a75;margin-bottom:2px;">
+                Custom quiz for this course
+              </div>
+              <div style="font-size:13px;color:#4a5a56;line-height:1.4;">
+                Build a personalised quiz by choosing your preferred topics, difficulty levels, and number of questions.
+                This helps you focus on weaker areas while strengthening the subjects you already perform well in.
+              </div>
+            </div>
+            <div>
+              <a
+                id="qa-builder-link"
+                href="#"
+                style="
+                  display:inline-block;
+                  padding:8px 12px;
+                  border-radius:10px;
+                  background:#0b7a75;
+                  border:1px solid #0b7a75;
+                  color:#ffffff;
+                  font-weight:600;
+                  font-size:13px;
+                  text-decoration:none;
+                  white-space:nowrap;
+                "
+              >
+                Create Custom Quiz →
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <!-- MAIN BLOCK 2: Fixed Quizzes (New System) -->
+    <details class="gp-main gp-main--fixed" id="gp-main-fixed">
+      <summary>
+        <div class="gp-main-label">
+          <span>Fixed quizzes</span>
+          <span>Official QAcademy NMC Licensure exam-style sets for this course, in instant and timed modes.</span>
+        </div>
+        <span class="chev">▼</span>
+      </summary>
+      <div class="gp-main-body">
+        <section id="qa-fixed-gp" style="margin:4px 0;">
+          <h2 style="margin:0 0 6px;font-size:16px;color:#0b7a75;">Fixed quizzes</h2>
+          <p style="margin:0 0 10px;font-size:13px;color:#4a5a56;">
+            These curated sets give you a consistent, balanced mix of questions across core areas of the course. Use
+            them when you want a structured, exam-style practice session without choosing topics yourself.
+          </p>
+
+          <div
+            id="qa-fixed-msg"
+            style="
+              padding:10px 12px;
+              border-radius:10px;
+              border:1px solid rgba(0,0,0,.06);
+              background:#ffffff;
+              font-size:13px;
+              color:#4a5a56;
+            "
+          >
+            Loading fixed quizzes...
+          </div>
+
+          <div id="qa-fixed-lists" style="margin-top:12px;display:none;">
+            <div id="qa-fixed-preview-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+
+            <div id="qa-fixed-view-all-wrap" style="margin-top:12px;text-align:right;display:none;">
+              <a
+                id="qa-fixed-view-all-btn"
+                href="#"
+                style="
+                  display:inline-block;
+                  padding:8px 12px;
+                  border-radius:999px;
+                  border:1px solid #0b7a75;
+                  background:#0b7a75;
+                  color:#ffffff;
+                  font-weight:600;
+                  font-size:13px;
+                  text-decoration:none;
+                  white-space:nowrap;
+                "
+              >
+                View all fixed quizzes for this course →
+              </a>
+            </div>
+          </div>
+        </section>
+      </div>
+    </details>
+
+    <!-- MAIN BLOCK 3: Legacy Blogger Quizzes -->
+    <details class="gp-main gp-main--legacy" id="gp-main-legacy">
+      <summary>
+        <div class="gp-main-label">
+          <span>Legacy quizzes</span>
+          <span>
+            This section includes extra QAcademy quizzes for this course — including special ‘exam countdown’ sets
+            released closer to the exam date. Use them for extra practice and quick-fire revision.
+          </span>
+        </div>
+        <span class="chev">▼</span>
+      </summary>
+      <div class="gp-main-body">
+        <div id="qa-controls" class="gp-controls">
+          <input
+            id="qa-search"
+            type="search"
+            placeholder="Search quizzes..."
+            aria-label="Search quizzes"
+            style="flex:1;min-width:220px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;font-size:14px;"
+          />
+          <select
+            id="qa-sort"
+            aria-label="Sort"
+            style="padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;font-size:14px;"
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="title">Title A-Z</option>
+          </select>
+        </div>
+
+        <div
+          id="qa-msg"
+          style="display:none;padding:12px 14px;border:1px solid #ffdcdc;background:#fff6f6;border-radius:10px;"
+        ></div>
+
+        <div id="qa-columns" class="gp-grid">
+          <details class="gp-sec" id="gp-sec-timed" open>
+            <summary>
+              <span>Timed quizzes (deferred feedback)</span>
+              <span class="chev">▼</span>
+            </summary>
+            <div class="gp-body">
+              <ul id="qa-list-timed" class="gp-list"></ul>
+              <div id="qa-empty-timed" class="gp-empty">No timed quizzes yet.</div>
+            </div>
+          </details>
+
+          <details class="gp-sec" id="gp-sec-instant" open>
+            <summary>
+              <span>Instant quizzes (immediate feedback)</span>
+              <span class="chev">▼</span>
+            </summary>
+            <div class="gp-body">
+              <ul id="qa-list-instant" class="gp-list"></ul>
+              <div id="qa-empty-instant" class="gp-empty">No instant quizzes yet.</div>
+            </div>
+          </details>
+        </div>
+
+        <div id="qa-more-wrap" style="text-align:center;margin-top:16px;display:none;">
+          <button
+            id="qa-more"
+            type="button"
+            style="padding:10px 14px;border-radius:10px;border:1px solid #0b7a75;color:#0b7a75;background:#fff;font-weight:600;"
+          >
+            Load more
+          </button>
+        </div>
+      </div>
+    </details>
+
+    <!-- Procedures block (bottom) -->
+    <div
+      style="
+        margin:0 0 18px;
+        background:#ffffff;
+        border:1px solid rgba(0,0,0,.06);
+        border-radius:14px;
+        padding:12px 14px;
+        box-shadow:0 4px 12px rgba(0,0,0,.04);
+      "
+    >
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;">
+        <div style="max-width:70%;">
+          <div style="font-size:14px;font-weight:700;color:#0b7a75;margin-bottom:2px;">
+            Practical Skills — Procedures &amp; Component Tasks
+          </div>
+          <div style="font-size:13px;color:#4a5a56;line-height:1.4;">
+            Open the practical skills page to view the official NMC Ghana procedure manuals
+            (component tasks) for your programme and other programmes.
+          </div>
+        </div>
+        <div>
+          <a
+            href="https://nursing2000a.blogspot.com/p/nmc-gh-procedure-manualscomponent-task.html"
+            style="
+              display:inline-block;
+              padding:8px 12px;
+              border-radius:10px;
+              background:#0b7a75;
+              border:1px solid #0b7a75;
+              color:#ffffff;
+              font-weight:600;
+              font-size:13px;
+              text-decoration:none;
+              white-space:nowrap;
+            "
+          >
+            Open Procedures Page →
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Floating Back to Top button -->
+    <button id="qa-back-top-btn" class="qa-back-top-btn" type="button" aria-label="Back to top">↑</button>
+
+  </div>
+</div>
+
+<!-- 3) SHARED HELPERS + INIT MODULES -->
+<script>
+/* ========= Shared tiny helpers ========= */
+(function(){
+  'use strict';
+  window.QA_UTIL = window.QA_UTIL || {};
+
+  function cfgObj(){
+    return (window.QA_CONFIG && typeof window.QA_CONFIG === 'object') ? window.QA_CONFIG : {};
+  }
+  function buildPageUrl(slug){
+    slug = String(slug || '').replace(/^\s+|\s+$/g,'');
+    if (!slug) return '/';
+    return '/p/' + slug + '.html';
+  }
+  function getToken(){
+    try { return localStorage.getItem('qa_token'); } catch(e){ return null; }
+  }
+  function parseDate(val){
+    if (!val && val !== 0) return null;
+    var d = (val instanceof Date) ? val : new Date(val);
+    if (isNaN(d.getTime())) return null;
+    return d;
+  }
+  function fmtShortDate(d){
+    if (!(d instanceof Date) || isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+  }
+
+  window.QA_UTIL.cfgObj = cfgObj;
+  window.QA_UTIL.buildPageUrl = buildPageUrl;
+  window.QA_UTIL.getToken = getToken;
+  window.QA_UTIL.parseDate = parseDate;
+  window.QA_UTIL.fmtShortDate = fmtShortDate;
+})();
+
+/* ========= Course header ========= */
+function qaInitCourseHeader() {
+  var cid = window.QA_COURSE_ID || 'GP';
+  var cfg = (window.QA_CONFIG && typeof window.QA_CONFIG === 'object') ? window.QA_CONFIG : {};
+
+  var elCid = document.getElementById('qa-course-id-text');
+  if (elCid) elCid.textContent = cid;
+
+  var elBuilder = document.getElementById('qa-builder-link');
+  if (elBuilder) {
+    elBuilder.href = (window.QA_UTIL ? window.QA_UTIL.buildPageUrl(cfg.BUILDER_SLUG || 'quiz-builder') : '/p/quiz-builder.html')
+      + '?course_id=' + encodeURIComponent(cid);
+  }
+
+  var elHistoryTop = document.getElementById('qa-top-history');
+  if (elHistoryTop) {
+    elHistoryTop.href = (window.QA_UTIL ? window.QA_UTIL.buildPageUrl(cfg.HISTORY_SLUG || 'learning-history') : '/p/learning-history.html')
+      + '?course_id=' + encodeURIComponent(cid);
+  }
+
+  var u      = window.QA_USER   || {};
+  var access = window.QA_ACCESS || {};
+  var elUser = document.getElementById('qa-course-user-line');
+  var elAcc  = document.getElementById('qa-course-access-line');
+  var elChip = document.getElementById('qa-course-status-chip');
+
+  function buildDisplayName(user) {
+    if (user.name) return user.name;
+    var fn = (user.forename || '').trim();
+    var sn = (user.surname  || '').trim();
+    if (fn || sn) return (fn + ' ' + sn).trim();
+    if (user.email) return user.email;
+    if (user.username) return user.username;
+    return '';
+  }
+
+  var name     = buildDisplayName(u);
+  var tailBits = [];
+  if (u.program_id) tailBits.push(String(u.program_id).toUpperCase());
+  if (u.cohort)     tailBits.push('Cohort ' + u.cohort);
+
+  if (elUser) {
+    if (name) {
+      var tail = tailBits.length ? (' > ' + tailBits.join(' . ')) : '';
+      elUser.textContent = 'You are studying as: ' + name + tail;
+    } else {
+      elUser.textContent = '';
+    }
+  }
+
+  var rawExpiry = (access && access.access_expires_utc) || u.user_expires_utc || '';
+  var status    = 'ACTIVE';
+  var accessText = '';
+
+  if (rawExpiry) {
+    var d = (window.QA_UTIL ? window.QA_UTIL.parseDate(rawExpiry) : new Date(rawExpiry));
+    if (d && !isNaN(d.getTime())) {
+      var now      = new Date();
+      var diffMs   = d.getTime() - now.getTime();
+      var diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) status = 'EXPIRED';
+      else if (diffDays <= 14) status = 'EXPIRING_SOON';
+      else status = 'ACTIVE';
+
+      var fmt = window.QA_UTIL ? window.QA_UTIL.fmtShortDate(d) : d.toDateString();
+      accessText = 'Access valid until: ' + fmt;
+    }
+  }
+
+  if (!accessText) {
+    accessText = 'Access: Active';
+    status     = 'ACTIVE';
+  }
+
+  if (elAcc) elAcc.textContent = accessText;
+
+  if (elChip) {
+    elChip.classList.remove('gp-status--active', 'gp-status--expiring', 'gp-status--expired');
+
+    if (status === 'EXPIRED') {
+      elChip.textContent = 'Expired';
+      elChip.classList.add('gp-status--expired');
+    } else if (status === 'EXPIRING_SOON') {
+      elChip.textContent = 'Expiring soon';
+      elChip.classList.add('gp-status--expiring');
+    } else {
+      elChip.textContent = 'Active';
+      elChip.classList.add('gp-status--active');
+    }
+  }
+
+  /* ✅ Wire Messages chip (course context) */
+  (function(){
+    var elMsgChip  = document.getElementById('qa-msg-chip');
+    var elMsgBadge = document.getElementById('qa-msg-badge');
+
+    if (!elMsgChip) return;
+
+    var messagesSlug = cfg.MESSAGES_SLUG || 'messages';
+    var base = (window.QA_UTIL ? window.QA_UTIL.buildPageUrl(messagesSlug) : '/p/messages.html');
+
+    // pass course context for future routing (and for "course" threads)
+    var sep = base.indexOf('?') === -1 ? '?' : '&';
+    elMsgChip.href = base + sep
+      + 'context_type=course'
+      + '&course_id=' + encodeURIComponent(String(cid || '').trim().toUpperCase());
+
+    // optional unread badge (silent fail if backend/endpoint not available)
+    var MESSAGING_URL = cfg.MESSAGING_URL || '';
+    if (!MESSAGING_URL || !elMsgBadge) return;
+
+    var token = (window.QA_UTIL ? window.QA_UTIL.getToken() : null);
+    if (!token) return;
+
+    elMsgBadge.textContent = '0';
+    elMsgBadge.style.background = '#94a3b8';
+
+    var body = new URLSearchParams();
+    body.set('action', 'message.unread.count');
+    body.set('token', token);
+    body.set('context_type', 'course');
+    body.set('course_id', String(cid || '').trim().toUpperCase());
+
+    fetch(MESSAGING_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if(!data || data.ok !== true) return;
+      var n = Number(data.new_threads || 0);
+      if(!isFinite(n) || n <= 0){
+        elMsgBadge.textContent = '0';
+        elMsgBadge.style.background = '#94a3b8';
+        return;
+      }
+      elMsgBadge.textContent = (n > 99) ? '99+' : String(n);
+      elMsgBadge.style.background = '#0b7a75';
+    })
+    .catch(function(){ /* silent */ });
+  })();
+
+  function openMainForDesktop() {
+    if (window.matchMedia('(min-width: 900px)').matches) {
+      var builder = document.getElementById('gp-main-builder');
+      var fixed   = document.getElementById('gp-main-fixed');
+      if (builder) builder.open = true;
+      if (fixed)   fixed.open   = true;
+    }
+  }
+  openMainForDesktop();
+  window.addEventListener('resize', openMainForDesktop);
+}
+
+/* ========= Back-to-top ========= */
+function qaInitBackToTop() {
+  var btn = document.getElementById('qa-back-top-btn');
+  if (!btn) return;
+
+  var threshold = 220;
+
+  function onScroll() {
+    var y = window.scrollY || window.pageYOffset || 0;
+    if (y > threshold) btn.classList.add('qa-back-top-btn--visible');
+    else btn.classList.remove('qa-back-top-btn--visible');
+  }
+
+  btn.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    catch (e) { window.scrollTo(0, 0); }
+  });
+
+  window.addEventListener('scroll', onScroll);
+  onScroll();
+}
+</script>
+
+<!-- 3A) COURSE ANNOUNCEMENTS -->
+<script>
+function qaInitCourseAnnouncements() {
+  (function () {
+    'use strict';
+
+    var COURSE_ID = String(window.QA_COURSE_ID || 'GP').trim().toUpperCase();
+    var cfg = (window.QA_CONFIG && typeof window.QA_CONFIG === 'object') ? window.QA_CONFIG : {};
+    var API_URL = cfg.ANNOUNCEMENTS_URL || cfg.BUILDER_API_URL || '';
+
+    var elCard    = document.getElementById('qa-course-ann-card');
+    var elSub     = document.getElementById('qa-course-ann-sub');
+    var elBody    = document.getElementById('qa-course-ann-body');
+    var elViewAll = document.getElementById('qa-course-ann-view-all');
+
+    if (!elCard || !elSub || !elBody) return;
+
+    // View-all
+    if (elViewAll) {
+      var annSlug = cfg.ANNOUNCEMENTS_SLUG || 'announcement';
+      elViewAll.href = (window.QA_UTIL ? window.QA_UTIL.buildPageUrl(annSlug) : '/p/announcement.html')
+        + '?course_id=' + encodeURIComponent(COURSE_ID);
+      elViewAll.style.display = 'inline-block';
+    }
+
+    var statesById = {};
+    var lastItems  = [];
+
+    function stateOf(id){
+      var s = statesById && statesById[id];
+      return s && s.state ? String(s.state).toLowerCase() : '';
+    }
+
+    function priorityLevel(a){
+      var n = Number(a && a.priority);
+      return Number.isFinite(n) ? n : 1;
+    }
+    function isUrgent(a){ return priorityLevel(a) >= 3; }
+
+    function postAction(action, payloadObj){
+      var token = window.QA_UTIL ? window.QA_UTIL.getToken() : null;
+      if (!token) return Promise.reject(new Error('Missing session token.'));
+
+      var body = new URLSearchParams();
+      body.set('action', action);
+      body.set('token', token);
+
+      if (payloadObj){
+        Object.keys(payloadObj).forEach(function(k){
+          body.set(k, (payloadObj[k] == null) ? '' : String(payloadObj[k]));
+        });
+      }
+
+      return fetch(API_URL, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+        body: body
+      }).then(function(r){ return r.json(); });
+    }
+
+    function renderEmpty() {
+      elSub.textContent = 'You are up to date.';
+      elBody.innerHTML =
+        '<div style="margin-top:6px;font-size:13px;color:#5b6a68;line-height:1.5;">' +
+          '<p style="margin:0 0 6px;">You have seen all the latest announcements for this course.</p>' +
+          '<p style="margin:0;">You can view all past announcements on the ' +
+            '<a href="' + (elViewAll ? elViewAll.href : '#') + '" style="color:#0b7a75;font-weight:600;text-decoration:none;">Announcements page</a>.' +
+          '</p>' +
+        '</div>';
+    }
+
+    function renderError(msg){
+      elSub.textContent = 'Announcements not available right now.';
+      elBody.innerHTML =
+        '<div style="margin-top:8px;font-size:13px;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:8px 10px;">' +
+          (msg || 'Could not load announcements.') +
+        '</div>';
+    }
+
+    /* ---- Safe rich rendering ---- */
+    function qaIsSafeHref(href){
+      if(!href) return false;
+
+      href = String(href).trim();
+
+      // allow placeholder/JS-free buttons
+      if (href === '#') return true;
+
+      // allow internal Blogger page links
+      if (href.indexOf('/p/') === 0) return true;
+
+      // allow absolute safe links
+      return /^(https?:|mailto:)/i.test(href);
+    }
+
+    function qaIsSafeSrc(src){
+      if(!src) return false;
+      return /^(https?:|data:image\/)/i.test(src);
+    }
+    function qaDecodeHtmlEntities(html){
+      var t = document.createElement('textarea');
+      t.innerHTML = html;
+      return t.value;
+    }
+    function qaSanitizeHtmlToFragment(html){
+      var template = document.createElement('template');
+      template.innerHTML = qaDecodeHtmlEntities(html);
+
+      var allowedTags = {
+        P:1, BR:1, STRONG:1, B:1, EM:1, I:1,
+        UL:1, OL:1, LI:1,
+        A:1, IMG:1,
+        CODE:1, PRE:1, DIV:1
+      };
+
+      var walker = document.createTreeWalker(template.content, NodeFilter.SHOW_ELEMENT, null);
+      var toRemove = [];
+
+      while(walker.nextNode()){
+        var el = walker.currentNode;
+
+        if(!allowedTags[el.tagName]){
+          toRemove.push(el);
+          continue;
+        }
+
+        // strip dangerous attrs
+        [].slice.call(el.attributes).forEach(function(attr){
+          var n = attr.name.toLowerCase();
+          var v = attr.value;
+
+          // never allow event handlers or styles
+          if (n.indexOf('on') === 0 || n === 'style') {
+            el.removeAttribute(attr.name);
+            return;
+          }
+
+          if(el.tagName === 'A'){
+            if(n === 'href' && qaIsSafeHref(v)) return;
+
+            // keep styling + action metadata
+            if(n === 'data-qa') return;                 // button styling hook
+            if(n === 'data-qa-fixed-quiz') return;      // quiz id hook
+            if(n === 'data-qa-quiz-id') return;         // (optional alias)
+            if(n === 'data-qa-mode') return;            // instant|timed
+            if(n === 'data-qa-action') return;          // generic action hook if you use it later
+
+            if(n === 'target' || n === 'rel') return;
+          }
+
+          if(el.tagName === 'IMG'){
+            if(n === 'src' && qaIsSafeSrc(v)) return;
+            if(n === 'alt') return;
+          }
+
+          // only allow class (for our own styling hooks)
+          if(n === 'class') return;
+
+          el.removeAttribute(attr.name);
+        });
+
+        if (el.tagName === 'A') {
+          var href = el.getAttribute('href') || '';
+          href = String(href).trim();
+
+          var isExternal = /^(https?:|mailto:)/i.test(href);
+          if (isExternal) {
+            el.setAttribute('target', '_blank');
+            el.setAttribute('rel', 'noopener noreferrer');
+          } else {
+            // keep internal links and action buttons in same tab
+            el.removeAttribute('target');
+            el.removeAttribute('rel');
+          }
+        }
+
+      }
+
+      toRemove.forEach(function(el){
+        el.replaceWith(document.createTextNode(el.textContent || ''));
+      });
+
+      return template.content;
+    }
+
+    function qaRenderAnnouncementBody(container, a){
+      container.innerHTML = '';
+      var html = (a.body_html || '').trim();
+      var text = (a.body_text || '').trim();
+      var raw  = (a.body || '').trim();
+
+      if(html){
+        container.appendChild(qaSanitizeHtmlToFragment(html));
+        return;
+      }
+
+      var fallback = text || raw;
+      if(fallback){
+        var p = document.createElement('p');
+        p.textContent = fallback;
+        container.appendChild(p);
+      }
+    }
+
+    function renderAnnouncements(items) {
+      lastItems = Array.isArray(items) ? items.slice() : [];
+
+      if (!lastItems.length) { renderEmpty(); return; }
+
+      // hide SEEN + DISMISSED
+      var visibleItems = lastItems.filter(function (a) {
+        var id = String(a.announcement_id || a.id || a.ann_id || '').trim();
+        if (!id) return false;
+        var st = stateOf(id);
+        return st !== 'seen' && st !== 'dismissed';
+      });
+
+      if (!visibleItems.length) { renderEmpty(); return; }
+
+      elSub.textContent = 'Latest updates for this course.';
+      elBody.innerHTML = '';
+      elBody.classList.add('qa-ann-body');
+
+      var ul = document.createElement('ul');
+      ul.style.listStyle = 'none';
+      ul.style.margin = '0';
+      ul.style.padding = '0';
+
+      visibleItems.sort(function(a,b){
+        if (isUrgent(a) !== isUrgent(b)) return isUrgent(a) ? -1 : 1;
+        if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      });
+
+      visibleItems.forEach(function (a) {
+        var id = String(a.announcement_id || a.id || a.ann_id || '').trim();
+        var titleTxt = (a.title || '').trim() || 'Update';
+
+        var start = window.QA_UTIL ? window.QA_UTIL.parseDate(a.start_at || a.created_at) : new Date(a.start_at || a.created_at);
+        var end   = window.QA_UTIL ? window.QA_UTIL.parseDate(a.end_at) : new Date(a.end_at);
+        if (start && isNaN(start.getTime())) start = null;
+        if (end && isNaN(end.getTime())) end = null;
+
+        var when  = start ? (window.QA_UTIL ? window.QA_UTIL.fmtShortDate(start) : start.toDateString()) : '';
+        var urgent = isUrgent(a);
+        var pinned = !!a.pinned;
+
+        var li = document.createElement('li');
+        li.setAttribute('data-ann-id', id);
+        li.style.padding = '10px 12px';
+        li.style.borderRadius = '12px';
+        li.style.margin = '0 0 10px';
+        li.style.border = urgent ? '1px solid #fecaca' : '1px solid rgba(148,163,184,.35)';
+        li.style.background = urgent ? '#fff7f7' : '#ffffff';
+
+        var top = document.createElement('div');
+        top.style.display = 'flex';
+        top.style.justifyContent = 'space-between';
+        top.style.gap = '8px';
+        top.style.flexWrap = 'wrap';
+
+        var left = document.createElement('div');
+        left.style.flex = '1';
+        left.style.minWidth = '220px';
+
+        var title = document.createElement('div');
+        title.style.fontSize = '14px';
+        title.style.fontWeight = '700';
+        title.style.color = '#0f172a';
+        title.style.marginBottom = '3px';
+        title.textContent = titleTxt;
+
+        var body = document.createElement('div');
+        body.style.fontSize = '13px';
+        body.style.color = '#4b5563';
+        body.style.lineHeight = '1.45';
+        body.style.marginBottom = '4px';
+        qaRenderAnnouncementBody(body, a);
+
+        var metaTxt = '';
+        if (when) metaTxt += ('From: ' + when);
+        if (end)  metaTxt += (metaTxt ? ' • ' : '') + 'Until: ' + (window.QA_UTIL ? window.QA_UTIL.fmtShortDate(end) : end.toDateString());
+
+        var meta = document.createElement('div');
+        meta.style.fontSize = '12px';
+        meta.style.color = '#94a3b8';
+        meta.textContent = metaTxt;
+
+        left.appendChild(title);
+        left.appendChild(body);
+        if (metaTxt) left.appendChild(meta);
+
+        var right = document.createElement('div');
+        right.style.display = 'flex';
+        right.style.gap = '6px';
+        right.style.flexWrap = 'wrap';
+        right.style.alignItems = 'flex-start';
+
+        function chip(txt, fg, bg, bd){
+          var s = document.createElement('span');
+          s.textContent = txt;
+          s.style.fontSize = '11px';
+          s.style.fontWeight = '600';
+          s.style.borderRadius = '999px';
+          s.style.padding = '2px 8px';
+          s.style.color = fg;
+          s.style.background = bg;
+          if (bd) s.style.border = '1px solid ' + bd;
+          return s;
+        }
+
+        if (pinned) right.appendChild(chip('Pinned', '#0b7a75', '#e0f2f1'));
+        if (urgent) right.appendChild(chip('Urgent', '#b91c1c', '#fef2f2'));
+        right.appendChild(chip('New', '#3730a3', '#eef2ff', '#c7d2fe'));
+
+        top.appendChild(left);
+        top.appendChild(right);
+
+        var actions = document.createElement('div');
+        actions.style.marginTop = '8px';
+
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('data-action', 'markread');
+        btn.style.padding = '6px 10px';
+        btn.style.borderRadius = '10px';
+        btn.style.border = '1px solid rgba(11,122,117,.35)';
+        btn.style.background = '#e0f2f1';
+        btn.style.color = '#0b7a75';
+        btn.style.fontSize = '12px';
+        btn.style.fontWeight = '650';
+        btn.style.cursor = 'pointer';
+        btn.textContent = 'Mark as read';
+
+        actions.appendChild(btn);
+
+        li.appendChild(top);
+        li.appendChild(actions);
+        ul.appendChild(li);
+      });
+
+      elBody.appendChild(ul);
+    }
+
+    // Mark as read (delegated)
+    elBody.addEventListener('click', function(ev){
+      var btn = ev.target && ev.target.closest ? ev.target.closest('button[data-action="markread"]') : null;
+      if (!btn) return;
+
+      var li = btn.closest('li[data-ann-id]');
+      var id = li ? (li.getAttribute('data-ann-id') || '').trim() : '';
+      if (!id) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Marking...';
+
+      postAction('announcements.markseen', { payload: JSON.stringify({ items: [id] }) })
+        .then(function(resp){
+          if (!resp || resp.ok !== true) throw new Error((resp && resp.error) || 'markSeen_failed');
+          statesById[id] = Object.assign({}, statesById[id] || {}, { state:'seen' });
+          renderAnnouncements(lastItems);
+        })
+        .catch(function(e){
+          btn.disabled = false;
+          btn.textContent = 'Mark as read';
+          renderError('Could not mark as read: ' + e.message);
+        });
+    });
+
+    // Fixed-quiz + button links (delegated)
+    elBody.addEventListener('click', function(ev){
+      var a = ev.target && ev.target.closest ? ev.target.closest('a') : null;
+      if (!a) return;
+
+      // 1) Fixed quiz button inside announcement
+      var quizId = a.getAttribute('data-qa-fixed-quiz') || a.getAttribute('data-qa-quiz-id');
+      if (quizId) {
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        var mode = (a.getAttribute('data-qa-mode') || '').trim().toLowerCase();
+        if (mode !== 'timed') mode = 'instant';
+
+        // UI lock
+        var oldText = a.textContent;
+        a.style.opacity = '0.7';
+        a.style.pointerEvents = 'none';
+        a.textContent = 'Starting…';
+
+        // Spawn attempt (send both flat fields + payload for compatibility)
+        var uid = (window.QA_USER && window.QA_USER.user_id) || (function(){
+          try { return localStorage.getItem('qa_user_id'); } catch(e){ return ''; }
+        })();
+
+        postAction('fixed.spawn', {
+          quiz_id: quizId,
+          mode: mode,
+          user_id: uid,
+          payload: JSON.stringify({
+            quiz_id: quizId,
+            mode: mode,
+            course_id: COURSE_ID,
+            user_id: uid
+          })
+        })
+        .then(function(resp){
+          // ✅ Treat attempt_id as success even if ok=false
+          var attemptId = resp && (resp.attempt_id || resp.attemptId || resp.id) || '';
+          if (!attemptId) {
+            throw new Error((resp && resp.error) || 'fixed_spawn_failed');
+          }
+
+          var instantUrl = (cfg.INSTANT_RUNNER_URL || 'https://nursing2000a.blogspot.com/p/instant-ruuner-for-quiz-builder.html');
+          var timedUrl   = (cfg.TIMED_RUNNER_URL   || 'https://nursing2000a.blogspot.com/p/timed-ruuner-for-quiz-builder.html');
+
+          var runner = (mode === 'timed') ? timedUrl : instantUrl;
+          var sep = runner.indexOf('?') === -1 ? '?' : '&';
+          window.location.href = runner + sep + 'quiz_id=' + encodeURIComponent(attemptId);
+        })
+        .catch(function(e){
+          // ✅ Restore the link (don’t wipe the whole announcements list)
+          a.style.opacity = '';
+          a.style.pointerEvents = '';
+          a.textContent = oldText || 'Start';
+
+          // show a small inline error under this announcement only
+          var host = a.closest('li[data-ann-id]') || elBody;
+          var prev = host.querySelector('.qa-inline-quiz-error');
+          if (prev) prev.remove();
+
+          var div = document.createElement('div');
+          div.className = 'qa-inline-quiz-error';
+          div.style.marginTop = '8px';
+          div.style.fontSize = '12px';
+          div.style.color = '#8f2727';
+          div.style.background = '#fff5f5';
+          div.style.border = '1px solid #ffb3b3';
+          div.style.borderRadius = '10px';
+          div.style.padding = '8px 10px';
+          div.textContent = 'Could not start quiz: ' + (e && e.message ? e.message : 'fixed_spawn_failed');
+
+          host.appendChild(div);
+        });
+
+        return;
+      }
+
+      // 2) General internal button links behave normally (same tab)
+    });
+
+    function loadAnnouncements() {
+      if (!API_URL) { renderEmpty(); return; }
+
+      var token = window.QA_UTIL ? window.QA_UTIL.getToken() : null;
+      if (!token) { renderError('Missing session token. Please sign in again.'); return; }
+
+      elSub.textContent = 'Checking for announcements...';
+      elBody.innerHTML =
+        '<p style="margin:6px 0 0;font-size:13px;color:#5b6a68;">Please wait while we load the latest updates for this course.</p>';
+
+      var params = new URLSearchParams();
+      params.set('action', 'announcements.list');
+      params.set('token', token);
+      params.set('mode', 'archive');
+      params.set('limit', '5');
+      params.set('course_id', COURSE_ID);
+
+      fetch(API_URL + '?' + params.toString())
+        .then(function(res){ return res.json(); })
+        .then(function(data){
+          if (data && data.ok === false) { renderEmpty(); return; }
+          statesById = (data && data.states && typeof data.states === 'object') ? data.states : {};
+          var items = Array.isArray(data && data.items) ? data.items : [];
+          renderAnnouncements(items);
+        })
+        .catch(function(err){
+          console.error('Course announcements error', err);
+          renderEmpty();
+        });
+    }
+
+    loadAnnouncements();
+  })();
+}
+</script>
+
+<!-- 3B) FIXED QUIZZES PREVIEW -->
+<script>
+function qaLoadFixedQuizzes() {
+  (function () {
+    'use strict';
+
+    var COURSE_ID = window.QA_COURSE_ID || 'GP';
+    var cfg = (window.QA_CONFIG && typeof window.QA_CONFIG === 'object') ? window.QA_CONFIG : {};
+    var API_URL = cfg.BUILDER_API_URL || '';
+
+    var elMsg         = document.getElementById('qa-fixed-msg');
+    var elListsWrap   = document.getElementById('qa-fixed-lists');
+    var elPreviewList = document.getElementById('qa-fixed-preview-list');
+    var elViewAllWrap = document.getElementById('qa-fixed-view-all-wrap');
+    var elViewAllBtn  = document.getElementById('qa-fixed-view-all-btn');
+
+    if (!elMsg || !elListsWrap || !elPreviewList) return;
+
+    var MAX_PREVIEW = 4;
+
+    function setMsg(text, isError) {
+      elMsg.style.display = text ? 'block' : 'none';
+      if (!text) return;
+      elMsg.textContent       = text;
+      elMsg.style.borderColor = isError ? '#ffb3b3' : 'rgba(0,0,0,.06)';
+      elMsg.style.background  = isError ? '#fff5f5' : '#ffffff';
+      elMsg.style.color       = isError ? '#8f2727' : '#4a5a56';
+    }
+
+    function parseDate(val) { return window.QA_UTIL ? window.QA_UTIL.parseDate(val) : new Date(val); }
+    function formatShort(d) { return window.QA_UTIL ? window.QA_UTIL.fmtShortDate(d) : (d ? d.toDateString() : ''); }
+
+    function formatDateInfo(q) {
+      var pub    = parseDate(q.publish_at);
+      var unpub  = parseDate(q.unpublish_at);
+      var status = String(q.status || '').toUpperCase();
+
+      if (pub && isNaN(pub.getTime())) pub = null;
+      if (unpub && isNaN(unpub.getTime())) unpub = null;
+
+      if (status === 'UPCOMING') {
+        if (pub) return 'Opens: ' + formatShort(pub);
+        return 'Opens soon';
+      }
+      if (status === 'ACTIVE') {
+        if (pub && unpub) return 'Open: ' + formatShort(pub) + ' – ' + formatShort(unpub);
+        if (pub) return 'Open since: ' + formatShort(pub);
+        if (unpub) return 'Closes: ' + formatShort(unpub);
+        return 'Currently open';
+      }
+      if (status === 'CLOSED') {
+        if (unpub) return 'Closed: ' + formatShort(unpub);
+        return 'Closed';
+      }
+      return '';
+    }
+
+    function createStatusChip(statusUpper) {
+      var chip = document.createElement('span');
+      chip.style.display      = 'inline-block';
+      chip.style.borderRadius = '999px';
+      chip.style.padding      = '1px 7px';
+      chip.style.fontSize     = '10px';
+      chip.style.fontWeight   = '600';
+      chip.style.marginLeft   = '6px';
+
+      if (statusUpper === 'ACTIVE') {
+        chip.textContent      = 'Active now';
+        chip.style.background = '#ecfbf8';
+        chip.style.border     = '1px solid #c7ebe1';
+        chip.style.color      = '#0a6c67';
+      } else if (statusUpper === 'UPCOMING') {
+        chip.textContent      = 'Opens soon';
+        chip.style.background = '#fff9ea';
+        chip.style.border     = '1px solid #f2ddaa';
+        chip.style.color      = '#6a4a0a';
+      } else if (statusUpper === 'CLOSED') {
+        chip.textContent      = 'Closed';
+        chip.style.background = '#f4f5f7';
+        chip.style.border     = '1px solid #d4d7de';
+        chip.style.color      = '#4b5563';
+      } else {
+        chip.textContent      = statusUpper || 'Unknown';
+        chip.style.background = '#eceff1';
+        chip.style.border     = '1px solid #cfd8dc';
+        chip.style.color      = '#374151';
+      }
+      return chip;
+    }
+
+    function applyCardStatusStyle(wrapper, statusUpper) {
+      if (statusUpper === 'ACTIVE') wrapper.style.borderColor = '#0b7a75';
+      else if (statusUpper === 'UPCOMING') wrapper.style.borderColor = '#f3d9a5';
+      else if (statusUpper === 'CLOSED') wrapper.style.borderColor = '#d8dfdd';
+      else wrapper.style.borderColor = 'rgba(0,0,0,.08)';
+    }
+
+    function sortQuizzes(quizzes) {
+      var STATUS_ORDER = { 'ACTIVE': 0, 'UPCOMING': 1, 'CLOSED': 2 };
+
+      return quizzes.slice().sort(function (a, b) {
+        var sa = String(a.status || '').toUpperCase();
+        var sb = String(b.status || '').toUpperCase();
+        var ra = (sa in STATUS_ORDER) ? STATUS_ORDER[sa] : 99;
+        var rb = (sb in STATUS_ORDER) ? STATUS_ORDER[sb] : 99;
+        if (ra !== rb) return ra - rb;
+
+        var da = parseDate(a.publish_at);
+        var db = parseDate(b.publish_at);
+        if (da && db && !isNaN(da.getTime()) && !isNaN(db.getTime())) return db - da;
+        if (da && !isNaN(da.getTime()) && (!db || isNaN(db.getTime()))) return -1;
+        if ((!da || isNaN(da.getTime())) && db && !isNaN(db.getTime())) return 1;
+        return 0;
+      });
+    }
+
+    function buildPreviewCard(q, fixedPageUrl) {
+      var statusUpper = String(q.status || '').toUpperCase();
+      var tUpper      = String(q.type   || '').toUpperCase();
+
+      var card = document.createElement('div');
+      card.className = 'gp-card gp-card-fixed ' + ((tUpper === 'TIMED') ? 'gp-card--timed' : 'gp-card--instant');
+
+      applyCardStatusStyle(card, statusUpper);
+
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', function () {
+        window.location.href = fixedPageUrl;
+      });
+
+      var topRow = document.createElement('div');
+      topRow.style.display        = 'flex';
+      topRow.style.alignItems     = 'center';
+      topRow.style.justifyContent = 'space-between';
+      topRow.style.gap            = '6px';
+
+      var title = document.createElement('div');
+      title.style.fontWeight   = '700';
+      title.style.fontSize     = '14px';
+      title.style.marginBottom = '4px';
+      title.textContent        = q.title || q.quiz_id || 'Untitled quiz';
+
+      topRow.appendChild(title);
+      topRow.appendChild(createStatusChip(statusUpper));
+
+      var metaRow = document.createElement('div');
+      metaRow.className = 'gp-meta';
+
+      var typeLabel = (tUpper === 'TIMED') ? 'Timed exam' : 'Instant review';
+      var parts     = [typeLabel];
+      if (q.n) parts.push(q.n + ' questions');
+      var dateInfo = formatDateInfo(q);
+      if (dateInfo) parts.push(dateInfo);
+
+      metaRow.textContent = parts.join(' - ');
+
+      var hint = document.createElement('div');
+      hint.style.marginTop = '4px';
+      hint.style.fontSize  = '11px';
+      hint.style.color     = '#6b7b79';
+      hint.textContent     = 'Tap to open all fixed quizzes for this course.';
+
+      card.appendChild(topRow);
+      card.appendChild(metaRow);
+      card.appendChild(hint);
+
+      return card;
+    }
+
+    function renderPreview(quizzes) {
+      elPreviewList.innerHTML = '';
+
+      if (!quizzes.length) {
+        elListsWrap.style.display = 'none';
+        setMsg('No fixed quizzes are published for this course yet.', false);
+        if (elViewAllWrap) elViewAllWrap.style.display = 'none';
+        return;
+      }
+
+      var sorted  = sortQuizzes(quizzes);
+      var preview = sorted.slice(0, MAX_PREVIEW);
+
+      var fixedSlug = cfg.FIXED_QUIZZES_SLUG || 'fixed-quizzes';
+      var fixedPageUrl = (window.QA_UTIL ? window.QA_UTIL.buildPageUrl(fixedSlug) : '/p/fixed-quizzes.html')
+        + '?course_id=' + encodeURIComponent(COURSE_ID);
+
+      preview.forEach(function (q) {
+        elPreviewList.appendChild(buildPreviewCard(q, fixedPageUrl));
+      });
+
+      if (elViewAllWrap && elViewAllBtn) {
+        elViewAllWrap.style.display = 'block';
+        elViewAllBtn.href           = fixedPageUrl;
+      }
+
+      elListsWrap.style.display = 'block';
+      setMsg('', false);
+    }
+
+    function loadFixedQuizzes() {
+      if (!API_URL) {
+        setMsg('Fixed quizzes are not available right now (API not configured).', true);
+        return;
+      }
+
+      setMsg('Loading fixed quizzes...', false);
+
+      var token = (window.QA_UTIL ? window.QA_UTIL.getToken() : null);
+      var url = API_URL
+        + '?action=coursequizzes'
+        + '&course_id=' + encodeURIComponent(COURSE_ID)
+        + (token ? ('&token=' + encodeURIComponent(token)) : '');
+
+      fetch(url)
+        .then(function (res) {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then(function (data) {
+          if (!data || !Array.isArray(data.quizzes)) throw new Error('Invalid response shape');
+          renderPreview(data.quizzes);
+        })
+        .catch(function (err) {
+          setMsg('Failed to load fixed quizzes: ' + err.message, true);
+          elListsWrap.style.display = 'none';
+          if (elViewAllWrap) elViewAllWrap.style.display = 'none';
+        });
+    }
+
+    loadFixedQuizzes();
+  })();
+}
+</script>
+
+<!-- 3C) LEGACY BLOGGER QUIZ LIST -->
+<script>
+function qaBootLegacyQuizzes() {
+  (function () {
+    'use strict';
+
+    var COURSE_ID  = window.QA_COURSE_ID || 'GP';
+    var PAGE_SIZE  = 20;
+    var FEED_PATH  = '/feeds/posts/summary/-/' + encodeURIComponent(COURSE_ID);
+    var LBL_TIMED   = 'QUIZ_TIMED_DEFERRED';
+    var LBL_INSTANT = 'QUIZ_UNTIMED_INSTANT';
+
+    var elMsg      = document.getElementById('qa-msg');
+    var elMoreW    = document.getElementById('qa-more-wrap');
+    var elMore     = document.getElementById('qa-more');
+    var elSearch   = document.getElementById('qa-search');
+    var elSort     = document.getElementById('qa-sort');
+    var elTimed    = document.getElementById('qa-list-timed');
+    var elInstant  = document.getElementById('qa-list-instant');
+    var elEmptyT   = document.getElementById('qa-empty-timed');
+    var elEmptyI   = document.getElementById('qa-empty-instant');
+
+    if (!elMsg || !elSearch || !elSort || !elTimed || !elInstant) return;
+
+    function syncOpen() {
+      var wide = window.matchMedia('(min-width: 900px)').matches;
+      document.querySelectorAll('.gp-sec').forEach(function (sec) {
+        if (wide && !sec.open) sec.open = true;
+      });
+    }
+    syncOpen();
+    window.addEventListener('resize', syncOpen);
+
+    document.querySelectorAll('.gp-sec > summary').forEach(function (sum) {
+      sum.addEventListener('click', function () {
+        if (window.matchMedia('(min-width: 900px)').matches) return;
+        var parent = sum.parentElement;
+        setTimeout(function () {
+          if (parent.open) {
+            document.querySelectorAll('.gp-sec').forEach(function (sib) {
+              if (sib !== parent) sib.open = false;
+            });
+          }
+        }, 0);
+      });
+    });
+
+    var startIndex = 1;
+    var allTimed   = [];
+    var allInstant = [];
+    var done       = false;
+
+    function showMsg(t) { elMsg.textContent = t; elMsg.style.display = 'block'; }
+    function hideMsg()  { elMsg.style.display = 'none'; }
+
+    function fmtDate(iso) {
+      var d = new Date(iso);
+      if (isNaN(d)) return '';
+      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function getLabels(entry) {
+      return (entry.category || []).map(function (c) {
+        return String(c.term || '').trim().toUpperCase();
+      });
+    }
+
+    function extractEntry(entry) {
+      var title = (entry.title && entry.title.$t) || 'Untitled';
+      var href  = '#';
+      if (entry.link && entry.link.length) {
+        var alt = entry.link.find(function (l) { return l.rel === 'alternate'; });
+        if (alt && alt.href) href = alt.href;
+      }
+      var published = (entry.published && entry.published.$t) || '';
+      var labels    = getLabels(entry);
+      return { title: title, url: href, published: published, labels: labels };
+    }
+
+    function card(item) {
+      var li = document.createElement('li');
+      li.className = 'gp-card';
+
+      var a  = document.createElement('a');
+      a.href = item.url;
+      a.textContent = item.title;
+
+      var d = fmtDate(item.published);
+      var meta = document.createElement('div');
+      meta.className = 'gp-meta';
+      meta.textContent = d ? ('Published: ' + d) : '';
+
+      li.appendChild(a);
+      if (d) li.appendChild(meta);
+      return li;
+    }
+
+    function sortItems(items, mode) {
+      var arr = items.slice();
+      if (mode === 'title') {
+        arr.sort(function (a, b) { return String(a.title || '').localeCompare(String(b.title || '')); });
+      } else if (mode === 'oldest') {
+        arr.sort(function (a, b) { return new Date(a.published) - new Date(b.published); });
+      } else {
+        arr.sort(function (a, b) { return new Date(b.published) - new Date(a.published); });
+      }
+      return arr;
+    }
+
+    function applyFilters() {
+      var q    = (elSearch.value || '').trim().toLowerCase();
+      var mode = elSort.value;
+
+      var timed   = allTimed.slice();
+      var instant = allInstant.slice();
+
+      if (q) {
+        timed   = timed.filter(function (it) { return it.title.toLowerCase().indexOf(q) > -1; });
+        instant = instant.filter(function (it) { return it.title.toLowerCase().indexOf(q) > -1; });
+      }
+
+      timed   = sortItems(timed, mode);
+      instant = sortItems(instant, mode);
+
+      elTimed.innerHTML = '';
+      if (timed.length) {
+        timed.forEach(function (it) { elTimed.appendChild(card(it)); });
+        elEmptyT.style.display = 'none';
+      } else {
+        elEmptyT.style.display = 'block';
+      }
+
+      elInstant.innerHTML = '';
+      if (instant.length) {
+        instant.forEach(function (it) { elInstant.appendChild(card(it)); });
+        elEmptyI.style.display = 'none';
+      } else {
+        elEmptyI.style.display = 'block';
+      }
+
+      if (!timed.length && !instant.length) showMsg('No quizzes published here yet.');
+      else hideMsg();
+    }
+
+    async function fetchPage() {
+      var url = FEED_PATH + '?alt=json&max-results=' + PAGE_SIZE + '&start-index=' + startIndex;
+      var res = await fetch(url);
+      if (!res.ok) throw new Error('Feed HTTP ' + res.status);
+      var data = await res.json();
+
+      var entries = (data.feed && data.feed.entry) || [];
+      var items   = entries.map(extractEntry);
+
+      items.forEach(function (it) {
+        var hasTimed   = it.labels.indexOf(LBL_TIMED) > -1;
+        var hasInstant = it.labels.indexOf(LBL_INSTANT) > -1;
+
+        // keep your original behaviour: if both, treat as timed
+        if (hasTimed) allTimed.push(it);
+        else if (hasInstant) allInstant.push(it);
+      });
+
+      var total = Number(
+        data.feed &&
+        data.feed.openSearch$totalResults &&
+        data.feed.openSearch$totalResults.$t
+      ) || 0;
+
+      startIndex += entries.length;
+      if ((allTimed.length + allInstant.length) >= total || entries.length === 0) done = true;
+      elMoreW.style.display = done ? 'none' : 'block';
+    }
+
+    async function boot() {
+      try {
+        await fetchPage();
+        elSort.value = 'newest';
+        applyFilters();
+        if (!done) elMoreW.style.display = 'block';
+        if (!allTimed.length && !allInstant.length) showMsg('No quizzes published here yet.');
+        else hideMsg();
+      } catch (err) {
+        showMsg('Failed to load quizzes: ' + err.message);
+      }
+    }
+
+    if (elMore) elMore.addEventListener('click', async function () {
+      elMore.disabled    = true;
+      elMore.textContent = 'Loading...';
+      try {
+        await fetchPage();
+        applyFilters();
+      } catch (err) {
+        showMsg('Failed to load more: ' + err.message);
+      } finally {
+        elMore.disabled    = false;
+        elMore.textContent = 'Load more';
+      }
+    });
+
+    elSearch.addEventListener('input', applyFilters);
+    elSort.addEventListener('change', applyFilters);
+
+    boot();
+  })();
+}
+</script>
+
+<!-- 4) HOOK EVERYTHING TO Guard v3 -->
+<script>
+if (window.qaGuardReady) {
+  window.qaGuardReady.then(function (state) {
+    if (!state || state.blocked || state.ok === false) return;
+
+    var app = document.getElementById('qa-app');
+    if (app) app.style.display = 'block';
+
+    if (typeof qaInitCourseHeader === 'function')        qaInitCourseHeader();
+    if (typeof qaInitCourseAnnouncements === 'function') qaInitCourseAnnouncements();
+    if (typeof qaLoadFixedQuizzes === 'function')        qaLoadFixedQuizzes();
+    if (typeof qaBootLegacyQuizzes === 'function')       qaBootLegacyQuizzes();
+    if (typeof qaInitBackToTop === 'function')           qaInitBackToTop();
+  }).catch(function (err) {
+    console.error('Guard error on GP course page:', err);
+  });
+}
+</script>
