@@ -1,0 +1,2502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Offline Pack Builder (Downloads v1)</title>
+<style>
+  :root{
+    --brand:#0b7a75; --muted:#859998; --ink:#1f2a28; --bg:#f6f8f7; --card:#ffffff; --soft:rgba(0,0,0,.06);
+    --warn:#8f2727; --ok:#0a6c67;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:960px;margin:28px auto;padding:0 16px}
+  .card{background:var(--card);border:1px solid var(--soft);border-radius:16px;box-shadow:0 10px 24px rgba(0,0,0,.06);padding:18px;margin-bottom:14px}
+  h1{margin:0 0 6px;font-size:24px;color:#0b7a75;font-weight:800;letter-spacing:.2px}
+  .sub{color:#576663;font-size:13px;margin-bottom:12px}
+  .hint{font-size:12px;color:#5a6a67}
+  label{font-weight:700}
+  input[type="number"], input[type="text"], select{
+    width:100%;padding:10px 12px;border:1px solid #d8dfdd;border-radius:12px;background:#fff;outline:none
+  }
+  .btn{background:var(--brand);color:#fff;border:none;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
+  .btn.ghost{background:#e6f2f0;color:#0a6c67}
+  .btn.small{padding:6px 10px;font-size:12px}
+  .pill{padding:6px 10px;border-radius:999px;background:#eef3f2;color:#25413d;border:1px solid #dbe4e2;font-size:12px;display:inline-block}
+  .bar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .topics{border:1px solid #d8dfdd;border-radius:12px;background:#fff;padding:10px;max-height:260px;overflow:auto;transition:opacity .2s ease}
+  .topic-item{display:flex;gap:8px;align-items:center;padding:8px;border-radius:10px;cursor:pointer}
+  .topic-item:hover{background:#f4f7f6}
+  .topic-item input{margin:0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .check{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #d8dfdd;border-radius:12px;background:#fff}
+  .disabled{opacity:.45;pointer-events:none;filter:grayscale(.2)}
+  .step-body{padding:14px 16px 4px 16px}
+  .badge{font-size:11px;padding:4px 8px;border-radius:999px;background:#eef3f2;border:1px solid #dbe4e2;color:#25413d}
+  .status{font-family:ui-monospace,Consolas,monospace;background:#0a302e;color:#dbfff8;border-radius:12px;padding:12px;white-space:pre-wrap}
+  .sticky-cta{position:sticky;bottom:0;z-index:3;background:linear-gradient(180deg, rgba(246,248,247,0), var(--bg) 40%);padding-top:8px}
+  .cta-bar{display:flex;gap:10px;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e6ecea;box-shadow:0 10px 22px rgba(0,0,0,.06);border-radius:14px;padding:10px 12px}
+  .cta-left{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .err{color:var(--warn);font-size:12px;margin-top:6px}
+  .builder-restore-strip{
+    margin-top:8px;
+    padding:8px 10px;
+    border-radius:12px;
+    background:#f3f7f6;
+    border:1px dashed #c7d4d1;
+    display:none;
+    align-items:center;
+    justify-content:space-between;
+    gap:6px;
+    flex-wrap:wrap;
+    font-size:12px;
+  }
+  .builder-restore-main{color:#42524f;}
+  .builder-restore-actions{display:flex;gap:6px;flex-wrap:wrap;}
+
+  /* Stepper layout */
+  .progress-card{margin-top:-4px;margin-bottom:16px}
+  .progress-label{font-size:12px;color:#4d5c59;margin-bottom:6px}
+  .progress-bar{width:100%;height:6px;border-radius:999px;background:#dde5e3;overflow:hidden}
+  .progress-inner{height:100%;width:0%;background:var(--brand);border-radius:999px;transition:width .25s ease-out}
+  .steps-container{margin-top:4px}
+  .step{
+    display:none;
+    background:var(--card);
+    border:1px solid #e6ecea;
+    border-radius:16px;
+    box-shadow:0 8px 18px rgba(0,0,0,.04);
+    margin-bottom:14px;
+    padding-bottom:10px;
+  }
+  .step.active{display:block}
+  .step-header{
+    padding:14px 16px 0 16px;
+    border-bottom:1px solid #eef3f2;
+    margin-bottom:4px;
+  }
+  .step-title{
+    margin:0;
+    font-size:16px;
+    font-weight:800;
+    color:#16302c;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .step-sub{
+    margin:4px 0 10px 0;
+    font-size:13px;
+    color:#5a6a67;
+  }
+  .step-nav-global{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+    margin:4px 0 10px 0;
+  }
+  .step-nav-global .btn{min-width:90px;text-align:center}
+  .step-nav-global .btn[disabled]{opacity:.5;cursor:not-allowed}
+
+  /* Review summary */
+  .review-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-top:6px;
+  }
+  .review-item{
+    background:#f7faf9;
+    border:1px solid #e1e9e6;
+    border-radius:12px;
+    padding:8px 10px;
+    font-size:13px;
+  }
+  .review-head-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:2px;
+  }
+  .review-label{font-weight:700;font-size:12px;color:#4a5a56}
+  .review-edit{
+    border:none;
+    background:transparent;
+    color:var(--brand);
+    font-size:11px;
+    font-weight:600;
+    cursor:pointer;
+    padding:0 0 0 8px;
+  }
+  .review-edit:hover{text-decoration:underline}
+  .review-value{font-size:13px;color:#1f2a28}
+
+  /* Concept suggestions */
+  .concept-wrapper{margin-top:10px;}
+  .concept-suggest{
+    margin-top:6px;
+    background:#ffffff;
+    border:1px solid #d8dfdd;
+    border-radius:10px;
+    max-height:180px;
+    overflow:auto;
+    font-size:13px;
+  }
+  .concept-item{
+    padding:6px 10px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .concept-item:hover{background:#f4f7f6;}
+  .concept-empty{padding:6px 10px;color:#7b8986;}
+
+  @media (max-width:820px){.grid3{grid-template-columns:1fr 1fr}}
+  @media (max-width:560px){
+    .grid2,.grid3{grid-template-columns:1fr}
+    .step-body{padding:12px 12px 4px 12px}
+    .step-header{padding:12px 12px 0 12px}
+    .review-grid{grid-template-columns:1fr}
+    .bar{display:none;}
+  }
+
+  /* Collapsible panels for Step 2 */
+  .collapsible-panel{
+    max-height:1000px;
+    overflow:hidden;
+    transition:max-height .22s ease, margin .22s ease, opacity .18s ease;
+  }
+  .collapsible-panel.collapsed{
+    max-height:0;
+    margin-top:0;
+    margin-bottom:0;
+    opacity:0;
+    pointer-events:none;
+  }
+
+  /* ===== Builder page loader (light overlay, not auth) ===== */
+  .qa-page-loader{
+    position:fixed;
+    inset:0;
+    z-index:100001; /* above .qa-modal (100000) */
+    background:rgba(246,248,247,0.75);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    pointer-events:auto;
+  }
+  .qa-page-loader-inner{
+    background:#ffffff;
+    border-radius:16px;
+    padding:14px 18px;
+    box-shadow:0 16px 34px rgba(15,23,42,0.18);
+    max-width:340px;
+    width:86%;
+    text-align:center;
+  }
+  .qa-page-loader-title{
+    font-size:15px;
+    font-weight:700;
+    color:#0b7a75;
+    margin-bottom:4px;
+  }
+  .qa-page-loader-body{
+    font-size:13px;
+    color:#4b5c58;
+  }
+  .qa-spinner{
+    width:26px;
+    height:26px;
+    border-radius:999px;
+    border:3px solid rgba(11,122,117,0.18);
+    border-top-color:#0b7a75;
+    margin:0 auto 10px auto;
+    animation:qa-spin .7s linear infinite;
+  }
+  @keyframes qa-spin{to{ transform:rotate(360deg); }}
+
+  /* ===== Downloads confirmation modal ===== */
+  .qa-modal{
+    position:fixed; inset:0; z-index:100000;
+    display:none; align-items:center; justify-content:center;
+    background:rgba(15,23,42,0.62);
+    padding:16px;
+  }
+  .qa-modal-card{
+    width:100%; max-width:520px;
+    background:#ffffff;
+    border-radius:18px;
+    box-shadow:0 22px 55px rgba(15,23,42,0.35);
+    border:1px solid rgba(0,0,0,.06);
+    overflow:hidden;
+  }
+  .qa-modal-head{
+    padding:14px 16px;
+    border-bottom:1px solid #eef3f2;
+    display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+  }
+  .qa-modal-title{
+    margin:0; font-size:15px; font-weight:900; color:#16302c;
+  }
+  .qa-modal-sub{
+    margin:4px 0 0 0; font-size:12px; color:#5a6a67; line-height:1.45;
+  }
+  .qa-modal-body{padding:14px 16px}
+  .qa-rule{
+    background:#f7faf9;
+    border:1px solid #e1e9e6;
+    border-radius:12px;
+    padding:10px 12px;
+    font-size:12px;
+    color:#3c4b47;
+    line-height:1.55;
+    margin-bottom:10px;
+  }
+  .qa-kv{
+    display:flex; flex-wrap:wrap; gap:8px;
+    margin:10px 0;
+    font-size:12px;
+  }
+  .qa-kv .pill{font-size:12px}
+  .qa-modal-actions{
+    padding:12px 16px 16px 16px;
+    border-top:1px solid #eef3f2;
+    display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;
+  }
+  .qa-inline-err{color:var(--warn);font-size:12px;margin-top:8px;display:none}
+</style>
+</head>
+<body>
+
+<script>
+  window.QA_PAGE_KIND = 'builder';
+</script>
+
+<!-- =================== QAcademy — Guard v3 (Auth v3 + Products + Subscriptions) =================== -->
+<script>
+(function(){
+  'use strict';
+
+  var DEFAULT_AUTH_URL       = 'https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec';
+  var DEFAULT_LOGIN_SLUG     = 'login_23';
+  var DEFAULT_DASHBOARD_SLUG = 'dashboard_23';
+
+  var cfg = (window.QA_CONFIG && typeof window.QA_CONFIG === 'object') ? window.QA_CONFIG : {};
+
+  var AUTH_URL       = cfg.AUTH_URL       || DEFAULT_AUTH_URL;
+  var LOGIN_SLUG     = cfg.LOGIN_SLUG     || DEFAULT_LOGIN_SLUG;
+  var DASHBOARD_SLUG = cfg.DASHBOARD_SLUG || DEFAULT_DASHBOARD_SLUG;
+
+  var PAGE_KIND     = window.QA_PAGE_KIND || 'course';
+  var COURSE_ID     = window.QA_COURSE_ID || null;
+  var REQUIRE_ADMIN = (typeof window.QA_REQUIRE_ADMIN === 'boolean')
+    ? window.QA_REQUIRE_ADMIN
+    : (String(PAGE_KIND).toLowerCase() === 'admin');
+
+  window.QA_GUARD_STATE      = 'pending';
+  window.QA_GUARD_BLOCK_TYPE = null;
+
+  var guardResolve, guardReject;
+  window.qaGuardReady = new Promise(function(resolve, reject){
+    guardResolve = resolve;
+    guardReject  = reject;
+  });
+
+  function persistGuardState(state, blockType){
+    window.QA_GUARD_STATE      = state;
+    window.QA_GUARD_BLOCK_TYPE = blockType || null;
+  }
+
+  function buildPageUrl(slug){
+    slug = String(slug || '').replace(/^\s+|\s+$/g, '');
+    if(!slug) return '/';
+    return '/p/' + slug + '.html';
+  }
+
+  function go(url){ window.location.replace(url); }
+
+  function qaGoToLogin(reason){
+    var url = buildPageUrl(LOGIN_SLUG);
+    if(reason){
+      var sep = url.indexOf('?') === -1 ? '?' : '&';
+      url += sep + 'reason=' + encodeURIComponent(reason);
+    }
+    go(url);
+  }
+
+  function qaGoToDashboard(){ go(buildPageUrl(DASHBOARD_SLUG)); }
+
+  function qaLogout(){
+    try{
+      localStorage.removeItem('qa_token');
+      localStorage.removeItem('qa_user_id');
+    }catch(e){}
+    qaGoToLogin('logout');
+  }
+
+  window.qaGoToLogin     = qaGoToLogin;
+  window.qaGoToDashboard = qaGoToDashboard;
+  window.qaLogout        = qaLogout;
+
+  var overlayId = 'qa-guard-overlay';
+
+  function ensureOverlay(){
+    var el = document.getElementById(overlayId);
+    if(el) return el;
+
+    el = document.createElement('div');
+    el.id = overlayId;
+    el.style.position = 'fixed';
+    el.style.inset = '0';
+    el.style.zIndex = '99999';
+    el.style.background = 'rgba(15,23,42,0.86)';
+    el.style.display = 'flex';
+    el.style.alignItems = 'center';
+    el.style.justifyContent = 'center';
+    el.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    el.style.padding = '16px';
+    el.style.boxSizing = 'border-box';
+
+    el.innerHTML =
+      '<div id="qa-guard-overlay-inner" style="max-width:420px;width:100%;background:#ffffff;border-radius:16px;padding:18px 20px;box-shadow:0 18px 45px rgba(15,23,42,0.45);text-align:center;">' +
+        '<div id="qa-guard-overlay-title" style="font-size:18px;font-weight:600;margin-bottom:6px;color:#0b7a75;">Checking your access...</div>' +
+        '<div id="qa-guard-overlay-body" style="font-size:14px;color:#475569;margin-bottom:14px;">Please wait a moment.</div>' +
+        '<div id="qa-guard-overlay-actions" style="font-size:13px;color:#94a3b8;"></div>' +
+      '</div>';
+
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function showOverlay(title, body, actionsHtml){
+    var el = ensureOverlay();
+    var t = el.querySelector('#qa-guard-overlay-title');
+    var b = el.querySelector('#qa-guard-overlay-body');
+    var a = el.querySelector('#qa-guard-overlay-actions');
+
+    if(t && typeof title === 'string') t.textContent = title;
+    if(b && typeof body === 'string')  b.textContent = body;
+    if(a) a.innerHTML = actionsHtml || '';
+
+    el.style.display = 'flex';
+  }
+
+  function hideOverlay(){
+    var el = document.getElementById(overlayId);
+    if(el) el.style.display = 'none';
+  }
+
+  function buildBlockedActions(type){
+    var btnStyle = 'display:inline-flex;align-items:center;justify-content:center;padding:8px 14px;border-radius:999px;border:none;background:#0b7a75;color:#ffffff;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;';
+    if(type === 'no_course_access' || type === 'admin_required' || type === 'account_issue'){
+      return '<button type="button" onclick="qaGoToDashboard()" style="' + btnStyle + '">Go to Dashboard</button>';
+    }
+    if(type === 'session_expired'){
+      return '<button type="button" onclick="qaGoToLogin(\'session_expired\')" style="' + btnStyle + '">Go to Login</button>';
+    }
+    return '';
+  }
+
+  function handleBlocked(type, title, body){
+    persistGuardState('blocked', type);
+    var actionsHtml = buildBlockedActions(type);
+    showOverlay(title, body, actionsHtml);
+    guardResolve({ ok:false, blocked:true, type:type });
+  }
+
+  function runGuard(){
+    showOverlay('Checking your access...', 'Please wait while we verify your session.', '');
+
+    var token = null;
+    try{ token = localStorage.getItem('qa_token'); }catch(e){ token = null; }
+
+    if(!token){
+      handleBlocked('session_expired', 'Sign in required', 'Your session has ended. Please sign in again.');
+      qaGoToLogin('no_token');
+      return;
+    }
+
+    if(!AUTH_URL){
+      hideOverlay();
+      persistGuardState('error', 'missing_auth_url');
+      guardReject(new Error('Guard misconfigured: AUTH_URL is missing.'));
+      return;
+    }
+
+    fetch(AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ action: 'verify', token: token })
+    })
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+      if(!data || data.ok !== true){
+        var errCode = (data && data.error) || 'unknown_error';
+
+        if(errCode === 'missing_token' || errCode === 'not_found' || errCode === 'expired'){
+          try{
+            localStorage.remove('qa_token');
+            localStorage.remove('qa_user_id');
+          }catch(e){}
+          handleBlocked('session_expired', 'Sign in required', 'Your session has ended. Please sign in again.');
+          qaGoToLogin('session_expired');
+          return;
+        }
+
+        if(errCode === 'user_missing' || errCode === 'user_inactive' || errCode === 'user_expired'){
+          handleBlocked('account_issue', 'Account issue', 'There is a problem with your account. Please contact QAcademy support.');
+          return;
+        }
+
+        persistGuardState('error', errCode);
+        hideOverlay();
+        guardReject(new Error('Guard verify failed: ' + errCode));
+        return;
+      }
+
+      var u      = data.user   || {};
+      var flags  = data.flags  || {};
+      var access = (data.access && typeof data.access === 'object') ? data.access : {};
+      var courseIds = Array.isArray(access.courses) ? access.courses.slice() : [];
+      var upperIds  = courseIds.map(function(c){ return String(c || '').trim().toUpperCase(); }).filter(Boolean);
+
+      window.QA_USER = {
+        id:        u.user_id || '',
+        user_id:   u.user_id || '',
+        email:     u.email || '',
+        name:      u.name || '',
+        forename:  u.forename || '',
+        surname:   u.surname || '',
+        program_id: u.program_id || '',
+        role:      u.role || '',
+        is_admin:  !!(flags && flags.is_admin),
+        user_expires_utc: u.expires_utc || ''
+      };
+
+      window.QA_ACCESS = {
+        courseIds: upperIds,
+        access_expires_utc: access.expires_utc || '',
+        hasCourse: function(courseId){
+          var cid = String(courseId || '').trim().toUpperCase();
+          if(!cid) return false;
+          return this.courseIds.indexOf(cid) !== -1;
+        }
+      };
+
+      try{
+        if(window.QA_USER.user_id){
+          localStorage.setItem('qa_user_id', window.QA_USER.user_id);
+        }
+      }catch(e){}
+
+      persistGuardState('ready', null);
+      hideOverlay();
+      guardResolve({ ok:true, blocked:false, kind:String(window.QA_PAGE_KIND||'').toLowerCase() });
+    })
+    .catch(function(err){
+      persistGuardState('error', 'network');
+      console.error('Guard network/error', err);
+      showOverlay('Network problem','We could not verify your access due to a network error. Please check your connection and reload this page.','');
+      guardReject(err);
+    });
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', runGuard);
+  } else {
+    runGuard();
+  }
+})();
+</script>
+
+<div class="wrap">
+  <div class="card">
+    <h1>Offline Pack Builder</h1>
+    <div class="sub">Follow the steps: Course → Topics/Concept → Difficulty → Number → Review.</div>
+    <div class="bar" style="margin-top:6px;">
+      <div class="pill" id="maxPill">-</div>
+      <div class="pill" id="diffPill">Difficulties: -</div>
+      <div class="pill" id="selectedPill">Selected: 0 / 0 topics</div>
+    </div>
+  </div>
+
+  <div class="card progress-card">
+    <div class="progress-label" id="stepLabel">Step 1 of 5 - Choose Course</div>
+    <div class="progress-bar"><div class="progress-inner" id="progressInner"></div></div>
+  </div>
+
+  <div class="steps-container">
+
+    <!-- STEP 1: Course -->
+    <div class="step active" id="stepCourse" data-step="course">
+      <div class="step-header">
+        <h2 class="step-title">Step 1 - Choose Course <span class="badge" id="courseBadge">-</span></h2>
+        <p class="step-sub">Pick a course to load topics and difficulty coverage.</p>
+      </div>
+      <div class="step-body">
+        <div class="grid2">
+          <div>
+            <label for="course">Course</label>
+            <select id="course"></select>
+            <div class="hint" style="margin-top:6px">You can change this later before generating your pack.</div>
+
+            <div class="builder-restore-strip" id="restoreStrip">
+              <div class="builder-restore-main" id="restoreLabel">Previous setup found for this course.</div>
+              <div class="builder-restore-actions">
+                <button class="btn small ghost" type="button" id="btnRestorePrefs">Use previous setup</button>
+                <button class="btn small" type="button" id="btnResetPrefs">Start fresh</button>
+              </div>
+            </div>
+
+            <div class="err" id="courseErr" style="display:none;"></div>
+          </div>
+
+          <div>
+            <label>Overview</label>
+            <div class="check" style="display:block">
+              <span class="hint">Max questions and difficulty coverage update after you choose a course.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: Topics vs Concept -->
+    <div class="step" id="stepTopics" data-step="topics">
+      <div class="step-header">
+        <h2 class="step-title">Step 2 - Choose by Topics or Concept <span class="badge" id="topicsBadge">-</span></h2>
+        <p class="step-sub">First choose your method, then pick either topic groups or a concept keyword.</p>
+      </div>
+      <div class="step-body">
+
+        <div class="grid2" style="margin-bottom:8px;">
+          <label class="check">
+            <input type="radio" name="selMode" id="modeByTopics" value="topics" checked>
+            <span>Choose by topics (main topic groups)</span>
+          </label>
+          <label class="check">
+            <input type="radio" name="selMode" id="modeByConcept" value="concept">
+            <span>Choose by concept keyword (e.g. gout, DKA)</span>
+          </label>
+        </div>
+
+        <div id="topicSection" class="collapsible-panel">
+          <label for="topicFilter">Filter topics</label>
+          <div class="toolbar">
+            <input id="topicFilter" type="text" placeholder="Type to filter..." style="flex:1;min-width:160px">
+            <button class="btn small ghost" id="selectAll" type="button">Select all shown</button>
+            <button class="btn small ghost" id="clearAll" type="button">Clear shown</button>
+            <button class="btn small ghost" id="sortToggle" type="button" title="Toggle sort by Name/Count">Sort: Name</button>
+          </div>
+
+          <label class="check" style="margin:8px 0 6px 0;">
+            <input type="checkbox" id="useAll">
+            <span>Use all topics for this course</span>
+          </label>
+
+          <div id="topicsBox" class="topics"><div class="hint">Loading topics...</div></div>
+          <div class="hint" style="margin-top:8px">Tip: full row is clickable. Hover a topic to see question count.</div>
+        </div>
+
+        <div id="conceptSection" class="concept-wrapper collapsible-panel collapsed" style="margin-top:14px;">
+          <label for="conceptInput">Concept keyword</label>
+          <input id="conceptInput" type="text" placeholder="Type a concept, e.g. gout, shock, DKA..." autocomplete="off" />
+          <div class="hint" style="margin-top:4px">We will pull all questions where this concept appears in the topic, stem, or rationale.</div>
+
+          <div class="toolbar" style="margin-top:6px;margin-bottom:4px;">
+            <button class="btn small ghost" id="conceptSelectShown" type="button">Select all shown</button>
+            <button class="btn small ghost" id="conceptClearShown" type="button">Clear shown</button>
+            <button class="btn small ghost" id="resetConceptSearch" type="button">Reset search</button>
+            <button class="btn small ghost" id="clearAllConcepts" type="button">Clear all concepts</button>
+          </div>
+
+          <div id="conceptBucketLine" class="hint" style="margin-top:2px">
+            No concepts selected yet. Type a keyword or pick from suggestions.
+          </div>
+
+          <div id="conceptSuggestBox" class="concept-suggest" style="display:none;"></div>
+        </div>
+
+        <div class="err" id="topicsErr" style="display:none;"></div>
+      </div>
+    </div>
+
+    <!-- STEP 3: Difficulty -->
+    <div class="step" id="stepDiff" data-step="difficulty">
+      <div class="step-header">
+        <h2 class="step-title">Step 3 - Choose Difficulty <span class="badge" id="diffBadge">-</span></h2>
+        <p class="step-sub">Pick one or more difficulty levels. Leave all empty to use all.</p>
+      </div>
+      <div class="step-body">
+        <div class="grid3">
+          <label class="check"><input type="checkbox" id="easy"> <span>Easy</span></label>
+          <label class="check"><input type="checkbox" id="moderate"> <span>Moderate</span></label>
+          <label class="check"><input type="checkbox" id="hard"> <span>Hard</span></label>
+        </div>
+        <div class="hint" style="margin-top:8px" id="diffHint">-</div>
+        <div class="err" id="diffErr" style="display:none;"></div>
+      </div>
+    </div>
+
+    <!-- STEP 4: Number -->
+    <div class="step" id="stepNumber" data-step="number">
+      <div class="step-header">
+        <h2 class="step-title">Step 4 - Number of Questions <span class="badge" id="numBadge">-</span></h2>
+<p class="step-sub" id="numSub">Choose how many questions you want in this pack (max -).</p>
+      </div>
+      <div class="step-body">
+  <div class="grid2">
+    <div>
+      <label for="n">Number of questions</label>
+      <input id="n" type="number" min="1" value="20" />
+      <div id="nHint" class="hint" style="margin-top:6px">Max available: -</div>
+      <div id="availHint" class="hint" style="margin-top:4px">Selected pool → -</div>
+    </div>
+
+    <div>
+      <label>Tip</label>
+      <div class="check" style="display:block">
+        <span class="hint">For best value, consider using the max allowed questions for your course.</span>
+      </div>
+    </div>
+  </div> <!-- ✅ CLOSE grid2 -->
+
+  <div class="err" id="numErr" style="display:none;"></div>
+</div> <!-- ✅ CLOSE step-body -->
+
+    </div>
+
+    <!-- STEP 5: Review -->
+    <div class="step" id="stepReview" data-step="review">
+      <div class="step-header">
+        <h2 class="step-title">Step 5 - Review &amp; Download</h2>
+        <p class="step-sub">Check your setup, then generate your offline revision pack.</p>
+      </div>
+      <div class="step-body">
+        <div class="review-grid">
+          <div class="review-item">
+            <div class="review-head-row">
+              <span class="review-label">Course</span>
+              <button type="button" class="review-edit" data-edit-step="course">Edit</button>
+            </div>
+            <div class="review-value" id="revCourse">-</div>
+          </div>
+          <div class="review-item">
+            <div class="review-head-row">
+              <span class="review-label">Selection mode</span>
+              <button type="button" class="review-edit" data-edit-step="topics">Edit</button>
+            </div>
+            <div class="review-value" id="revSelMode">-</div>
+          </div>
+          <div class="review-item">
+            <div class="review-head-row">
+              <span class="review-label">Topics (if used)</span>
+              <button type="button" class="review-edit" data-edit-step="topics">Edit</button>
+            </div>
+            <div class="review-value" id="revTopics">-</div>
+          </div>
+          <div class="review-item">
+            <div class="review-head-row">
+              <span class="review-label">Concept (if used)</span>
+              <button type="button" class="review-edit" data-edit-step="topics">Edit</button>
+            </div>
+            <div class="review-value" id="revConcept">None</div>
+          </div>
+          <div class="review-item">
+            <div class="review-head-row">
+              <span class="review-label">Difficulty</span>
+              <button type="button" class="review-edit" data-edit-step="difficulty">Edit</button>
+            </div>
+            <div class="review-value" id="revDiffs">-</div>
+          </div>
+          <div class="review-item">
+            <div class="review-head-row">
+              <span class="review-label">Number of Questions</span>
+              <button type="button" class="review-edit" data-edit-step="number">Edit</button>
+            </div>
+            <div class="review-value" id="revN">-</div>
+          </div>
+        </div>
+        <div class="hint" style="margin-top:10px">When you are ready, click <strong>Download Offline Pack</strong>.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="step-nav-global">
+    <button class="btn ghost" id="btnBack" type="button" disabled>Back</button>
+    <button class="btn" id="btnNext" type="button">Next</button>
+  </div>
+
+  <div class="sticky-cta">
+    <div class="cta-bar">
+      <div class="cta-left" id="ctaSummary">
+        <span class="pill" id="sumCourse">Course: -</span>
+        <span class="pill" id="sumTopics">Selection: -</span>
+        <span class="pill" id="sumDiffs">Difficulty: -</span>
+        <span class="pill" id="sumN">N: 20</span>
+      </div>
+      <div>
+        <button class="btn" id="downloadBtn" type="button" disabled style="display:none;">Download Offline Pack</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card"><pre id="out" class="status">Ready. Set up your pack using the steps above.</pre></div>
+</div>
+
+<!-- Light loader overlay (separate from auth guard) -->
+<div id="qa-page-loader" class="qa-page-loader">
+  <div class="qa-page-loader-inner">
+    <div class="qa-spinner"></div>
+    <div class="qa-page-loader-title" id="qa-page-loader-title">Loading...</div>
+    <div class="qa-page-loader-body" id="qa-page-loader-body">Please wait a moment.</div>
+  </div>
+</div>
+
+<!-- Downloads confirmation modal -->
+<div class="qa-modal" id="dlModal" aria-hidden="true">
+  <div class="qa-modal-card" role="dialog" aria-modal="true">
+    <div class="qa-modal-head">
+      <div>
+        <h3 class="qa-modal-title">Confirm offline pack download</h3>
+        <p class="qa-modal-sub">This will create a stored offline revision pack for this course. Creation uses your allowance and cannot be undone.</p>
+      </div>
+      <button class="btn small ghost" type="button" id="dlCloseBtn">Close</button>
+    </div>
+
+    <div class="qa-modal-body">
+      <div class="qa-rule">
+        <strong>Rules</strong><br>
+        • For offline revision only (do not share).<br>
+        • Pack will include questions + options + the correct option marked (no explanations).<br>
+        • Your pack will be watermarked with your details.<br>
+        • Creating a pack consumes allowance (deleting does not restore it).
+      </div>
+
+      <div class="qa-kv">
+        <span class="pill" id="dlCoursePill">Course: -</span>
+        <span class="pill" id="dlCountPill">Questions: -</span>
+        <span class="pill" id="dlAllowancePill">Allowance: -</span>
+      </div>
+
+      <label for="packName">Pack name (required)</label>
+      <input id="packName" type="text" placeholder="e.g. GP Exam Revision Pack 1" maxlength="60" />
+      <div class="hint" style="margin-top:6px">Tip: include course + purpose (Exam / Mixed / Topic).</div>
+
+      <div class="qa-inline-err" id="dlErr"></div>
+    </div>
+
+    <div class="qa-modal-actions">
+      <button class="btn ghost" type="button" id="dlCancelBtn">Cancel</button>
+      <button class="btn" type="button" id="dlCreateBtn">Create &amp; Download</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ====== CONFIG ======
+  const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxT6cV424Ppes5DdZxtqdqPDCS9d-TKWDO4RV5ZTtlMOxz3ygkoOdTrrXTOCxJ32WDF/exec";
+
+  // Allowance is enforced by Auth (PortalAuthv2) because it depends on products/subscriptions (e.g., TRIAL via products.kind)
+const AUTH_URL = (window.QA_CONFIG && window.QA_CONFIG.AUTH_URL)
+  ? window.QA_CONFIG.AUTH_URL
+  : "https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec";
+
+ 
+  const MY_DOWNLOADS_URL = "/p/my-downloads.html";
+  const OFFLINE_RENDERER_URL = "/p/offline-pack-renderer.html";
+
+
+  const CACHE_TTL_MS  = 2 * 60 * 60 * 1000;
+  const CHOICE_TTL_MS = 12 * 60 * 60 * 1000;
+
+  const COURSE_LABELS = {
+    "GP":"General Paper",
+    "RN_MED":"Medicine & Medical Nursing(RN)",
+    "RN_SURG":"Surgery & Surgical Nursing(RN)",
+    "RM_PED_OBS_HRN":"Paediatric, Obstetric Anatomy, & High-Risk Neonates(RM)",
+    "RM_MID":"Midwifery(RM)",
+    "RPHN_PPHN":"Principles of Public Health Nursing(RPHN)",
+    "RPHN_DISEASE_CTRL":"Principles of Disease Management & Control(RPHN)",
+    "RMHN_PSYCH_NURS":"Principles & Practice of Psychiatric Nursing(RMHN)",
+    "RMHN_PSYCH_PPHARM":"Psychiatry, Psychopathology & Psychopharmacology(RMHN)",
+    "NAC_BASIC_CLIN":"Basic Clinical Nursing(NACNAP)",
+    "NAC_BASIC_PREV":"Basic Preventive Nursing(NACNAP)"
+  };
+
+  const STEPS = ["course","topics","difficulty","number","review"];
+  const STEP_LABELS = {
+    course: "Step 1 of 5 - Choose Course",
+    topics: "Step 2 of 5 - Choose by Topics or Concept",
+    difficulty: "Step 3 of 5 - Choose Difficulty",
+    number: "Step 4 of 5 - Number of Questions",
+    review: "Step 5 of 5 - Review & Download"
+  };
+  let currentStepIndex = 0;
+
+  const LS = {
+    META_PREFIX: "qa_builder:meta:",
+    PREFS_PREFIX: "qa_builder:prefs:",
+    USEALL_PREFIX: "qa_builder:useall:",
+    LAST_COURSE: "qa_builder:lastCourse"
+  };
+
+  function byId(id){ return document.getElementById(id); }
+
+  // ===== Local page loader =====
+  function showPageLoader(title, body){
+    try{
+      var wrap  = byId('qa-page-loader');
+      var tNode = byId('qa-page-loader-title');
+      var bNode = byId('qa-page-loader-body');
+      if(!wrap) return;
+      if(tNode && typeof title === 'string') tNode.textContent = title;
+      if(bNode && typeof body === 'string')  bNode.textContent = body;
+      wrap.style.display = 'flex';
+    }catch(_){}
+  }
+  function hidePageLoader(){
+    try{ var wrap = byId('qa-page-loader'); if(wrap) wrap.style.display = 'none'; }catch(_){}
+  }
+
+  // ====== Elements ======
+  const el = {
+    out: byId('out'),
+
+    maxPill: byId('maxPill'),
+    diffPill: byId('diffPill'),
+    selectedPill: byId('selectedPill'),
+    numSub: byId('numSub'),
+
+
+    stepLabel: byId('stepLabel'),
+    progressInner: byId('progressInner'),
+    btnBack: byId('btnBack'),
+    btnNext: byId('btnNext'),
+
+    courseBadge: byId('courseBadge'),
+    topicsBadge: byId('topicsBadge'),
+    diffBadge: byId('diffBadge'),
+    numBadge: byId('numBadge'),
+
+    course: byId('course'),
+    courseErr: byId('courseErr'),
+
+    restoreStrip: byId('restoreStrip'),
+    btnRestorePrefs: byId('btnRestorePrefs'),
+    btnResetPrefs: byId('btnResetPrefs'),
+
+    modeByTopics: byId('modeByTopics'),
+    modeByConcept: byId('modeByConcept'),
+    topicSection: byId('topicSection'),
+    conceptSection: byId('conceptSection'),
+
+    topicFilter: byId('topicFilter'),
+    topicsBox: byId('topicsBox'),
+    selectAll: byId('selectAll'),
+    clearAll: byId('clearAll'),
+    sortToggle: byId('sortToggle'),
+    useAll: byId('useAll'),
+    topicsErr: byId('topicsErr'),
+
+    conceptInput: byId('conceptInput'),
+    conceptSuggestBox: byId('conceptSuggestBox'),
+    conceptBucketLine: byId('conceptBucketLine'),
+    conceptSelectShown: byId('conceptSelectShown'),
+    conceptClearShown: byId('conceptClearShown'),
+    resetConceptSearch: byId('resetConceptSearch'),
+    clearAllConcepts: byId('clearAllConcepts'),
+
+    easy: byId('easy'),
+    moderate: byId('moderate'),
+    hard: byId('hard'),
+    diffHint: byId('diffHint'),
+    diffErr: byId('diffErr'),
+
+    n: byId('n'),
+    nHint: byId('nHint'),
+    availHint: byId('availHint'),
+    numErr: byId('numErr'),
+
+    downloadBtn: byId('downloadBtn'),
+
+    sumCourse: byId('sumCourse'),
+    sumTopics: byId('sumTopics'),
+    sumDiffs: byId('sumDiffs'),
+    sumN: byId('sumN'),
+
+    revCourse: byId('revCourse'),
+    revSelMode: byId('revSelMode'),
+    revTopics: byId('revTopics'),
+    revConcept: byId('revConcept'),
+    revDiffs: byId('revDiffs'),
+    revN: byId('revN'),
+
+    // modal
+    dlModal: byId('dlModal'),
+    dlCloseBtn: byId('dlCloseBtn'),
+    dlCancelBtn: byId('dlCancelBtn'),
+    dlCreateBtn: byId('dlCreateBtn'),
+    packName: byId('packName'),
+    dlErr: byId('dlErr'),
+    dlCoursePill: byId('dlCoursePill'),
+    dlCountPill: byId('dlCountPill'),
+    dlAllowancePill: byId('dlAllowancePill')
+  };
+
+  // ====== State ======
+  let META = null;
+  let TOPICS = [];
+  let SELECTED = new Set();
+  let sortMode = 'name';
+
+  let SELECT_MODE = "topics";
+  let conceptValue = '';
+  let SELECTED_CONCEPTS = [];
+  let SEARCH_TERMS = [];
+
+  let ALLOWED_COURSE_IDS = [];
+  let CONTEXT_COURSE_ID = null;
+  let COURSE_LOCKED = false;
+
+  // downloads allowance cache
+  let ALLOWANCE = null; // {remaining, limit, can_create, reason}
+
+  // ====== Utils ======
+  function setStatus(msg){
+    el.out.textContent = (typeof msg === 'string') ? msg : JSON.stringify(msg, null, 2);
+  }
+  
+  function getMaxN(){
+  const v = META && Number.isFinite(+META.maxN) ? +META.maxN : 50;
+  return Math.max(1, v);
+}
+
+  function now(){ return Date.now(); }
+  function saveLS(key, data){ try{ localStorage.setItem(key, JSON.stringify({ts:now(), data})) }catch(_){ } }
+  function readLS(key){
+    try{
+      const raw = localStorage.getItem(key);
+      if(!raw) return null;
+      const j = JSON.parse(raw);
+      return j && j.data !== undefined ? j : null;
+    }catch(_){ return null; }
+  }
+  function fresh(entry, ttl=CACHE_TTL_MS){ return entry && (now()-entry.ts) < ttl; }
+  function courseLabel(id){
+    const idTrim = (id || '').trim();
+    return COURSE_LABELS[idTrim] || idTrim;
+  }
+  function getQueryParam(name){
+    try{ return new URLSearchParams(window.location.search || '').get(name); }
+    catch(_){ return null; }
+  }
+  function prefsKeyForCourse(courseId){ return LS.PREFS_PREFIX + (courseId || 'RN_MED'); }
+  function selectionMode(){ return SELECT_MODE; }
+  function selectedTopics(){ return Array.from(SELECTED); }
+  function selectedConcepts(){ return Array.isArray(SELECTED_CONCEPTS) ? SELECTED_CONCEPTS.slice() : []; }
+  function setSelectedConcepts(arr){ SELECTED_CONCEPTS = Array.isArray(arr) ? arr.slice() : []; }
+  function hasConcept(){
+    const hasChips = Array.isArray(SELECTED_CONCEPTS) && SELECTED_CONCEPTS.length > 0;
+    const hasText  = (conceptValue || '').trim().length > 0;
+    return hasChips || hasText;
+  }
+
+  function getToken(){
+    try{ return localStorage.getItem('qa_token') || ''; }catch(_){ return ''; }
+  }
+
+  function userHasCourse(courseId){
+    const cid = (courseId || '').trim().toUpperCase();
+    if (!cid) return false;
+    const list = Array.isArray(ALLOWED_COURSE_IDS) ? ALLOWED_COURSE_IDS : [];
+    return list.map(x => String(x).trim().toUpperCase()).includes(cid);
+  }
+
+  function getUserDisplayName(){
+    const u = window.QA_USER || {};
+    const name = (u.name || '').trim();
+    if (name) return name;
+    const fn = (u.forename || '').trim();
+    const sn = (u.surname || '').trim();
+    return (fn || sn) ? `${fn}${fn && sn ? ' ' : ''}${sn}`.trim() : 'Student';
+  }
+
+  function getUserProgram(){
+    const u = window.QA_USER || {};
+    return (u.program_id || '').trim() || 'Program';
+  }
+
+  function yyyy_mm_dd_utc(){
+    const d = new Date();
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth()+1).padStart(2,'0');
+    const dd = String(d.getUTCDate()).padStart(2,'0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function watermarkSnapshot(){
+    // Choice B: Name • Program • Date
+    return `${getUserDisplayName()} • ${getUserProgram()} • ${yyyy_mm_dd_utc()}`;
+  }
+
+  function saveUseAll(courseId, value){
+    try{ localStorage.setItem(LS.USEALL_PREFIX+courseId, JSON.stringify({value, ts:now()})) }catch(_){}
+  }
+  function loadUseAll(courseId){
+    try{
+      const raw = localStorage.getItem(LS.USEALL_PREFIX+courseId);
+      if(!raw) return false;
+      const obj = JSON.parse(raw);
+      if(!fresh({ts:obj.ts}, CHOICE_TTL_MS)) return false;
+      return !!obj.value;
+    }catch(_){ return false; }
+  }
+
+  function summariseItems(list, maxItems){
+    if (!Array.isArray(list) || !list.length) return '';
+    const shown = list.slice(0, maxItems);
+    const remaining = list.length - shown.length;
+    const base = shown.join(', ');
+    return remaining > 0 ? `${base} +${remaining} more` : base;
+  }
+
+  // ====== Prefs ======
+  function savePrefs(){
+    const cid = el.course.value || 'RN_MED';
+    const prefs = {
+      n: +el.n.value || 20,
+      topics: Array.from(SELECTED),
+      diffs: { easy:!!el.easy.checked, moderate:!!el.moderate.checked, hard:!!el.hard.checked },
+      filter: el.topicFilter.value || '',
+      conceptQuery: conceptValue || '',
+      concepts: selectedConcepts(),
+      selMode: SELECT_MODE,
+      searchTerms: Array.isArray(SEARCH_TERMS) ? SEARCH_TERMS.slice() : []
+    };
+    saveLS(prefsKeyForCourse(cid), prefs);
+    saveUseAll(cid, !!el.useAll.checked);
+    try{ localStorage.setItem(LS.LAST_COURSE, cid); }catch(_){}
+  }
+  function loadPrefs(courseId){
+    const cid = courseId || (el.course ? (el.course.value || 'RN_MED') : 'RN_MED');
+    const p = readLS(prefsKeyForCourse(cid));
+    return p ? p.data : null;
+  }
+  function clearPrefsForCourse(courseId){
+    const cid = courseId || (el.course ? el.course.value : '');
+    if (!cid) return;
+    try{
+      localStorage.removeItem(prefsKeyForCourse(cid));
+      localStorage.removeItem(LS.USEALL_PREFIX + cid);
+    }catch(_){}
+  }
+  function updateRestoreStripVisibility(){
+    if (!el.restoreStrip) return;
+    const cid = el.course.value || '';
+    if (!cid){ el.restoreStrip.style.display = 'none'; return; }
+    const prefs = loadPrefs(cid);
+    el.restoreStrip.style.display = prefs ? 'flex' : 'none';
+  }
+
+  // ====== Stepper ======
+  function currentStepId(){ return STEPS[currentStepIndex]; }
+
+  function updateReviewPanel(){
+    if (currentStepId() !== 'review') return;
+
+    const diffs = pickDiffs();
+    const n = +el.n.value || 0;
+    const modeSel = selectionMode();
+    const selModeLabel = modeSel==='concept' ? 'Concept keyword' : 'Topic groups';
+
+    el.revCourse.textContent = courseLabel(el.course.value) || '-';
+    el.revSelMode.textContent = selModeLabel;
+
+    if (modeSel === 'topics'){
+      if (el.useAll.checked){
+        el.revTopics.textContent = 'All topics';
+      } else if (SELECTED.size){
+        el.revTopics.textContent = `${SELECTED.size} topic(s)`;
+      } else {
+        el.revTopics.textContent = 'None';
+      }
+      el.revConcept.textContent = 'None';
+    } else {
+      el.revTopics.textContent = 'Not used (concept mode)';
+      const concepts = selectedConcepts();
+      const searches = Array.isArray(SEARCH_TERMS) ? SEARCH_TERMS : [];
+      const q = (conceptValue || '').trim();
+
+      let conceptLine = '';
+      let searchLine  = '';
+
+      if (concepts.length){
+        const conceptSummary = summariseItems(concepts, 3);
+        conceptLine = `Concepts: ${conceptSummary}`;
+      } else if (q){
+        conceptLine = 'Concepts: None (using free-text search)';
+      } else {
+        conceptLine = 'Concepts: None';
+      }
+
+      if (searches.length){
+        const quoted = searches.map(s => `"${s}"`);
+        const searchSummary = summariseItems(quoted, 3);
+        searchLine = `Searches: ${searchSummary}`;
+      } else if (q){
+        searchLine = `Searches: "${q}"`;
+      } else {
+        searchLine = 'Searches: None';
+      }
+
+      el.revConcept.innerHTML = conceptLine + '<br>' + searchLine;
+    }
+
+    el.revDiffs.textContent = diffs.length ? diffs.join(', ') : 'All';
+    el.revN.textContent = n>0 ? String(n) : '-';
+  }
+
+  function updateStepperUI(){
+    STEPS.forEach(id=>{
+      const panel = document.querySelector('.step[data-step="'+id+'"]');
+      if (panel) panel.classList.toggle('active', id === currentStepId());
+    });
+
+    const sid = currentStepId();
+    if (el.stepLabel && STEP_LABELS[sid]) el.stepLabel.textContent = STEP_LABELS[sid];
+
+    const percent = (currentStepIndex)/(STEPS.length-1) * 100;
+    if (el.progressInner) el.progressInner.style.width = percent + '%';
+
+    el.btnBack.disabled = currentStepIndex === 0;
+    el.btnBack.style.visibility = currentStepIndex === 0 ? 'hidden' : 'visible';
+
+    if (currentStepIndex === STEPS.length-1){
+      el.btnNext.style.display = 'none';
+      el.downloadBtn.style.display = 'inline-block';
+    } else {
+      el.btnNext.style.display = 'inline-block';
+      el.downloadBtn.style.display = 'none';
+    }
+
+    if (currentStepIndex < STEPS.length-1){
+      el.btnNext.disabled = !isStepValid(currentStepId());
+    }
+
+    updateReviewPanel();
+  }
+
+  function goNext(){
+    const sid = currentStepId();
+    validateAll();
+    if (!isStepValid(sid)){
+      updateStepperUI();
+      return;
+    }
+    if (currentStepIndex < STEPS.length-1){
+      currentStepIndex++;
+      updateStepperUI();
+    }
+  }
+
+  function goBack(){
+    if (currentStepIndex > 0){
+      currentStepIndex--;
+      updateStepperUI();
+    }
+  }
+
+  function isStepValid(stepId){
+    const n = +el.n.value || 0;
+    const approx = estimatePool();
+    const maxN = getMaxN();
+    const modeSel = selectionMode();
+
+    switch(stepId){
+      case 'course':
+        return !!el.course.value;
+
+      case 'topics': {
+        const hasTopics = el.useAll.checked || SELECTED.size > 0;
+        return (modeSel === 'topics') ? hasTopics : hasConcept();
+      }
+
+      case 'difficulty':
+        return true;
+
+      case 'number':
+        if (!(n>0 && n<=maxN && (approx===0 ? true : n<=approx))) return false;
+        return true;
+
+      case 'review': {
+        const okCourse = !!el.course.value;
+        const hasTopics = el.useAll.checked || SELECTED.size > 0;
+        const okSelection = (modeSel === 'topics') ? hasTopics : hasConcept();
+        const okNum = n>0 && n<=maxN && (approx===0 ? true : n<=approx);
+        return okCourse && okSelection && okNum;
+      }
+
+      default:
+        return true;
+    }
+  }
+
+  // ====== Courses & Meta ======
+  async function loadCourses(){
+    setStatus('Loading courses for your enrolments...');
+    const list = (ALLOWED_COURSE_IDS && ALLOWED_COURSE_IDS.length) ? ALLOWED_COURSE_IDS.slice() : [];
+    renderCourses(list);
+  }
+
+  function renderCourses(list){
+    el.course.innerHTML = '';
+    let useList = list.slice();
+    if (COURSE_LOCKED && CONTEXT_COURSE_ID){
+      useList = useList.filter(id => id === CONTEXT_COURSE_ID);
+    }
+
+    if (!useList.length){
+      el.course.disabled = true;
+      el.courseBadge.textContent = '-';
+      el.sumCourse.textContent = 'Course: -';
+      setStatus('You currently have no active courses. Please go to your dashboard to add a subscription.');
+      el.btnNext.disabled = true;
+      el.downloadBtn.disabled = true;
+      return;
+    }
+
+    useList.forEach(id=>{
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = courseLabel(id);
+      el.course.appendChild(opt);
+    });
+
+    let initialId = '';
+    let lastCourseId = '';
+    try{ lastCourseId = localStorage.getItem(LS.LAST_COURSE) || ''; }catch(_){}
+
+    if (COURSE_LOCKED && CONTEXT_COURSE_ID) initialId = CONTEXT_COURSE_ID;
+    else if (lastCourseId && useList.includes(lastCourseId)) initialId = lastCourseId;
+    else if (useList.length) initialId = useList[0];
+
+    if (initialId) el.course.value = initialId;
+    el.course.disabled = COURSE_LOCKED;
+
+    el.courseBadge.textContent = courseLabel(el.course.value) || '-';
+    el.sumCourse.textContent = `Course: ${courseLabel(el.course.value) || '-'}`;
+
+    el.btnNext.disabled = false;
+    updateRestoreStripVisibility();
+  }
+
+  async function loadMeta(){
+    showPageLoader('Loading questions...', 'Fetching topics and difficulty data for this course.');
+
+    el.topicsBox.innerHTML = '<div class="hint" style="padding:8px;">Loading topics...</div>';
+    el.downloadBtn.disabled = true;
+
+    const cid = el.course.value || 'RN_MED';
+    const key = LS.META_PREFIX + cid;
+
+    let meta = null;
+    const cached = readLS(key);
+    if (fresh(cached) && cached.data && cached.data.topics_main){
+      meta = cached.data;
+    }
+
+    if (!meta){
+      try{
+        const r = await fetch(`${WEB_APP_URL}?action=builder.meta&course_id=${encodeURIComponent(cid)}`);
+        meta = await r.json();
+        if (meta && meta.topics_main) saveLS(key, meta);
+      }catch(_){}
+    }
+
+    if (!meta || !meta.topics_main){
+      hidePageLoader();
+      setStatus('Failed to load topics and difficulty data. Please reload this page or try again.');
+      return;
+    }
+
+    applyMeta(meta);
+    hidePageLoader();
+  }
+
+  function applyMeta(meta){
+    META = meta;
+    TOPICS = meta.topics_main.slice();
+    SELECTED = restoreSelectedTopics();
+
+    const cid = el.course.value || 'RN_MED';
+    el.useAll.checked = loadUseAll(cid);
+    setTopicsBoxInteractivity();
+
+const total = meta.total || meta.maxN || 0;
+el.maxPill.textContent = `Total: ${total} | MaxN: ${getMaxN()}`;
+
+
+    const dc = meta.difficulty_counts || {};
+    const diffList = (meta.difficulties||[]).map(d => `${d} ${dc[d] ?? 0}`).join(' | ');
+    el.diffPill.textContent = diffList ? `Difficulties: ${diffList}` : 'Difficulties: -';
+
+const maxN = getMaxN();
+el.n.max = maxN;
+el.nHint.textContent = `Max available: ${maxN}`;
+
+if (el.numSub) el.numSub.textContent = `Choose how many questions you want in this pack (max ${maxN}).`;
+
+
+    renderTopics();
+    renderConceptSuggestions();
+    updateSelectedBadge();
+    updateAvailEstimate();
+    reflectDiffUI();
+    reflectSummary();
+    validateAll();
+    updateStepperUI();
+  }
+
+  // ===== Topics =====
+  function renderTopics(){
+    if (!META){
+      el.topicsBox.innerHTML = '<div class="hint" style="padding:8px;">No topics.</div>';
+      return;
+    }
+    const counts = META.topic_counts || {};
+    const filter = (el.topicFilter.value || '').toLowerCase().trim();
+
+    let list = TOPICS.slice();
+    if (sortMode === 'count'){
+      list.sort((a,b)=>(counts[b]||0)-(counts[a]||0) || a.localeCompare(b));
+    } else {
+      list.sort((a,b)=>a.localeCompare(b));
+    }
+    if (filter) list = list.filter(t => t.toLowerCase().includes(filter));
+
+    el.topicsBox.innerHTML = '';
+    if (!list.length){
+      el.topicsBox.innerHTML = '<div class="hint" style="padding:8px;">No topics match your filter.</div>';
+      return;
+    }
+
+    list.forEach(t=>{
+      const c = counts[t] || 0;
+      const row = document.createElement('label');
+      row.className = 'topic-item';
+      row.title = `${t}: ${c} question(s) available`;
+      row.innerHTML = `<input type="checkbox" class="tchk" value="${t}"><span>${t} (${c})</span>`;
+      const chk = row.querySelector('input');
+      chk.checked = SELECTED.has(t);
+      chk.disabled = el.useAll.checked || selectionMode()==='concept';
+
+      chk.addEventListener('change', ()=>{
+        if (chk.checked) SELECTED.add(t); else SELECTED.delete(t);
+        if (el.useAll.checked){
+          el.useAll.checked = false;
+          saveUseAll(el.course.value,false);
+          setTopicsBoxInteractivity();
+        }
+        updateSelectedBadge();
+        updateAvailEstimate();
+        reflectSummary();
+        reflectDiffUI();
+        validateAll();
+        updateStepperUI();
+        savePrefs();
+      });
+
+      el.topicsBox.appendChild(row);
+    });
+
+    updateSelectedBadge();
+  }
+
+  function setTopicsBoxInteractivity(){
+    const topicsMode = selectionMode()==='topics';
+    const on = topicsMode && !el.useAll.checked;
+    el.topicSection.classList.toggle('disabled', !topicsMode);
+    el.topicsBox.style.opacity = on ? 1 : 0.5;
+    el.topicsBox.querySelectorAll('input.tchk').forEach(chk=>{ chk.disabled = !on; });
+    el.useAll.disabled = !topicsMode;
+  }
+
+  // ---- concept count helper ----
+  function conceptCountFor(value){
+    if (!META || !META.concept_counts) return 0;
+    const map = META.concept_counts;
+    if (!value) return 0;
+    const direct = map[value];
+    if (typeof direct === 'number') return direct;
+    const lower = String(value).toLowerCase();
+    for (const key in map){
+      if (Object.prototype.hasOwnProperty.call(map, key)){
+        if (String(key).toLowerCase() === lower){
+          return map[key] || 0;
+        }
+      }
+    }
+    return 0;
+  }
+
+  function toggleConceptSelection(concept, shouldBeSelected){
+    concept = (concept || '').trim();
+    if (!concept) return;
+
+    const arr = selectedConcepts();
+    const idx = arr.findIndex(c => c.toLowerCase() === concept.toLowerCase());
+
+    if (shouldBeSelected === true){
+      if (idx === -1) arr.push(concept);
+    } else if (shouldBeSelected === false){
+      if (idx !== -1) arr.splice(idx, 1);
+    } else {
+      if (idx === -1) arr.push(concept);
+      else arr.splice(idx, 1);
+    }
+    setSelectedConcepts(arr);
+  }
+
+  function addSearchTermFromCurrentInput(){
+    const q = (conceptValue || '').trim();
+    if (!q) return;
+    const lowerList = SEARCH_TERMS.map(s => s.toLowerCase());
+    if (!lowerList.includes(q.toLowerCase())){
+      SEARCH_TERMS.push(q);
+    }
+  }
+
+  function updateConceptBucketLine(){
+    if (!el.conceptBucketLine) return;
+    const concepts = selectedConcepts();
+    const searches = Array.isArray(SEARCH_TERMS) ? SEARCH_TERMS : [];
+    const q = (conceptValue || '').trim();
+
+    if (!concepts.length && !searches.length && !q){
+      el.conceptBucketLine.textContent = 'No concepts selected yet. Type a keyword or pick from suggestions.';
+      return;
+    }
+
+    const nConcepts = concepts.length;
+    const nSearches = searches.length;
+
+    if (nConcepts && nSearches){
+      el.conceptBucketLine.textContent = `Concept bucket: ${nConcepts} concept(s) from ${nSearches} search(es).`;
+    } else if (nConcepts){
+      el.conceptBucketLine.textContent = `Concept bucket: ${nConcepts} concept(s).`;
+    } else if (q){
+      el.conceptBucketLine.textContent = `Current search: "${q}".`;
+    } else if (nSearches){
+      const quoted = searches.map(s => `"${s}"`);
+      const summary = summariseItems(quoted, 3);
+      el.conceptBucketLine.textContent = `Searches so far: ${summary}.`;
+    } else {
+      el.conceptBucketLine.textContent = 'Concept bucket: -';
+    }
+  }
+
+  function buildConceptSuggestionsList(query){
+    if (!META || !Array.isArray(META.concept_suggestions)) return [];
+    const q = (query || '').toLowerCase().trim();
+    let list = META.concept_suggestions.slice();
+    if (q) list = list.filter(c => c.toLowerCase().includes(q));
+    return list.slice(0, 20);
+  }
+
+  function renderConceptSuggestions(){
+    const modeSel = selectionMode();
+    const box = el.conceptSuggestBox;
+    if (!box) return;
+
+    if (modeSel !== 'concept'){
+      box.style.display = 'none';
+      return;
+    }
+    if (!META || !Array.isArray(META.concept_suggestions)){
+      box.style.display = 'none';
+      return;
+    }
+
+    const q = el.conceptInput.value || '';
+    const list = buildConceptSuggestionsList(q);
+
+    box.innerHTML = '';
+    if (!list.length){
+      box.style.display = 'block';
+      box.innerHTML = '<div class="concept-empty">No suggestions. You can still use this keyword as free text.</div>';
+      return;
+    }
+
+    const selectedLower = selectedConcepts().map(c => c.toLowerCase());
+
+    list.forEach(con => {
+      const row = document.createElement('label');
+      row.className = 'concept-item';
+
+      const cCount = conceptCountFor(con);
+      const labelText = cCount ? `${con} (${cCount})` : con;
+      row.title = cCount ? `${con}: ${cCount} question(s) available` : con;
+
+      const isChecked = selectedLower.includes(con.toLowerCase());
+      row.innerHTML = `<input type="checkbox" class="concept-choice" value="${con}"> <span>${labelText}</span>`;
+      const input = row.querySelector('input');
+      input.checked = isChecked;
+
+      input.addEventListener('change', () => {
+        toggleConceptSelection(con, input.checked);
+        if (input.checked) addSearchTermFromCurrentInput();
+        updateSelectedBadge();
+        updateAvailEstimate();
+        reflectSummary();
+        validateAll();
+        updateStepperUI();
+        savePrefs();
+      });
+
+      box.appendChild(row);
+    });
+
+    box.style.display = 'block';
+  }
+
+  function updateModeSections(){
+    const isTopics = (selectionMode() === 'topics');
+
+    if (isTopics){
+      el.topicSection.classList.remove('disabled', 'collapsed');
+      el.conceptSection.classList.add('disabled', 'collapsed');
+      setTopicsBoxInteractivity();
+      el.conceptSuggestBox.style.display = 'none';
+    } else {
+      el.topicSection.classList.add('disabled', 'collapsed');
+      el.conceptSection.classList.remove('disabled', 'collapsed');
+      el.topicsBox.querySelectorAll('input.tchk').forEach(chk => chk.disabled = true);
+      el.useAll.disabled = true;
+      renderConceptSuggestions();
+    }
+
+    updateSelectedBadge();
+    updateAvailEstimate();
+    updateConceptBucketLine();
+  }
+
+  function updateSelectedBadge(){
+    const totalTopics = (META && META.topics_main ? META.topics_main.length : 0);
+
+    if (selectionMode() === 'concept'){
+      const concepts = selectedConcepts();
+      const searches = Array.isArray(SEARCH_TERMS) ? SEARCH_TERMS : [];
+      const q = (conceptValue || '').trim();
+
+      if (concepts.length){
+        const searchCount = searches.length || (q ? 1 : 0);
+        el.topicsBadge.textContent = 'Concept mode';
+        el.sumTopics.textContent = searchCount
+          ? `Selection: ${concepts.length} concepts • ${searchCount} searches`
+          : `Selection: ${concepts.length} concepts`;
+      } else if (q){
+        el.topicsBadge.textContent = 'Concept search';
+        el.sumTopics.textContent = `Selection: Search "${q}"`;
+      } else {
+        el.topicsBadge.textContent = 'Concept mode';
+        el.sumTopics.textContent = 'Selection: Concept (none)';
+      }
+
+      if (el.selectedPill) el.selectedPill.textContent = 'Concept mode (topics not used)';
+      updateConceptBucketLine();
+      return;
+    }
+
+    const sel   = SELECTED.size;
+    const isAll = el.useAll.checked;
+
+    if (isAll){
+      el.topicsBadge.textContent = 'All topics';
+      el.sumTopics.textContent   = 'Selection: All topics';
+      if (el.selectedPill){
+        el.selectedPill.textContent = `Selected: ${totalTopics} / ${totalTopics} topics (all)`;
+      }
+    } else {
+      el.topicsBadge.textContent = sel ? `${sel} selected` : '-';
+      el.sumTopics.textContent   = `Selection: ${sel} topics`;
+      if (el.selectedPill){
+        el.selectedPill.textContent = `Selected: ${sel} / ${totalTopics} topics`;
+      }
+    }
+  }
+
+  // ===== Difficulty =====
+  function pickDiffs(){
+    const d=[];
+    if (el.easy.checked) d.push('Easy');
+    if (el.moderate.checked) d.push('Moderate');
+    if (el.hard.checked) d.push('Hard');
+    return d;
+  }
+  
+  function allDiffs(){
+  // Prefer meta-driven list (in case future courses add new difficulty levels)
+  if (META && Array.isArray(META.difficulties) && META.difficulties.length) {
+    return META.difficulties.slice();
+  }
+  // Fallback to your fixed UI set
+  return ['Easy','Moderate','Hard'];
+}
+
+function pickDiffsOrAll(){
+  const picked = pickDiffs();
+  return picked.length ? picked : allDiffs();
+}
+
+
+  function difficultyAvailabilityForSelection(){
+    if (!META) return { Easy:0, Moderate:0, Hard:0 };
+    const td = META.topic_difficulty_counts || null;
+
+    if (selectionMode()==='concept'){
+      const dc = META.difficulty_counts || {};
+      return { Easy: dc.Easy || 0, Moderate: dc.Moderate || 0, Hard: dc.Hard || 0 };
+    }
+
+    if (td){
+      const useAll = el.useAll.checked;
+      const topicsList = useAll ? Object.keys(td) : selectedTopics();
+      if (!topicsList.length){
+        const dc = META.difficulty_counts || {};
+        return { Easy: dc.Easy || 0, Moderate: dc.Moderate || 0, Hard: dc.Hard || 0 };
+      }
+      let e=0,m=0,h=0;
+      topicsList.forEach(main=>{
+        const bucket = td[main];
+        if (!bucket) return;
+        e += bucket.Easy     || 0;
+        m += bucket.Moderate || 0;
+        h += bucket.Hard     || 0;
+      });
+      return { Easy:e, Moderate:m, Hard:h };
+    }
+
+    const dc = META.difficulty_counts || {};
+    return { Easy: dc.Easy || 0, Moderate: dc.Moderate || 0, Hard: dc.Hard || 0 };
+  }
+
+  function reflectDiffUI(){
+    const da = difficultyAvailabilityForSelection();
+    el.diffHint.textContent = `Available - Easy ${da.Easy || 0} | Moderate ${da.Moderate || 0} | Hard ${da.Hard || 0}`;
+    const picked = pickDiffs();
+    const label = picked.length ? picked.join(', ') : 'All';
+    el.diffBadge.textContent = label;
+    el.sumDiffs.textContent = `Difficulty: ${label}`;
+  }
+
+  // ===== Estimate =====
+  function estimatePool(){
+    if (!META) return 0;
+
+    const ds = pickDiffs();
+    const td = META.topic_difficulty_counts || null;
+    const counts = META.topic_counts || {};
+
+    if (selectionMode() === 'concept'){
+      if (!hasConcept()) return 0;
+      const concepts = selectedConcepts();
+      if (!concepts.length) return 0;
+      let total = 0;
+      concepts.forEach(c => { total += conceptCountFor(c) || 0; });
+      return total;
+    }
+
+    const useAll = el.useAll.checked;
+    const selected = selectedTopics();
+
+    if (td){
+      const topicsList = useAll ? Object.keys(td) : (selected.length ? selected : []);
+      if (!topicsList.length) return 0;
+
+      let Easy = 0, Moderate = 0, Hard = 0;
+      topicsList.forEach(t => {
+        const bucket = td[t];
+        if (!bucket) return;
+        Easy     += bucket.Easy     || 0;
+        Moderate += bucket.Moderate || 0;
+        Hard     += bucket.Hard     || 0;
+      });
+
+      if (!ds.length) return Easy + Moderate + Hard;
+      let total = 0;
+      ds.forEach(d => {
+        if (d === 'Easy') total += Easy;
+        else if (d === 'Moderate') total += Moderate;
+        else if (d === 'Hard') total += Hard;
+      });
+      return total;
+    }
+
+    let base = 0;
+    if (useAll){
+      base = (META.total || META.maxN || 0);
+    } else {
+      if (!selected.length) return 0;
+      selected.forEach(t => base += (counts[t]||0));
+    }
+
+    if (!ds.length) return base;
+    const dc = META.difficulty_counts || {};
+    const totalDiff = (dc.Easy||0) + (dc.Moderate||0) + (dc.Hard||0);
+    if (!totalDiff || base===0) return base;
+
+    const share = ds.reduce((acc,d)=> acc + (dc[d]||0), 0) / totalDiff;
+    return Math.floor(base * share);
+  }
+
+  function updateAvailEstimate(){
+    const approx = estimatePool();
+
+    if (selectionMode() === 'concept'){
+      const concepts = selectedConcepts();
+      const q = (conceptValue || '').trim();
+      if (!concepts.length){
+        el.availHint.textContent = q
+          ? `Search "${q}" - count unknown (we will search all questions for this concept).`
+          : 'Selected pool ≈ ? (type or select at least one concept to see estimated count).';
+      } else {
+        const label = concepts.slice(0,3).join(', ');
+        const more = concepts.length > 3 ? ` +${concepts.length - 3} more` : '';
+        el.availHint.textContent = approx > 0
+          ? `Concepts (${label}${more}) ≈ ${approx} question(s) available`
+          : `Concepts (${label}${more}) - count unknown (we will fetch exact items when building)`;
+      }
+      return;
+    }
+
+    el.availHint.textContent = `Selected pool  - ${approx}`;
+  }
+
+  function reflectSummary(){
+    const diffs = pickDiffs();
+    el.sumDiffs.textContent = `Difficulty: ${diffs.length?diffs.join(', '):'All'}`;
+    el.sumN.textContent = `N: ${+el.n.value||0}`;
+  }
+
+  // ===== Validation =====
+  function validateAll(){
+    const okCourse = !!el.course.value;
+    el.courseErr.style.display = okCourse ? 'none' : 'block';
+    if (!okCourse) el.courseErr.textContent = 'Please choose a course.';
+
+    const modeSel = selectionMode();
+    const hasTopics = el.useAll.checked || SELECTED.size > 0;
+
+    if (modeSel === 'topics'){
+      if (!hasTopics){
+        el.topicsErr.style.display='block';
+        el.topicsErr.textContent='Select at least one topic or enable "Use all topics".';
+      } else {
+        el.topicsErr.style.display='none';
+      }
+    } else {
+      if (!hasConcept()){
+        el.topicsErr.style.display='block';
+        el.topicsErr.textContent='Type or select a concept keyword.';
+      } else {
+        el.topicsErr.style.display='none';
+      }
+    }
+
+    const n = +el.n.value || 0;
+    const approx = estimatePool();
+    const maxN = +el.n.max || 50;
+    const okNum = n>0 && n<=maxN && (approx===0 ? true : n<=approx);
+
+    el.numErr.style.display = okNum ? 'none' : 'block';
+    if (!okNum){
+      if (n>maxN) el.numErr.textContent = `Reduce your input to ${maxN} or less.`;
+      else if (approx && n>approx) el.numErr.textContent = `Based on your filters, try  ${approx} or less.`;
+      else el.numErr.textContent = 'Enter a valid number of questions.';
+    }
+
+    el.numBadge.textContent = n>0 ? `${n}` : '-';
+    el.courseBadge.textContent = courseLabel(el.course.value) || '-';
+    el.sumCourse.textContent = `Course: ${courseLabel(el.course.value) || '-'}`;
+
+    // Allowance gate is enforced in modal; here we just ensure inputs are valid
+    const okSelection = (modeSel==='topics') ? hasTopics : hasConcept();
+    el.downloadBtn.disabled = !(okCourse && okSelection && okNum);
+  }
+
+  // ===== Restore prefs =====
+  function restoreSelectedTopics(){
+    const p = loadPrefs(); if (!p) return new Set();
+    if (!META) return new Set();
+    const valid = new Set((META.topics_main||[]));
+    const arr = (Array.isArray(p.topics) ? p.topics.filter(t => valid.has(t)) : []);
+    return new Set(arr);
+  }
+
+  function restorePrefsAfterMeta(){
+    const p = loadPrefs(); if (!p) { updateConceptBucketLine(); return; }
+
+    if (Number.isFinite(+p.n) && +p.n>0) el.n.value = +p.n;
+    if (p.diffs){
+      el.easy.checked=!!p.diffs.easy;
+      el.moderate.checked=!!p.diffs.moderate;
+      el.hard.checked=!!p.diffs.hard;
+    }
+    if (typeof p.filter === 'string') el.topicFilter.value = p.filter;
+
+    if (typeof p.conceptQuery === 'string'){
+      conceptValue = p.conceptQuery;
+      el.conceptInput.value = p.conceptQuery;
+    } else if (typeof p.concept === 'string'){
+      conceptValue = p.concept;
+      el.conceptInput.value = p.concept;
+    }
+
+    if (Array.isArray(p.concepts) && p.concepts.length){
+      setSelectedConcepts(p.concepts);
+    } else if (typeof p.concept === 'string' && p.concept.trim()){
+      setSelectedConcepts([p.concept.trim()]);
+    }
+
+    if (Array.isArray(p.searchTerms)){
+      SEARCH_TERMS = p.searchTerms.slice();
+    } else {
+      SEARCH_TERMS = [];
+    }
+
+    if (p.selMode === 'concept'){
+      SELECT_MODE = 'concept';
+      el.modeByConcept.checked = true;
+      el.modeByTopics.checked = false;
+    } else {
+      SELECT_MODE = 'topics';
+      el.modeByTopics.checked = true;
+      el.modeByConcept.checked = false;
+    }
+
+    updateModeSections();
+    renderConceptSuggestions();
+    updateSelectedBadge();
+    updateAvailEstimate();
+    updateConceptBucketLine();
+    updateRestoreStripVisibility();
+  }
+
+  function hardResetCurrentCourse(){
+    const cid = el.course.value || 'RN_MED';
+    clearPrefsForCourse(cid);
+
+    SELECT_MODE = 'topics';
+    el.modeByTopics.checked = true;
+    el.modeByConcept.checked = false;
+
+    SELECTED.clear();
+    setSelectedConcepts([]);
+    SEARCH_TERMS = [];
+    conceptValue = '';
+
+    el.useAll.checked = false;
+    el.topicFilter.value = '';
+    el.conceptInput.value = '';
+
+    el.easy.checked = false;
+    el.moderate.checked = false;
+    el.hard.checked = false;
+
+    el.n.value = 20;
+
+    updateModeSections();
+    setTopicsBoxInteractivity();
+    renderTopics();
+    renderConceptSuggestions();
+    updateSelectedBadge();
+    updateAvailEstimate();
+    reflectDiffUI();
+    reflectSummary();
+    validateAll();
+    updateStepperUI();
+    updateConceptBucketLine();
+
+    updateRestoreStripVisibility();
+    setStatus('Reset to a fresh setup for this course.');
+  }
+
+  // ===== Allowance + modal =====
+  function modalErr(msg){
+    if (!el.dlErr) return;
+    if (!msg){
+      el.dlErr.style.display = 'none';
+      el.dlErr.textContent = '';
+      return;
+    }
+    el.dlErr.style.display = 'block';
+    el.dlErr.textContent = msg;
+  }
+
+  function openModal(){
+    modalErr('');
+    el.packName.value = '';
+    el.dlModal.style.display = 'flex';
+    el.dlModal.setAttribute('aria-hidden','false');
+    setTimeout(()=>{ try{ el.packName.focus(); }catch(_){} }, 50);
+  }
+
+  function closeModal(){
+    el.dlModal.style.display = 'none';
+    el.dlModal.setAttribute('aria-hidden','true');
+    modalErr('');
+  }
+
+  function updateModalPills(){
+    const cid = el.course.value || '-';
+    const n = +el.n.value || 0;
+    el.dlCoursePill.textContent = `Course: ${courseLabel(cid) || cid}`;
+    el.dlCountPill.textContent = `Questions: ${n || '-'}`;
+
+    if (!ALLOWANCE){
+      el.dlAllowancePill.textContent = 'Allowance: -';
+      return;
+    }
+    const limit = (ALLOWANCE.limit != null) ? ALLOWANCE.limit : 3;
+    const rem = (ALLOWANCE.remaining != null) ? ALLOWANCE.remaining : '-';
+    el.dlAllowancePill.textContent = `Allowance: ${rem} / ${limit} left`;
+  }
+
+    // ===== Allowance + modal: Reason → message mapping =====
+  function allowanceMessageForReason(reason, allowance){
+    const r = String(reason || '').trim().toLowerCase();
+    const limit = allowance && allowance.limit != null ? allowance.limit : 3;
+    const rem   = allowance && allowance.remaining != null ? allowance.remaining : null;
+
+    switch(r){
+      case 'trial_not_allowed':
+        return 'Downloads are not available on Trial. Upgrade to Premium to unlock offline packs.';
+
+      case 'renew_required':
+        return 'Your subscription is not active or has expired. Renew to unlock offline downloads.';
+
+      case 'not_subscribed':
+        return 'You do not have an active subscription that includes this course.';
+
+      case 'limit_reached':
+        return `You have used all ${limit} offline pack downloads for this course in the current period.`;
+        
+        case 'allowance_check_failed':
+  return 'We could not confirm your allowance due to a network issue. You can still try to create a pack - the server will validate it.';
+
+
+      case 'no_items_match':
+        return 'No questions matched your selection. Broaden your topics/difficulty or switch to “All topics”.';
+
+      // fallback
+      default:
+        // If backend didn't provide a reason but remaining is 0, show the limit message.
+        if (rem === 0) return `You have used all ${limit} offline pack downloads for this course in the current period.`;
+        return 'Downloads are not available right now. Please check your subscription and try again.';
+    }
+  }
+
+  
+async function fetchAllowance(course_id){
+  const token = getToken();
+  if (!token) return null;
+
+  try{
+    const url =
+      `${WEB_APP_URL}?action=downloads.allowance` +
+      `&course_id=${encodeURIComponent(course_id)}` +
+      `&token=${encodeURIComponent(token)}`;
+
+    const r = await fetch(url, { method: 'GET' });
+    const out = await r.json();
+
+    // ✅ If server says OK, normalize into the same frontend shape
+    if (out && out.ok === true){
+      const limit = (out.downloads_per_course != null) ? Number(out.downloads_per_course) : 3;
+      const remaining = (out.remaining != null) ? Number(out.remaining) : 0;
+
+      return {
+        remaining,
+        limit,
+        can_create: remaining > 0,
+        reason: null
+      };
+    }
+
+    // ❌ Not OK: normalize error/reason into the same shape
+    const limit = (out && out.downloads_per_course != null) ? Number(out.downloads_per_course) : 3;
+    const remaining = (out && out.remaining != null) ? Number(out.remaining) : 0;
+
+    return {
+      remaining,
+      limit,
+      can_create: false,
+      reason: (out && (out.blocked_reason || out.error)) ? (out.blocked_reason || out.error) : 'not_allowed'
+    };
+
+  }catch(_){
+    // Network failure: allow UI to proceed, but label it so modal message can explain.
+    return { remaining: null, limit: 3, can_create: true, reason: 'allowance_check_failed' };
+  }
+}
+
+
+  function buildDownloadPayload(){
+    const course_id = el.course.value || 'RN_MED';
+
+    const modeSel = selectionMode();
+    let topics   = [];
+    let concept  = '';
+    let concepts = [];
+    let search_terms = Array.isArray(SEARCH_TERMS) ? SEARCH_TERMS.slice() : [];
+
+    if (modeSel === 'topics'){
+topics = el.useAll.checked ? ["__ALL_TOPICS__"] : selectedTopics();
+      concepts = [];
+      concept  = '';
+} else {
+  // Concept mode: store "intent tokens" in topics column
+  const conceptsArr = selectedConcepts();
+  const query = (conceptValue || '').trim();
+
+  if (query) addSearchTermFromCurrentInput();
+  const searchesArr = Array.isArray(SEARCH_TERMS) ? SEARCH_TERMS.slice() : [];
+
+  topics = [
+    ...conceptsArr.map(c => `CONCEPT:${String(c).trim()}`),
+    ...searchesArr.map(s => `SEARCH:${String(s).trim()}`)
+  ].filter(Boolean);
+
+  concepts = conceptsArr;
+  concept = query;
+  search_terms = searchesArr;
+}
+
+
+const difficulties = pickDiffsOrAll();
+    let question_count = +el.n.value || 10;
+    const max = +el.n.max || 50;
+    if (question_count > max) question_count = max;
+
+    return {
+      course_id,
+      pack_name: (el.packName.value || '').trim(),
+      question_count,
+      topics,
+      difficulties,
+      concept,
+      concepts,
+      search_terms,
+      watermark: watermarkSnapshot(),
+      status: 'active'
+    };
+  }
+
+async function createDownloadPack() {
+  const name = (el.packName.value || '').trim();
+  if (!name) { modalErr('Please enter a pack name.'); return; }
+  
+  const course_id = el.course.value || 'RN_MED';
+  const token = getToken();
+  if (!token) { modalErr('Session missing.'); return; }
+
+  el.dlCreateBtn.disabled = true;
+  showPageLoader('Creating your pack...', 'Generating your offline pack.');
+
+  try {
+    const res = await fetch(`${WEB_APP_URL}?action=downloads.create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token, payload: JSON.stringify(buildDownloadPayload()) })
+    });
+
+const out = await res.json();
+
+if (!out || out.ok !== true) {
+  hidePageLoader(); // ✅ hide only on failure
+
+  // Backend uses blocked_reason for most “expected” failures
+  const reason = (out && (out.blocked_reason || out.reason)) ? (out.blocked_reason || out.reason) : (out && out.error) ? out.error : 'unknown';
+
+  // If we already fetched allowance, reuse it for better messaging
+  const msg = allowanceMessageForReason(reason, ALLOWANCE);
+  modalErr(msg);
+
+  // If it’s a “hard block”, keep Create disabled (prevents spam clicks)
+  const hardBlocks = ['trial_not_allowed','renew_required','not_subscribed','limit_reached'];
+  if (hardBlocks.includes(String(reason||'').toLowerCase())) {
+    el.dlCreateBtn.disabled = true;
+  } else {
+    el.dlCreateBtn.disabled = false;
+  }
+
+  return;
+}
+
+// ✅ success: keep overlay up and switch message
+showPageLoader('Opening your pack...', 'Almost done - loading the renderer page.');
+
+
+
+    closeModal();
+// Refresh allowance in background (not blocking redirect)
+try{ fetchAllowance(course_id).then(a => { ALLOWANCE = a; }); }catch(_){}
+
+    const packId = out.pack_id;
+    const dlUrl = `${WEB_APP_URL}?action=downloads.get&pack_id=${encodeURIComponent(packId)}&token=${encodeURIComponent(token)}`;
+
+// ✅ Redirect to renderer page (token stays in localStorage)
+setStatus('Pack created! Redirecting to the renderer...');
+
+const url = `${OFFLINE_RENDERER_URL}?pack_id=${encodeURIComponent(packId)}`;
+window.location.href = url;
+
+  } catch (err) {
+    hidePageLoader();
+    el.dlCreateBtn.disabled = false;
+    modalErr('Network error: ' + err.message);
+  }
+}
+
+  async function startDownloadFlow(){
+    validateAll();
+    if (el.downloadBtn.disabled) return;
+
+    const course_id = el.course.value || 'RN_MED';
+
+    // fetch allowance fresh whenever opening modal
+    showPageLoader('Checking allowance...', 'Confirming your download allowance for this course.');
+    ALLOWANCE = await fetchAllowance(course_id);
+    hidePageLoader();
+
+    updateModalPills();
+
+    if (ALLOWANCE && ALLOWANCE.can_create === false){
+      openModal();
+      updateModalPills();
+
+      // Use backend reason mapping
+      const msg = allowanceMessageForReason(ALLOWANCE.reason, ALLOWANCE);
+      modalErr(msg);
+
+      // Prevent create while blocked
+      el.dlCreateBtn.disabled = true;
+
+      // Optional: focus Close so user isn't stuck
+      try{ el.dlCloseBtn.focus(); }catch(_){}
+      return;
+    }
+
+
+    el.dlCreateBtn.disabled = false;
+    openModal();
+  }
+
+  // ===== Events =====
+  el.course.addEventListener('change', ()=>{
+    el.courseBadge.textContent = courseLabel(el.course.value) || '-';
+    el.sumCourse.textContent = `Course: ${courseLabel(el.course.value) || '-'}`;
+    savePrefs();
+    updateRestoreStripVisibility();
+
+    loadMeta().then(()=>{
+      restorePrefsAfterMeta();
+      renderTopics();
+      reflectDiffUI();
+      updateSelectedBadge();
+      updateAvailEstimate();
+      reflectSummary();
+      validateAll();
+      updateStepperUI();
+      setStatus('Course loaded. Adjust your filters, then download your offline pack.');
+    });
+  });
+
+  el.topicFilter.addEventListener('input', ()=>{ renderTopics(); savePrefs(); });
+
+  el.selectAll.addEventListener('click', ()=>{
+    if (selectionMode()!=='topics') return;
+    el.useAll.checked = false;
+    saveUseAll(el.course.value || 'RN_MED', false);
+    setTopicsBoxInteractivity();
+
+    const boxes = el.topicsBox.querySelectorAll('input.tchk');
+    boxes.forEach(chk=>{ chk.checked = true; SELECTED.add(chk.value); });
+
+    renderTopics();
+    updateSelectedBadge();
+    updateAvailEstimate();
+    reflectSummary();
+    reflectDiffUI();
+    validateAll();
+    updateStepperUI();
+    savePrefs();
+  });
+
+  el.clearAll.addEventListener('click', ()=>{
+    if (selectionMode()!=='topics') return;
+    el.useAll.checked = false;
+    saveUseAll(el.course.value || 'RN_MED', false);
+    setTopicsBoxInteractivity();
+
+    const boxes = el.topicsBox.querySelectorAll('input.tchk');
+    boxes.forEach(chk=>{ chk.checked = false; SELECTED.delete(chk.value); });
+
+    renderTopics();
+    updateSelectedBadge();
+    updateAvailEstimate();
+    reflectSummary();
+    reflectDiffUI();
+    validateAll();
+    updateStepperUI();
+    savePrefs();
+  });
+
+  el.sortToggle.addEventListener('click', ()=>{
+    sortMode = (sortMode==='name') ? 'count' : 'name';
+    el.sortToggle.textContent = `Sort: ${sortMode==='name' ? 'Name' : 'Count'}`;
+    renderTopics();
+  });
+
+  [el.easy, el.moderate, el.hard].forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      reflectDiffUI();
+      updateAvailEstimate();
+      reflectSummary();
+      validateAll();
+      updateStepperUI();
+      savePrefs();
+    });
+  });
+
+  ['change','input'].forEach(ev=>{
+    el.n.addEventListener(ev, ()=>{
+      reflectSummary();
+      validateAll();
+      updateStepperUI();
+      savePrefs();
+    });
+  });
+
+  el.useAll.addEventListener('change', ()=>{
+    saveUseAll(el.course.value || 'RN_MED', el.useAll.checked);
+    if (el.useAll.checked) SELECTED.clear();
+    setTopicsBoxInteractivity();
+    renderTopics();
+    updateAvailEstimate();
+    reflectSummary();
+    reflectDiffUI();
+    validateAll();
+    updateStepperUI();
+    savePrefs();
+  });
+
+  el.conceptInput.addEventListener('input', ()=>{
+    conceptValue = el.conceptInput.value || '';
+    renderConceptSuggestions();
+    updateConceptBucketLine();
+    savePrefs();
+    updateSelectedBadge();
+    updateAvailEstimate();
+    reflectSummary();
+    validateAll();
+    updateStepperUI();
+  });
+
+  if (el.conceptSelectShown){
+    el.conceptSelectShown.addEventListener('click', ()=>{
+      if (selectionMode()!=='concept') return;
+      const boxes = el.conceptSuggestBox.querySelectorAll('input.concept-choice');
+      if (!boxes.length) return;
+      boxes.forEach(input=>{ input.checked = true; toggleConceptSelection(input.value, true); });
+      addSearchTermFromCurrentInput();
+      updateSelectedBadge();
+      updateAvailEstimate();
+      reflectSummary();
+      validateAll();
+      updateStepperUI();
+      savePrefs();
+      renderConceptSuggestions();
+    });
+  }
+
+  if (el.conceptClearShown){
+    el.conceptClearShown.addEventListener('click', ()=>{
+      if (selectionMode()!=='concept') return;
+      const boxes = el.conceptSuggestBox.querySelectorAll('input.concept-choice');
+      if (!boxes.length) return;
+      boxes.forEach(input=>{ input.checked = false; toggleConceptSelection(input.value, false); });
+      updateSelectedBadge();
+      updateAvailEstimate();
+      reflectSummary();
+      validateAll();
+      updateStepperUI();
+      savePrefs();
+      renderConceptSuggestions();
+    });
+  }
+
+  if (el.resetConceptSearch){
+    el.resetConceptSearch.addEventListener('click', ()=>{
+      conceptValue = '';
+      el.conceptInput.value = '';
+      renderConceptSuggestions();
+      updateConceptBucketLine();
+      updateSelectedBadge();
+      updateAvailEstimate();
+      reflectSummary();
+      validateAll();
+      updateStepperUI();
+      savePrefs();
+    });
+  }
+
+  if (el.clearAllConcepts){
+    el.clearAllConcepts.addEventListener('click', ()=>{
+      setSelectedConcepts([]);
+      SEARCH_TERMS = [];
+      conceptValue = '';
+      el.conceptInput.value = '';
+      renderConceptSuggestions();
+      updateConceptBucketLine();
+      updateSelectedBadge();
+      updateAvailEstimate();
+      reflectSummary();
+      validateAll();
+      updateStepperUI();
+      savePrefs();
+    });
+  }
+
+  el.modeByTopics.addEventListener('change', ()=>{
+    if (!el.modeByTopics.checked) return;
+    SELECT_MODE = 'topics';
+    updateModeSections();
+    reflectSummary();
+    validateAll();
+    updateStepperUI();
+    savePrefs();
+  });
+
+  el.modeByConcept.addEventListener('change', ()=>{
+    if (!el.modeByConcept.checked) return;
+    SELECT_MODE = 'concept';
+    updateModeSections();
+    reflectSummary();
+    validateAll();
+    updateStepperUI();
+    savePrefs();
+  });
+
+
+
+  el.btnNext.addEventListener('click', goNext);
+  el.btnBack.addEventListener('click', goBack);
+  el.downloadBtn.addEventListener('click', startDownloadFlow);
+
+  document.querySelectorAll('.review-edit').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const stepId = btn.getAttribute('data-edit-step');
+      const idx = STEPS.indexOf(stepId);
+      if (idx >= 0){
+        currentStepIndex = idx;
+        updateStepperUI();
+      }
+    });
+  });
+
+  if (el.btnRestorePrefs){
+    el.btnRestorePrefs.addEventListener('click', ()=>{
+      const cid = el.course.value || 'RN_MED';
+      const prefs = loadPrefs(cid);
+      if (!prefs){ updateRestoreStripVisibility(); return; }
+      restorePrefsAfterMeta();
+      renderTopics();
+      reflectDiffUI();
+      updateSelectedBadge();
+      updateAvailEstimate();
+      reflectSummary();
+      validateAll();
+      updateStepperUI();
+      setStatus('Previous setup applied for this course.');
+    });
+  }
+
+  if (el.btnResetPrefs){
+    el.btnResetPrefs.addEventListener('click', hardResetCurrentCourse);
+  }
+
+  // Modal events
+  el.dlCloseBtn.addEventListener('click', closeModal);
+  el.dlCancelBtn.addEventListener('click', closeModal);
+  el.dlCreateBtn.addEventListener('click', createDownloadPack);
+
+  // Click outside closes
+  el.dlModal.addEventListener('click', (e)=>{
+    if (e.target === el.dlModal) closeModal();
+  });
+
+  // Enter to create
+  el.packName.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter'){
+      e.preventDefault();
+      createDownloadPack();
+    }
+  });
+
+  // ===== Init =====
+  (async function init(){
+    try{
+      const guardResult = await window.qaGuardReady;
+      if (!guardResult || guardResult.blocked){
+        setStatus('Access blocked. Please return to your dashboard.');
+        return;
+      }
+    }catch(e){
+      setStatus('Could not verify your access. Please reload this page.');
+      return;
+    }
+
+    const access = window.QA_ACCESS || {};
+    ALLOWED_COURSE_IDS = Array.isArray(access.courseIds) ? access.courseIds.slice() : [];
+
+    const ctxRaw = getQueryParam("course_id") || getQueryParam("cid");
+    if (ctxRaw && ALLOWED_COURSE_IDS.length){
+      const ctxNorm = ctxRaw.trim().toUpperCase();
+      const matchId = ALLOWED_COURSE_IDS.find(id => String(id).trim().toUpperCase() === ctxNorm);
+      if (matchId){
+        CONTEXT_COURSE_ID = matchId;
+        COURSE_LOCKED = true;
+      } else {
+        setStatus('Note: you do not have access to that course. Showing your available courses instead.');
+      }
+    }
+
+    await loadCourses();
+    if (!ALLOWED_COURSE_IDS || !ALLOWED_COURSE_IDS.length) return;
+
+    await loadMeta();
+    restorePrefsAfterMeta();
+    renderTopics();
+    reflectDiffUI();
+    updateSelectedBadge();
+    updateAvailEstimate();
+    reflectSummary();
+    validateAll();
+    updateStepperUI();
+
+    setStatus('Ready. Set up your pack using the steps above.');
+  })();
+
+})();
+</script>
+</body>
+</html>
