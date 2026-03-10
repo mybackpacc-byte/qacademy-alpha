@@ -1,0 +1,629 @@
+<!-- QAcademy — Admin: Create User (Auth v3 + create_user) -->
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<style>
+  :root{
+    --brand:#0b7a75; --muted:#6b7a78; --ink:#0f172a; --bg:#f3f7f6;
+    --paper:#ffffff; --line:#dde5e3; --danger:#b42318; --success:#166534;
+    --ring:rgba(11,122,117,.25); --shadow:0 18px 40px rgba(15,23,42,.12);
+  }
+  html,body{
+    margin:0; padding:0; height:100%; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    background:var(--bg); color:var(--ink);
+  }
+  #qa-admin-shell{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    padding:24px 12px; box-sizing:border-box;
+    background:
+      radial-gradient(900px 600px at 0% 0%, rgba(11,122,117,.18), transparent 60%),
+      radial-gradient(900px 600px at 100% 100%, rgba(133,153,152,.20), transparent 60%),
+      linear-gradient(140deg,#f6fbfa,#edf4f2 40%,#e6eeec);
+  }
+  .qa-card{
+    width:min(960px,100%);
+    background:var(--paper); border-radius:20px; border:1px solid rgba(0,0,0,.04);
+    box-shadow:var(--shadow); overflow:hidden;
+    display:grid; grid-template-columns:280px 1fr;
+  }
+  @media (max-width:820px){
+    .qa-card{ grid-template-columns:1fr; }
+  }
+
+  /* Left admin rail */
+  .qa-rail{
+    background:linear-gradient(165deg,#0b7a75,#0a645f 60%,#08403a);
+    color:#f9fdfc; padding:24px 22px; position:relative;
+  }
+  .qa-rail::after{
+    content:""; position:absolute; inset:0; pointer-events:none;
+    background:
+      radial-gradient(520px 380px at 10% 0%, rgba(242,201,76,.28), transparent 70%),
+      radial-gradient(420px 320px at 100% 100%, rgba(255,255,255,.16), transparent 70%);
+  }
+  .qa-rail-inner{ position:relative; z-index:1; }
+  .qa-badge{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 10px; border-radius:999px;
+    background:rgba(8,40,38,.68); font-size:11px; letter-spacing:.05em; text-transform:uppercase;
+  }
+  .qa-badge span:first-child{ font-size:14px; }
+  .qa-rail-title{ margin-top:18px; font-size:22px; font-weight:800; }
+  .qa-rail-sub{ margin-top:6px; font-size:13px; color:rgba(240,253,250,.85); }
+  .qa-rail-list{ margin-top:18px; padding:0; list-style:none; font-size:13px; }
+  .qa-rail-list li{ display:flex; gap:8px; margin-bottom:8px; color:rgba(226,252,249,.9); }
+  .qa-rail-list li span:first-child{ font-size:16px; }
+
+  /* Right main */
+  .qa-main{
+    padding:20px 24px 22px; background:var(--paper);
+  }
+  .qa-main-head{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    margin-bottom:10px;
+  }
+  .qa-main-title{ font-size:18px; font-weight:800; letter-spacing:.02em; }
+  .qa-chip{
+    padding:4px 10px; border-radius:999px; font-size:11px;
+    border:1px solid rgba(15,23,42,.08); background:#f8fafc; color:#0f172a;
+  }
+  .qa-chip.admin{ border-color:rgba(22,101,52,.30); background:#ecfdf3; color:#166534; }
+  .qa-chip.danger{ border-color:rgba(180,35,24,.3); background:#fef2f2; color:#b42318; }
+
+  .qa-subtext{ margin:0 0 4px; font-size:13px; color:var(--muted); }
+
+  .qa-row{
+    display:flex; flex-wrap:wrap; gap:12px; margin-top:10px;
+  }
+  .qa-field{
+    flex:1 1 160px; min-width:0;
+  }
+  label{
+    display:block; font-size:12px; color:#4b5b59; margin-bottom:4px;
+  }
+  .qa-input, .qa-select{
+    width:100%; box-sizing:border-box;
+    padding:9px 11px; border-radius:11px;
+    border:1px solid var(--line); font-size:13px;
+    background:#ffffff; color:var(--ink);
+    transition:border-color .15s, box-shadow .15s, background .15s;
+  }
+  .qa-input:focus, .qa-select:focus{
+    outline:none; border-color:#cbe5e1; box-shadow:0 0 0 3px var(--ring);
+    background:#fcfffe;
+  }
+  .qa-input[aria-invalid="true"], .qa-select[aria-invalid="true"]{
+    border-color:#f19999; box-shadow:0 0 0 3px rgba(244,67,54,.12);
+  }
+
+  .qa-actions{
+    margin-top:16px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  }
+  .qa-btn{
+    border-radius:999px; border:1px solid #0b7a75;
+    background:linear-gradient(180deg,#0b7a75,#0a655f);
+    color:#ffffff; padding:9px 16px; font-size:13px; font-weight:700;
+    display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+  }
+  .qa-btn:disabled{ opacity:.7; cursor:progress; }
+  .qa-btn.outline{
+    background:#ffffff; color:#0b7a75; border-color:#c1d9d6;
+  }
+
+  .qa-status{
+    margin-top:12px; font-size:13px; padding:9px 11px; border-radius:11px;
+    display:none;
+  }
+  .qa-status.ok{
+    display:block; background:#ecfdf3; border:1px solid #bbf7d0; color:#166534;
+  }
+  .qa-status.err{
+    display:block; background:#fef2f2; border:1px solid #fecaca; color:#b42318;
+  }
+
+  .qa-result{
+    margin-top:14px; padding:10px 11px; border-radius:11px;
+    border:1px dashed #cbd5e1; background:#f8fafc; font-size:13px; display:none;
+  }
+  .qa-result code{
+    font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,"Liberation Mono","Courier New", monospace;
+    font-size:12px; padding:2px 4px; border-radius:6px; background:#e2e8f0;
+  }
+  .qa-meta{
+    margin-top:6px; font-size:12px; color:var(--muted);
+  }
+
+  .qa-small{
+    font-size:11px; color:#6b7a78; margin-top:8px;
+  }
+</style>
+
+<div id="qa-admin-shell">
+  <div class="qa-card" id="qa-card">
+    <!-- Left rail -->
+    <aside class="qa-rail">
+      <div class="qa-rail-inner">
+        <div class="qa-badge">
+          <span>🛡</span><span>Admin Panel</span>
+        </div>
+        <div class="qa-rail-title">Create Portal User</div>
+        <p class="qa-rail-sub">
+          Add a new QAcademy account. A temporary password will be generated
+          automatically for you to share with the student.
+        </p>
+        <ul class="qa-rail-list">
+          <li><span>1</span><span>Verify you are logged in as an <b>admin</b> or <b>moderator</b>.</span></li>
+          <li><span>2</span><span>Complete the basic profile fields.</span></li>
+          <li><span>3</span><span>Username is auto-suggested from forename (you can edit it).</span></li>
+          <li><span>4</span><span>Click <b>Create user</b> to generate credentials.</span></li>
+          <li><span>5</span><span>Share email + temp password or encourage Google Sign-In.</span></li>
+        </ul>
+      </div>
+    </aside>
+
+    <!-- Right main -->
+    <main class="qa-main">
+      <div class="qa-main-head">
+        <div>
+          <div class="qa-main-title">New User</div>
+          <p class="qa-subtext">Admin-only screen for creating QAcademy accounts.</p>
+        </div>
+        <div>
+          <span id="qa-admin-chip" class="qa-chip">Checking access…</span>
+        </div>
+      </div>
+
+      <form id="qa-form" novalidate>
+        <p class="qa-subtext" style="margin-bottom:8px">
+          Required fields: <b>Forename</b>, <b>Surname</b>, <b>Email</b>.
+        </p>
+
+        <!-- Name -->
+        <div class="qa-row">
+          <div class="qa-field">
+            <label for="qa-forename">Forename *</label>
+            <input id="qa-forename" class="qa-input" type="text" autocomplete="off">
+          </div>
+          <div class="qa-field">
+            <label for="qa-surname">Surname *</label>
+            <input id="qa-surname" class="qa-input" type="text" autocomplete="off">
+          </div>
+        </div>
+
+        <!-- Contact -->
+        <div class="qa-row">
+          <div class="qa-field">
+            <label for="qa-email">Email *</label>
+            <input id="qa-email" class="qa-input" type="email" autocomplete="off">
+          </div>
+          <div class="qa-field">
+            <label for="qa-phone">Phone (optional but useful)</label>
+            <input id="qa-phone" class="qa-input" type="text" autocomplete="off">
+          </div>
+        </div>
+
+        <!-- Username + avatar -->
+        <div class="qa-row">
+          <div class="qa-field">
+            <label for="qa-username">Username (auto from forename, editable)</label>
+            <input id="qa-username" class="qa-input" type="text" autocomplete="off"
+                   placeholder="e.g. james01">
+          </div>
+          <div class="qa-field">
+            <label for="qa-avatar">Avatar URL (optional)</label>
+            <input id="qa-avatar" class="qa-input" type="text" autocomplete="off"
+                   placeholder="https://…">
+          </div>
+        </div>
+
+        <!-- Program + Cohort -->
+        <div class="qa-row">
+          <div class="qa-field">
+            <label for="qa-program">Program (optional)</label>
+            <select id="qa-program" class="qa-select">
+              <option value="">No program (unspecified)</option>
+            </select>
+          </div>
+          <div class="qa-field">
+            <label for="qa-cohort">Cohort (optional)</label>
+            <input id="qa-cohort" class="qa-input" type="text" placeholder="e.g. 2026A">
+          </div>
+        </div>
+
+        <!-- Role + flags -->
+        <div class="qa-row">
+          <div class="qa-field">
+            <label for="qa-role">Role</label>
+            <select id="qa-role" class="qa-select">
+              <option value="STUDENT" selected>STUDENT (default)</option>
+              <option value="MODERATOR">MODERATOR (class rep / teacher)</option>
+              <option value="ADMIN">ADMIN (full admin)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="qa-row">
+          <div class="qa-field">
+            <label>
+              <input id="qa-active" type="checkbox" checked>
+              <span style="margin-left:6px;">Active account</span>
+            </label>
+          </div>
+          <div class="qa-field">
+            <label>
+              <input id="qa-must-change" type="checkbox" checked>
+              <span style="margin-left:6px;">Must change password on first login</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="qa-status" class="qa-status" role="status" aria-live="polite"></div>
+
+        <div class="qa-actions">
+          <button id="qa-create" type="submit" class="qa-btn">
+            <span>➕</span><span>Create user</span>
+          </button>
+          <button id="qa-back" type="button" class="qa-btn outline">
+            ⬅ Back to dashboard
+          </button>
+        </div>
+
+        <div class="qa-small">
+          Note: This does <b>not</b> grant course access yet. Use the product/subscription tools
+          to assign RN_FULL, RM_FULL, etc. after the account is created.
+        </div>
+
+        <div id="qa-result" class="qa-result">
+          <div><b>New user created</b></div>
+          <div class="qa-meta" id="qa-result-meta"></div>
+          <div style="margin-top:8px">
+            <div>User ID: <code id="qa-result-uid"></code></div>
+            <div>Username: <code id="qa-result-username"></code></div>
+            <div>Temp password: <code id="qa-result-pass"></code></div>
+          </div>
+          <div class="qa-meta">
+            Share the email address + this temporary password. They can log in with
+            email + password or link their Google account if it uses the same email.
+          </div>
+        </div>
+      </form>
+    </main>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ====== CONFIG ======
+  var WEB_APP_URL_AUTH = "https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec";
+  var TOKEN_KEY        = "qa_token";
+  var LOGIN_SLUG       = "login_23";
+  var DASHBOARD_SLUG   = "dashboard_23";
+
+  var card      = document.getElementById("qa-card");
+  var statusBox = document.getElementById("qa-status");
+  var adminChip = document.getElementById("qa-admin-chip");
+  var resultBox = document.getElementById("qa-result");
+  var resultMeta= document.getElementById("qa-result-meta");
+  var resultUid = document.getElementById("qa-result-uid");
+  var resultPass= document.getElementById("qa-result-pass");
+  var resultUsername = document.getElementById("qa-result-username");
+
+  var form   = document.getElementById("qa-form");
+  var btnCreate = document.getElementById("qa-create");
+  var btnBack   = document.getElementById("qa-back");
+
+  var fForename   = document.getElementById("qa-forename");
+  var fSurname    = document.getElementById("qa-surname");
+  var fEmail      = document.getElementById("qa-email");
+  var fPhone      = document.getElementById("qa-phone");
+  var fUsername   = document.getElementById("qa-username");
+  var fAvatar     = document.getElementById("qa-avatar");
+  var fProgram    = document.getElementById("qa-program");
+  var fCohort     = document.getElementById("qa-cohort");
+  var fRole       = document.getElementById("qa-role");
+  var fActive     = document.getElementById("qa-active");
+  var fMustChange = document.getElementById("qa-must-change");
+
+  var usernameDirty = false;
+
+  function setFieldError(el, hasErr){
+    el.setAttribute("aria-invalid", hasErr ? "true" : "false");
+  }
+  function clearFieldErrors(){
+    [fForename,fSurname,fEmail,fPhone,fUsername,fProgram,fCohort,fRole].forEach(function(el){
+      setFieldError(el,false);
+    });
+  }
+
+  function showStatus(msg, kind){
+    statusBox.textContent = msg;
+    statusBox.className = "qa-status " + (kind === "ok" ? "ok" : "err");
+    statusBox.style.display = "block";
+    if(kind === "err"){
+      card.classList.remove("shake"); void card.offsetWidth; card.classList.add("shake");
+    }
+  }
+  function clearStatus(){
+    statusBox.textContent = "";
+    statusBox.style.display = "none";
+  }
+
+  function setBusy(busy){
+    btnCreate.disabled = busy;
+    if(busy){
+      btnCreate.dataset.prev = btnCreate.textContent;
+      btnCreate.textContent = "Creating…";
+    } else {
+      btnCreate.textContent = btnCreate.dataset.prev || "Create user";
+    }
+  }
+
+  // Simple username base from forename: lowercase, alnum only, capped
+  function makeUsernameBase(fromName){
+    var base = String(fromName || '').trim().toLowerCase();
+    base = base.replace(/[^a-z0-9]/g, '');
+    if(!base) base = 'user';
+    if(!/^[a-z]/.test(base)) base = 'u' + base;
+    if(base.length > 12) base = base.slice(0,12);
+    return base;
+  }
+
+  function maybeSuggestUsername(){
+    if(usernameDirty) return;
+    var forename = (fForename.value || '').trim();
+    if(!forename){
+      fUsername.value = "";
+      return;
+    }
+    var base = makeUsernameBase(forename);
+    fUsername.value = base + "01";
+  }
+
+  fForename.addEventListener("input", function(){
+    maybeSuggestUsername();
+  });
+  fForename.addEventListener("blur", function(){
+    maybeSuggestUsername();
+  });
+  fUsername.addEventListener("input", function(){
+    usernameDirty = true;
+  });
+
+  // ====== Load programs from program_course_map ======
+  async function loadPrograms(token){
+    try{
+      var body = new URLSearchParams({ action:"list_programs", token:token });
+      var res  = await fetch(WEB_APP_URL_AUTH, {
+        method:"POST",
+        headers:{ "Content-Type":"application/x-www-form-urlencoded" },
+        body: body
+      });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      var data = await res.json();
+      if(!data || !data.ok || !Array.isArray(data.programs)){
+        throw new Error(data && data.error ? data.error : "bad_response");
+      }
+
+      // Clear existing options except the first "no program"
+      var keepFirst = fProgram.options[0];
+      fProgram.innerHTML = "";
+      fProgram.appendChild(keepFirst);
+
+      data.programs.forEach(function(p){
+        var pid = p.program_id || "";
+        if(!pid) return;
+        var opt = document.createElement("option");
+        opt.value = pid;
+        opt.textContent = pid;
+        fProgram.appendChild(opt);
+      });
+
+    }catch(e){
+      // If it fails, we just leave the default "No program" option
+      console.log("loadPrograms error:", e);
+    }
+  }
+
+  // ====== Admin guard (verify token + role: ADMIN or MODERATOR) ======
+  async function guardAdmin(){
+    adminChip.textContent = "Checking access…";
+    adminChip.className = "qa-chip";
+
+    var token = localStorage.getItem(TOKEN_KEY) || "";
+    if(!token){
+      adminChip.textContent = "Not logged in";
+      adminChip.className = "qa-chip danger";
+      showStatus("You are not logged in. Redirecting to login…", "err");
+      setTimeout(function(){
+        location.href = "/p/" + LOGIN_SLUG + ".html";
+      }, 1500);
+      return;
+    }
+
+    try{
+      var body = new URLSearchParams({ action:"verify", token:token });
+      var res  = await fetch(WEB_APP_URL_AUTH, {
+        method:"POST",
+        headers:{ "Content-Type":"application/x-www-form-urlencoded" },
+        body: body
+      });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      var data = await res.json();
+
+      if(!data || !data.ok){
+        adminChip.textContent = "Token invalid";
+        adminChip.className   = "qa-chip danger";
+        showStatus("Your session is invalid or expired. Please log in again.", "err");
+        setTimeout(function(){
+          location.href = "/p/" + LOGIN_SLUG + ".html";
+        }, 1500);
+        return;
+      }
+
+      var role = (data.user && data.user.role || "").trim().toUpperCase();
+      var isAdmin     = role === "ADMIN";
+      var isModerator = role === "MODERATOR";
+
+      if(!isAdmin && !isModerator){
+        adminChip.textContent = "Access denied";
+        adminChip.className   = "qa-chip danger";
+        showStatus("You do not have rights to use this page.", "err");
+        btnCreate.disabled = true;
+        Array.from(form.elements).forEach(function(el){ el.disabled = true; });
+        return;
+      }
+
+      // OK — admin or moderator
+      if(isAdmin){
+        adminChip.textContent = "Admin access";
+        adminChip.className   = "qa-chip admin";
+      } else {
+        adminChip.textContent = "Moderator access";
+        adminChip.className   = "qa-chip";
+        // Moderators can only create STUDENT accounts
+        fRole.value = "STUDENT";
+        fRole.disabled = true;
+      }
+
+      if(data.user && data.user.name){
+        resultMeta.textContent = "Logged in as: " + data.user.name + " (" + (data.user.email || "") + ")";
+        resultBox.style.display = "block";
+      }
+      // Hide initial result content until we actually create a user
+      resultBox.style.display = "none";
+
+      // Load program list after guard succeeds
+      loadPrograms(token);
+
+    }catch(e){
+      adminChip.textContent = "Error";
+      adminChip.className   = "qa-chip danger";
+      showStatus("Could not verify access: " + e.message, "err");
+      btnCreate.disabled = true;
+    }
+  }
+
+  // ====== Form submit: create_user ======
+  async function onSubmit(ev){
+    ev.preventDefault();
+    clearFieldErrors();
+    clearStatus();
+    resultBox.style.display = "none";
+
+    var token    = localStorage.getItem(TOKEN_KEY) || "";
+    var forename = (fForename.value || "").trim();
+    var surname  = (fSurname.value  || "").trim();
+    var email    = (fEmail.value    || "").trim();
+    var phone    = (fPhone.value    || "").trim();
+    var username = (fUsername.value || "").trim();
+    var avatar   = (fAvatar.value   || "").trim();
+    var program  = (fProgram.value  || "").trim();
+    var cohort   = (fCohort.value   || "").trim();
+    var role     = (fRole.value     || "").trim() || "STUDENT";
+    var active   = fActive.checked ? "true" : "false";
+    var mustChange = fMustChange.checked ? "true" : "false";
+
+    var hasErr = false;
+    if(!forename){ setFieldError(fForename,true); hasErr = true; }
+    if(!surname){ setFieldError(fSurname,true); hasErr = true; }
+    if(!email){ setFieldError(fEmail,true); hasErr = true; }
+
+    if(hasErr){
+      showStatus("Please fill in all required fields (forename, surname, email).", "err");
+      return;
+    }
+
+    if(!token){
+      showStatus("Your admin session is missing. Please log in again.", "err");
+      return;
+    }
+
+    setBusy(true);
+    try{
+      var body = new URLSearchParams({
+        action:       "create_user",
+        token:        token,
+        forename:     forename,
+        surname:      surname,
+        email:        email,
+        phone_number: phone,
+        program_id:   program,
+        cohort:       cohort,
+        role:         role,
+        new_username: username,
+        avatar_url:   avatar,
+        active:       active,
+        must_change_password: mustChange
+      });
+
+      var res = await fetch(WEB_APP_URL_AUTH, {
+        method:"POST",
+        headers:{ "Content-Type":"application/x-www-form-urlencoded" },
+        body: body
+      });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      var data = await res.json();
+
+      if(!data || !data.ok){
+        var err = (data && data.error) || "unknown_error";
+        var map = {
+          missing_token:   "Your admin session is missing. Please log in again.",
+          invalid_token:   "Your admin session is invalid. Please log in again.",
+          expired:         "Your admin session has expired. Please log in again.",
+          forbidden:       "You do not have permission to create users.",
+          missing_fields:  "Please fill in all required fields (forename, surname, email).",
+          email_exists:    "A user with this email already exists.",
+          username_exists: "A user with this username already exists. Please choose another username.",
+          invalid_username:"Username is invalid. Use only letters, numbers and underscore, starting with a letter (max 20 characters).",
+          caller_inactive: "Your admin account is inactive. Contact system owner."
+        };
+        showStatus(map[err] || ("Create user failed: " + err), "err");
+        if(err === "missing_fields"){
+          if(!forename) setFieldError(fForename,true);
+          if(!surname)  setFieldError(fSurname,true);
+          if(!email)    setFieldError(fEmail,true);
+        }
+        if(err === "invalid_username" || err === "username_exists"){
+          setFieldError(fUsername,true);
+        }
+        return;
+      }
+
+      // Success
+      showStatus("User created successfully.", "ok");
+      resultUid.textContent       = data.user_id || "";
+      resultPass.textContent      = data.temp_password || "";
+      resultUsername.textContent  = data.username || "";
+      var metaRole = data.role || "STUDENT";
+      var metaName = data.name || (forename + " " + surname);
+      var metaEmail= data.email || email;
+      resultMeta.textContent = metaName + " (" + metaEmail + ") · Role: " + metaRole;
+      resultBox.style.display = "block";
+
+      // Optionally clear some fields, but keep program/cohort/role for batch creation
+      fForename.value = "";
+      fSurname.value  = "";
+      fEmail.value    = "";
+      fPhone.value    = "";
+      fUsername.value = "";
+      fAvatar.value   = "";
+      usernameDirty   = false;
+      // Keep program, cohort, role, active, must-change to speed up adding multiple students
+
+    }catch(e){
+      showStatus("Network or server error while creating user: " + e.message, "err");
+    }finally{
+      setBusy(false);
+    }
+  }
+
+  // ====== Back button ======
+  btnBack.addEventListener("click", function(){
+    location.href = "/p/" + DASHBOARD_SLUG + ".html";
+  });
+
+  form.addEventListener("submit", onSubmit);
+
+  // Run guard on load
+  guardAdmin();
+})();
+</script>
