@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QAcademy — Quiz Results</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --brand:        #006d77;
+      --brand-dark:   #00545c;
+      --brand-light:  #83c5be;
+      --text:         #1d3557;
+      --text-light:   #457b9d;
+      --text-lighter: #a8dadc;
+      --bg:           #f1faee;
+      --card:         #ffffff;
+      --border:       #d9e2ec;
+      --border-sub:   #cad2c5;
+      --danger:       #e63946;
+      --warn:         #f4a261;
+      --success:      #2a9d8f;
+      --muted:        #6b7280;
+      --shadow-sm:    0 2px 8px rgba(0,0,0,0.06);
+      --shadow-md:    0 6px 20px rgba(0,0,0,0.08);
+      --radius:       12px;
+      --max-width:    1180px;
+    }
+
+    * { box-sizing: border-box; margin:0; padding:0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.58;
+      min-height: 100vh;
+    }
+
+    .qa-container { min-height: 100vh; display: flex; flex-direction: column; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(241,250,238,0.97);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .topbar-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .brand-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--brand);
+      letter-spacing: -0.02em;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.65rem 1.25rem;
+      font-size: 0.94rem;
+      font-weight: 600;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: white;
+      color: var(--text);
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.14s ease;
+    }
+
+    .btn:hover { background: #f8f9fa; border-color: var(--brand-light); }
+
+    .btn-primary {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: white;
+    }
+
+    .btn-primary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
+
+    .btn-outline { background: transparent; border-color: var(--border-sub); }
+
+    .main-content {
+      flex: 1;
+      max-width: var(--max-width);
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      width: 100%;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-md);
+      padding: 2rem;
+    }
+
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header h1 {
+      font-size: 1.7rem;
+      font-weight: 700;
+      margin: 0 0 0.4rem;
+    }
+
+    .subtitle { color: var(--text-light); font-size: 0.98rem; }
+
+    .status-line {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.8rem;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.5rem 1.1rem;
+      border-radius: 2rem;
+      font-size: 0.92rem;
+      font-weight: 600;
+      border: 1px solid;
+    }
+
+    .status-awaiting  { background:#fff3e0; border-color:#ffb74d; color:#ef6c00; }
+    .status-available { background:#e6f4ea; border-color:#81c784; color:#2e7d32; }
+    .status-hidden    { background:#ffebee; border-color:#e57373; color:#c62828; }
+    .status-pending   { background:#e8f0fe; border-color:#64b5f6; color:#1565c0; }
+
+    .dot { width:10px; height:10px; border-radius:50%; }
+
+    .score-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.6rem;
+      margin: 2rem 0;
+    }
+
+    .score-card {
+      background: linear-gradient(145deg, #ffffff, #f9fbfc);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.8rem 1.4rem;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .score-big {
+      font-size: 3.5rem;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--brand);
+      margin-bottom: 0.5rem;
+    }
+
+    .score-label {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text-light);
+      margin-bottom: 0.7rem;
+    }
+
+    .score-sub {
+      font-size: 0.96rem;
+      color: var(--muted);
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.3rem 2.2rem;
+      margin: 2rem 0;
+      padding: 1.6rem;
+      background: #fafcfc;
+      border-radius: var(--radius);
+      border: 1px solid var(--border-sub);
+    }
+
+    .detail-item dt {
+      font-size: 0.89rem;
+      font-weight: 600;
+      color: var(--text-light);
+      margin-bottom: 0.35rem;
+    }
+
+    .detail-item dd {
+      font-size: 1.02rem;
+      font-weight: 500;
+      margin: 0;
+    }
+
+    details.my-details {
+      margin-top: 2rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    details.my-details summary {
+      padding: 1.1rem 1.5rem;
+      background: #f8fafc;
+      font-weight: 600;
+      color: var(--brand);
+      cursor: pointer;
+      outline: none;
+    }
+
+    details.my-details[open] summary { background: #eef4f5; }
+
+    .details-content {
+      padding: 1.5rem;
+    }
+
+    .section-title {
+      font-weight: 700;
+      margin: 1.4rem 0 0.8rem;
+      color: var(--text);
+    }
+
+    .actions {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      margin-top: 2.8rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .notice {
+      padding: 1.3rem 1.6rem;
+      border-radius: var(--radius);
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      color: #92400e;
+      font-size: 0.97rem;
+    }
+
+    /* ── PRINT STYLES ──────────────────────────────────────── */
+    @media print {
+      @page { size: A4 portrait; margin: 14mm; }
+      body { background: white !important; color: black !important; }
+      .topbar, .btn, .actions, #btnPrint, #btnRefresh, #btnOpenQuiz, #btnReview, #btnBack {
+        display: none !important;
+      }
+      .card {
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+      }
+      .main-content { margin: 0; padding: 0; }
+      .score-panel { grid-template-columns: 1fr 1fr; gap: 1rem; }
+      details.my-details summary { display: none !important; }
+      details.my-details { border: none !important; margin: 1rem 0; }
+      .details-content { padding: 0; }
+      #printStamp {
+        display: block !important;
+        margin: 1.5rem 0;
+        font-size: 0.9rem;
+        color: #555;
+        text-align: right;
+      }
+      h1, .score-big, .section-title { color: black !important; }
+      .status-pill { border: 1px solid #777 !important; background: #f5f5f5 !important; color: #333 !important; }
+    }
+
+    #printStamp { display: none; font-size: 0.9rem; color: var(--muted); text-align: right; margin: 1rem 0; }
+    @media print { #printStamp { display: block !important; } }
+
+    @media (max-width: 640px) {
+      .score-panel { grid-template-columns: 1fr; }
+      .header { flex-direction: column; align-items: stretch; }
+      .actions { justify-content: center; }
+      .details-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="qa-container">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div style="display:flex; align-items:center; gap:1.2rem; flex-wrap:wrap;">
+        <a class="btn btn-outline" href="https://nursing2000a.blogspot.com/p/my-classes.html">← My Classes</a>
+        <span class="brand-title">Quiz Results</span>
+      </div>
+      <div style="color:var(--muted); font-size:0.93rem;" id="uiRightMeta">Loading…</div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="card">
+      <div class="header">
+        <div>
+          <h1 id="uiTitle">Loading…</h1>
+          <div class="subtitle" id="uiSub">Please wait</div>
+          <div id="printStamp"></div>
+        </div>
+
+        <div style="display:flex; gap:0.9rem; flex-wrap:wrap; justify-content:flex-end;">
+          <button class="btn" id="btnRefresh">Refresh</button>
+          <button class="btn" id="btnPrint">Print</button>
+          <a class="btn btn-primary" id="btnOpenQuiz" href="#">Open Quiz</a>
+        </div>
+      </div>
+
+      <div id="uiMain"></div>
+
+      <div class="actions">
+        <a class="btn btn-outline" href="https://nursing2000a.blogspot.com/p/my-classes.html">Back to My Classes</a>
+        <a class="btn btn-primary" id="btnReview" href="#" style="display:none;">Review Questions</a>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ────────────────────────────────────────────────
+//  JavaScript (cleaned & slightly enhanced)
+// ────────────────────────────────────────────────
+
+const TA_URL = "https://script.google.com/macros/s/AKfycbz54M_jWoRq4cOC2gUQeRhd55AeEJ5vnELJ0gkBSodO58fr7WGa9jwk6JNwPptf8p8X/exec";
+const TOKEN_KEY = "qa_token";
+const RUNNER_PAGE = "/p/teacher-quiz-runner.html";
+const REVIEW_PAGE = "/p/teacher-quiz-review.html";
+const DASHBOARD_URL = "https://nursing2000a.blogspot.com/p/my-classes.html";
+
+const state = { token:'', class_id:'', teacher_quiz_id:'', attempt_id:'', quiz:null, attempt:null, results:null };
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const qp = k => new URL(location.href).searchParams.get(k)?.trim() || '';
+const readToken = () => localStorage.getItem(TOKEN_KEY)?.trim() || '';
+
+function buildUrl(path, params) {
+  const u = new URL(path, location.origin);
+  Object.entries(params||{}).forEach(([k,v]) => { if (v!=null && String(v).trim()) u.searchParams.set(k, String(v)); });
+  return u.toString();
+}
+
+async function apiCall(action, data={}) {
+  const body = new URLSearchParams();
+  body.set('action', action);
+  if (state.token) body.set('token', state.token);
+  Object.entries(data).forEach(([k,v]) => { if (v!==undefined) body.set(k, String(v)); });
+  const res = await fetch(TA_URL, {method:'POST', body});
+  return await res.json();
+}
+
+function fmtIso(iso) {
+  const s = String(iso||'').trim();
+  if (!s) return '';
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? s : d.toLocaleString(undefined, {
+    year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', hour12:true
+  });
+}
+
+function fmtDurationSeconds(sec) {
+  const n = parseInt(String(sec??'').trim(),10);
+  if (isNaN(n) || n<0) return '';
+  const h = Math.floor(n/3600), m = Math.floor((n%3600)/60), s = n%60;
+  if (h) return `${h}h ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s`;
+  if (m) return `${m}m ${s.toString().padStart(2,'0')}s`;
+  return `${s}s`;
+}
+
+function friendlyAttemptStatus(st)   { const s=String(st||"").toUpperCase(); return {SUBMITTED:"Submitted",TIMED_OUT:"Timed out",CLOSED:"Closed (quiz deadline reached)",IN_PROGRESS:"In progress",ABANDONED:"Not completed"}[s]||s||''; }
+function friendlyResultsPolicy(p)    { const s=String(p||"").toUpperCase(); return {IMMEDIATE:"Immediately after submission",AFTER_CLOSE:"After quiz closes",MANUAL:"When released by instructor"}[s]||s||''; }
+function friendlyResultsAccess(g)    { return g ? 'Available' : 'Not yet'; }
+function friendlyScoreDisplayPolicy(p) { const s=String(p||"").toUpperCase(); return {HIDE:"Hidden",PCT_ONLY:"Percentage",RAW_ONLY:"Marks",RAW_AND_PCT:"Marks & percentage"}[s]||s||''; }
+function friendlyOutcome(o)          { const s=String(o||"").toUpperCase(); return {PASS:"Pass",FAIL:"Fail"}[s]||s||''; }
+function friendlyQuizType(p)         { const s=String(p||"").toUpperCase(); return {STUDY:"Study mode",ASSIGNMENT:"Assignment",IN_CLASS:"In-class quiz",EXAM:"Exam"}[s]||'Custom'; }
+
+function resolveDisplayScoreObj(r) {
+  if (r?.display_score && typeof r.display_score === 'object') return r.display_score;
+  const sdp = String(r?.score_display_policy || 'PCT_ONLY').toUpperCase();
+  if (sdp === 'HIDE') return null;
+  const sc = r?.score;
+  if (!sc || typeof sc !== 'object') return null;
+  const out = {};
+  if (sdp.includes('PCT')) out.percent = sc.percent ?? null;
+  if (sdp.includes('RAW')) { out.score_marks = sc.score_marks ?? null; out.total_marks = sc.total_marks ?? null; }
+  return (out.percent != null || (out.score_marks != null && out.total_marks != null)) ? out : null;
+}
+
+function disp(v) { const s = String(v ?? '').trim(); return s || '—'; }
+
+function renderEntriesKv(entries) {
+  if (!Array.isArray(entries) || !entries.length) return '<div class="muted">No additional data</div>';
+  return `<div class="details-grid">${entries.map(e => `
+    <div class="detail-item">
+      <dt>${esc(e.label || e.key || '—')}</dt>
+      <dd>${esc(disp(e.value))}</dd>
+    </div>
+  `).join('')}</div>`;
+}
+
+function getStatusClassAndText(r, hasNumeric) {
+  const gate = !!r.gate_met;
+  const showRes = !!r.show_results;
+  const sdp = String(r.score_display_policy || '').toUpperCase();
+  const canRev = !!r.can_review_now;
+
+  if (!gate)          return {cls:'status-awaiting',  text:'Awaiting Release'};
+  if (hasNumeric)     return {cls:'status-available', text:'Results Available'};
+  if (canRev)         return {cls:'status-available', text:'Review Available'};
+  if (showRes && sdp==='HIDE') return {cls:'status-hidden', text:'Score Hidden'};
+  if (!showRes)       return {cls:'status-hidden',    text:'Results Hidden'};
+  return {cls:'status-pending', text:'Pending'};
+}
+
+function render() {
+  const q = state.quiz || {};
+  const a = state.attempt || {};
+  const r = state.results || {};
+
+  $('#uiTitle').textContent = q.title || 'Quiz Results';
+  $('#uiSub').textContent = q.subject || '';
+  $('#uiRightMeta').textContent = a.attempt_no ? `Attempt #${a.attempt_no}` : 'Latest Attempt';
+
+  $('#btnOpenQuiz').href = buildUrl(RUNNER_PAGE,  {class_id:state.class_id, teacher_quiz_id:state.teacher_quiz_id});
+  $('#btnReview').href   = buildUrl(REVIEW_PAGE, {class_id:state.class_id, teacher_quiz_id:state.teacher_quiz_id, attempt_id:state.attempt_id});
+
+  const main = $('#uiMain');
+  main.innerHTML = '';
+
+  const gateMet = !!r.gate_met;
+  const ds = resolveDisplayScoreObj(r);
+  const hasNumericScore = gateMet && !!r.show_results && !!ds;
+  const gradeLabel = disp(r.grade_label);
+  const passStatus = String(r.pass_status || '').trim().toUpperCase();
+  const passThreshold = disp(r.pass_threshold_pct);
+
+  // Status
+  const {cls, text} = getStatusClassAndText(r, hasNumericScore);
+  const msg = r.message ? `<span style="color:var(--muted);">${esc(r.message)}</span>` : '';
+  main.insertAdjacentHTML('beforeend', `
+    <div class="status-line">
+      <span class="status-pill ${cls}">
+        <span class="dot" style="background:currentColor;opacity:0.75;"></span>
+        ${esc(text)}
+      </span>
+      ${msg}
+    </div>
+  `);
+
+  // Score / Outcome cards
+  if (hasNumericScore) {
+    const rawOk  = ds.score_marks != null && ds.total_marks != null;
+    const pctOk  = ds.percent != null;
+    let big = rawOk ? `${ds.score_marks} / ${ds.total_marks}` : (pctOk ? `${ds.percent}%` : '—');
+
+    const subParts = [];
+    if (gradeLabel !== '—') subParts.push(gradeLabel);
+    if (pctOk && rawOk) subParts.push(`${ds.percent}%`);
+    const sub = subParts.join(' • ');
+
+    main.insertAdjacentHTML('beforeend', `
+      <div class="score-panel">
+        <div class="score-card">
+          <div class="score-label">Your Score</div>
+          <div class="score-big">${esc(big)}</div>
+          ${sub ? `<div class="score-sub">${esc(sub)}</div>` : ''}
+        </div>
+        ${passStatus ? `
+        <div class="score-card">
+          <div class="score-label">Outcome</div>
+          <div class="score-big" style="color:${passStatus==='PASS'?'var(--success)':'var(--danger)'}">
+            ${friendlyOutcome(passStatus)}
+          </div>
+          ${passThreshold !== '—' ? `<div class="score-sub">Pass ≥ ${passThreshold}%</div>` : ''}
+        </div>` : ''}
+      </div>
+    `);
+  } else if (gradeLabel !== '—' && String(r.score_display_policy||'').toUpperCase()==='HIDE') {
+    main.insertAdjacentHTML('beforeend', `
+      <div class="score-panel">
+        <div class="score-card">
+          <div class="score-label">Grade Awarded</div>
+          <div class="score-big" style="font-size:3rem;">${esc(gradeLabel)}</div>
+          <div class="score-sub">Numeric score hidden by instructor</div>
+        </div>
+      </div>
+    `);
+  } else {
+    let title = 'No score available', msg = r.message || 'Results not released yet.';
+    if (!gateMet) { title = 'Quiz Submitted'; msg = 'Results will appear according to release settings.'; }
+    main.insertAdjacentHTML('beforeend', `<div class="notice"><strong>${esc(title)}</strong><br>${esc(msg)}</div>`);
+  }
+
+  // Core attempt metadata
+  const coreDetails = [
+    ['Attempt ID',      state.attempt_id],
+    ['Quiz type',       friendlyQuizType(q.preset)],
+    ['Status',          friendlyAttemptStatus(a.status)],
+    ['Started',         fmtIso(a.started_at)],
+    ['Submitted',       fmtIso(a.submitted_at)],
+    ['Time taken',      fmtDurationSeconds(a.time_taken_s)],
+    ['Results policy',  friendlyResultsPolicy(r.results_release_policy)],
+    ['Access',          friendlyResultsAccess(gateMet)],
+    ['Available since', fmtIso(r.available_at)],
+    ['Score display',   friendlyScoreDisplayPolicy(r.score_display_policy)],
+    ['Grade',           gradeLabel],
+    ['Pass threshold',  passThreshold !== '—' ? `${passThreshold}%` : '—'],
+    ['Outcome',         friendlyOutcome(passStatus)]
+  ].filter(([,v]) => v && v !== '—');
+
+  if (coreDetails.length) {
+    main.insertAdjacentHTML('beforeend', `
+      <div class="details-grid">
+        ${coreDetails.map(([k,v]) => `
+          <div class="detail-item">
+            <dt>${esc(k)}</dt><dd>${esc(v)}</dd>
+          </div>
+        `).join('')}
+      </div>
+    `);
+  }
+
+  // My Details collapsible
+  const md = r.my_details || {};
+  const cp = md.class_profile || {};
+  const as = md.attempt_submitted || {};
+
+  if (Object.keys(cp).length || Object.keys(as).length) {
+    const cpName = disp(cp.display_name);
+    main.insertAdjacentHTML('beforeend', `
+      <details class="my-details">
+        <summary>My profile & submission details</summary>
+        <div class="details-content">
+          <div class="section-title">Class profile (current)</div>
+          ${cpName !== '—' ? `<p style="margin:0 0 1rem;">Display name: <strong>${esc(cpName)}</strong></p>` : ''}
+          ${renderEntriesKv(cp.entries || [])}
+
+          <div class="section-title">Attempt submitted data</div>
+          ${renderEntriesKv(as.entries || [])}
+        </div>
+      </details>
+    `);
+  }
+
+  $('#btnReview').style.display = r.can_review_now ? 'inline-flex' : 'none';
+}
+
+// ── Init ────────────────────────────────────────────────
+async function init() {
+  state.class_id       = qp('class_id');
+  state.teacher_quiz_id = qp('teacher_quiz_id');
+  state.attempt_id     = qp('attempt_id');
+  state.token          = readToken();
+
+  if (!state.token) {
+    $('#uiTitle').textContent = 'Sign in required';
+    $('#uiSub').textContent = 'Please sign in from the dashboard.';
+    $('#uiMain').innerHTML = `<div class="notice">No authentication token.<br>Return to <a href="${DASHBOARD_URL}">My Classes</a>.</div>`;
+    return;
+  }
+
+  if (!state.class_id || !state.teacher_quiz_id) {
+    $('#uiTitle').textContent = 'Invalid link';
+    $('#uiMain').innerHTML = `<div class="notice">Missing required parameters.</div>`;
+    return;
+  }
+
+  $('#btnRefresh').onclick = () => location.reload();
+
+  // Print support
+  const printStamp = $('#printStamp');
+  function updateStamp() { printStamp.textContent = `Printed on ${new Date().toLocaleString()}`; }
+
+  window.addEventListener('beforeprint', () => {
+    updateStamp();
+    const det = document.querySelector('details.my-details');
+    if (det) det.open = true;
+  });
+
+  $('#btnPrint').onclick = () => {
+    updateStamp();
+    window.print();
+  };
+
+  // Load data
+  if (!state.attempt_id) {
+    const ares = await apiCall('candidate.attempt.get', {class_id:state.class_id, teacher_quiz_id:state.teacher_quiz_id});
+    if (ares?.ok && ares.attempt?.attempt_id) {
+      state.attempt = ares.attempt;
+      state.attempt_id = ares.attempt.attempt_id;
+      if (String(ares.attempt.status||"").toUpperCase() === 'IN_PROGRESS') {
+        location.href = buildUrl(RUNNER_PAGE, {class_id:state.class_id, teacher_quiz_id:state.teacher_quiz_id, attempt_id:state.attempt_id});
+        return;
+      }
+    } else {
+      $('#uiTitle').textContent = 'No attempts';
+      $('#uiMain').innerHTML = `<div class="notice"><strong>No attempts found.</strong><br>Open the quiz to begin.</div>`;
+      $('#btnOpenQuiz').href = buildUrl(RUNNER_PAGE, {class_id:state.class_id, teacher_quiz_id:state.teacher_quiz_id});
+      return;
+    }
+  }
+
+  const rres = await apiCall('candidate.attempt.results.get', {
+    class_id: state.class_id,
+    teacher_quiz_id: state.teacher_quiz_id,
+    attempt_id: state.attempt_id
+  });
+
+  if (!rres?.ok) {
+    $('#uiMain').innerHTML = `<div class="notice"><strong>Error loading results</strong><br>${esc(rres?.error || rres?.message || 'Unknown')}</div>`;
+    return;
+  }
+
+  if (rres.quiz_meta)    state.quiz    = rres.quiz_meta;
+  if (rres.attempt_meta) state.attempt = rres.attempt_meta;
+  state.results = rres;
+
+  render();
+}
+
+init();
+</script>
+</body>
+</html>
