@@ -1,0 +1,3396 @@
+/***************************************
+ * QAcademy — Quiz Builder API (Clean v1)
+ * + Fixed Quizzes (courseQuizzes + fixed.spawn)
+ * + attempt.finish (write-back of results)
+ * + attempt.update (partial save)
+ * + attempts.list (history API)
+ * Project Alpha — 2025-11-08 (Europe/London)
+ ***************************************/
+
+const PORTAL_DB_ID = '1Aq0IaPOjC1Vo4bQb8aP0S0bO5EaeUx_4oYUlnJ2g2vc'; // Portal DB
+const TAB_COURSES  = 'courses';   // columns: course_id, sheet_id, status
+const TAB_ATTEMPTS = 'attempts';  // created on first use if missing
+const TAB_QUIZZES  = 'quizzes';   // columns: quiz_id, course_id, type, title, published, visibility, publish_at, unpublish_at, n, duration_min, ...
+const TAB_USERS        = 'users';
+const TAB_TOKENS       = 'tokens';
+
+// NEW:
+const TAB_ANNOUNCEMENTS = 'announcements';
+const TAB_PRODUCTS      = 'products';
+const TAB_SUBSCRIPTIONS = 'subscriptions';
+const TAB_PROGRAMS      = 'programs';   // NEW: canonical program list
+const TAB_LEVELS        = 'levels';     // NEW: canonical level list
+// NEW: per-user state for announcements
+const TAB_NOTICE_STATE = 'user_notice_state';
+
+// Must match your sheet columns (final order)
+const NOTICE_STATE_HEADER = [
+  'user_id',
+  'user_label',
+  'user_email',
+  'item_type',
+  'item_id',
+  'state',
+  'seen_at',
+  'updated_at'
+];
+
+const NOTICE_ITEM_ANN = 'ANNOUNCEMENT';
+const NOTICE_STATE_SEEN = 'seen';
+const NOTICE_STATE_DISMISSED = 'dismissed';
+
+
+
+// Hard caps / defaults
+const MAX_N_DEFAULT = 50; // global cap for spawn requests
+
+// Standard schema for TAB_ATTEMPTS (used by writer + finisher)
+// Keep all you might need for history / review / retakes
+const ATTEMPTS_DEFAULT_HEADER = [
+  'attempt_id',
+  'ts_iso',
+  'course_id',
+  'mode',
+  'duration_min',
+  'user_id',
+  'n',
+  'seed',
+  'source',
+  'item_ids',
+  'quiz_id',
+  'display_label',
+  'status',           // in_progress / completed / abandoned
+  'score_raw',
+  'score_total',
+  'score_pct',
+  'time_taken_s',
+  'answers_json',
+  'origin_attempt_id' // for future "retake based on" linkage
+];
+
+
+const ANNOUNCEMENTS_DEFAULT_HEADER = [
+  'announcement_id',
+  'title',
+  'body_html',
+  'body_text',
+  'body',
+  'status',
+  'created_at',
+  'start_at',
+  'end_at',
+  'pinned',
+  'priority',
+  'dismissible',
+  'scope_programs',
+  'scope_courses',
+  'scope_level',
+  'scope_subscription_kind',
+  'scope_product_ids',
+  'scope_audience',
+  'scope_cohort',
+  'scope_user_ids'       // 🔹 NEW: user-level targeting
+];
+
+
+
+/* ==================== HTTP HANDLERS ==================== */
+function doGet(e) {
+  try {
+    const action = (e.parameter.action || '').toLowerCase();
+
+    if (action === 'health') {
+      return json_({ ok: true, ts: new Date().toISOString() });
+    }
+
+    if (action === 'builder.meta') {
+      const courseId = reqParam_(e, 'course_id');
+      const meta = getBuilderMeta_(courseId);
+      return json_(meta);
+    }
+
+    if (action === 'courses') {
+      return json_({ courses: listActiveCourses_() });
+    }
+
+        if (action === 'users.search') {
+      const out = handleUsersSearch_(e);
+      return json_(out);
+    }
+
+    
+    if (action === 'attempt') {
+      const attemptId   = reqParam_(e, 'attempt_id');
+      const token       = (e.parameter.token     || '').trim();
+      const expectMode  = (e.parameter.mode      || '').trim().toLowerCase();
+      const expectCid   = (e.parameter.course_id || '').trim();
+      
+      const out = getAttempt_(attemptId, {
+        token:            token,
+        expectedMode:     expectMode,
+        expectedCourseId: expectCid
+      });
+      return json_(out);
+    }
+
+
+    if (action === 'coursequizzes') {
+      const courseId = reqParam_(e, 'course_id');
+      const out = getCourseQuizzes_(courseId);
+      return json_(out);
+    }
+
+
+    if (action === 'announcements.meta') {
+      const token = reqParam_(e, 'token');
+      // Just to ensure it's a valid logged-in user; no extra checks here
+      verifyToken_(token);
+
+      const meta = getAnnouncementsMeta_();
+      return json_(meta);
+    }
+   
+if (action === 'announcements.list') {
+  const token = reqParam_(e, 'token'); // qa_token from browser
+  const mode  = (e.parameter.mode || '').trim().toLowerCase(); // '' | 'admin' | 'archive' | 'dashboard'
+
+  const limit = parseInt(e.parameter.limit || '0', 10) || 20;
+  const authInfo = verifyToken_(token);
+  const userId   = authInfo.user_id;
+
+  if (mode === 'admin') {
+    // Admin listing with filters
+    const out = listAnnouncementsAdmin_({
+      status:           (e.parameter.status           || '').trim(), // CSV: "active,scheduled"
+      program_id:       (e.parameter.program_id       || '').trim(),
+      course_id:        (e.parameter.course_id        || '').trim(),
+      cohort:           (e.parameter.cohort           || '').trim(),
+      level:            (e.parameter.level            || '').trim(), // 🔹 NEW
+      subscription_kind:(e.parameter.subscription_kind|| '').trim(),
+      product_id:       (e.parameter.product_id       || '').trim(),
+      audience:         (e.parameter.audience         || '').trim(),
+      search:           (e.parameter.search           || '').trim(),
+      offset:           parseInt(e.parameter.offset || '0', 10) || 0,
+      limit:            limit
+    });
+    return json_(out);
+  } else {
+    // Student/dashboard/announcements listing
+    const courseId = (e.parameter.course_id || '').trim(); // optional
+
+    // Decide default window based on mode:
+    // - dashboard ('' or 'dashboard') → 30 days
+    // - archive                       → 730 days (~2 years)
+    const rawRecent = (e.parameter.recent_days || '').trim();
+    let recentDays;
+
+    if (!rawRecent) {
+      recentDays = (mode === 'archive') ? 730 : 30;
+    } else {
+      recentDays = parseInt(rawRecent, 10);
+      if (!recentDays || isNaN(recentDays)) {
+        recentDays = (mode === 'archive') ? 730 : 30;
+      }
+    }
+
+    const out = listAnnouncementsForUser_({
+      user_id:     userId,
+      course_id:   courseId,
+      limit:       limit,
+      mode:        mode,        // '' | 'archive' | 'dashboard'
+      recent_days: recentDays   // dashboard=30, archive=730 unless overridden
+    });
+    return json_(out);
+  }
+
+}
+
+
+
+    // NEW: attempts.list — list attempts for the *current verified user*
+    if (action === 'attempts.list') {
+      // We now trust ONLY the token, not a user_id from the browser
+      const token    = reqParam_(e, 'token');
+      const authInfo = verifyToken_(token);  // NEW helper below
+      const userId   = authInfo.user_id;
+
+      const courseId = (e.parameter.course_id || '').trim();
+      const mode     = (e.parameter.mode     || '').trim();
+      const source   = (e.parameter.source   || '').trim();
+      const status   = (e.parameter.status   || '').trim();
+
+      const out = listAttempts_({
+        user_id:   userId,
+        course_id: courseId,
+        mode:      mode,
+        source:    source,
+        status:    status
+      });
+      return json_(out);
+    }
+    if (action === 'announcements.states') {
+  const token = reqParam_(e, 'token');
+  const authInfo = verifyToken_(token);
+  const userId = authInfo.user_id;
+
+  const itemIdsCsv = (e.parameter.item_ids || '').trim();
+  const itemIds = itemIdsCsv
+    ? itemIdsCsv.split(',').map(s => String(s||'').trim()).filter(Boolean)
+    : [];
+
+  const out = announcementStates_({ user_id: userId, item_ids: itemIds });
+  return json_(out);
+}
+
+
+    return jsonError_('Unknown action', 400);
+  } catch (err) {
+    return jsonError_(err.message || String(err), 500);
+  }
+}
+
+function doPost(e) {
+  try {
+    const action = (e.parameter.action || '').toLowerCase();
+
+    if (action === 'builder.spawn') {
+      const raw = e.parameter.payload || (e.postData && e.postData.contents) || '';
+      if (!raw) {
+        return jsonError_('Missing payload', 400);
+      }
+      const payload = JSON.parse(raw); // {course_id, topics[], difficulties[], n, mode, source}
+      const result  = spawnAttempt_(payload);
+      return json_(result);
+    }
+
+if (action === 'fixed.spawn') {
+  const raw = e.parameter.payload || (e.postData && e.postData.contents) || '';
+  if (!raw) return jsonError_('Missing payload', 400);
+
+  const token = (e.parameter.token || '').trim();
+  if (!token) return jsonError_('Missing token', 400);
+
+  const authInfo = verifyToken_(token);
+  const payload = JSON.parse(raw); // {quiz_id, source?}
+
+  // ✅ enforce owner from token
+  payload.user_id = authInfo.user_id;
+
+  const result = spawnFixedAttempt_(payload);
+  return json_(result);
+}
+
+
+    // attempt.finish — write back score + timing + answers
+    if (action === 'attempt.finish') {
+      const raw = e.parameter.payload || (e.postData && e.postData.contents) || '';
+      if (!raw) {
+        return jsonError_('Missing payload', 400);
+      }
+      const payload = JSON.parse(raw); // {attempt_id, score_*, time_taken_s, answers[]}
+      const result  = finishAttempt_(payload);
+      return json_(result);
+    }
+
+    // attempt.update — partial save while in_progress
+    if (action === 'attempt.update') {
+      const raw = e.parameter.payload || (e.postData && e.postData.contents) || '';
+      if (!raw) {
+        return jsonError_('Missing payload', 400);
+      }
+      const payload = JSON.parse(raw); // {attempt_id, answers:[], time_taken_s?}
+      const result  = updateAttempt_(payload);
+      return json_(result);
+    }
+
+    // attempt.retake — create a new attempt with SAME questions
+if (action === 'attempt.retake') {
+  const raw = e.parameter.payload || (e.postData && e.postData.contents) || '';
+  if (!raw) return jsonError_('Missing payload', 400);
+
+  const token = (e.parameter.token || '').trim();
+  if (!token) return jsonError_('Missing token', 400);
+
+  const authInfo = verifyToken_(token);
+  const payload = JSON.parse(raw); // {attempt_id}
+
+  payload.user_id = authInfo.user_id;
+
+  const result = retakeAttempt_(payload);
+  return json_(result);
+}
+
+
+    // NEW: announcements.save — create or update an announcement (ADMIN ONLY)
+    if (action === 'announcements.save') {
+      const raw   = e.parameter.payload || (e.postData && e.postData.contents) || '';
+      const token = (e.parameter.token || '').trim();
+
+      if (!raw) {
+        return jsonError_('Missing payload', 400);
+      }
+      if (!token) {
+        return jsonError_('Missing token', 400);
+      }
+
+      const payload = JSON.parse(raw);
+      const result  = saveAnnouncementFromAdmin_(token, payload);
+      return json_(result);
+    }
+
+// ✅ EXPLICIT ONLY: announcements.* (plural only)
+if (
+  action === 'announcements.markseen' ||
+  action === 'announcements.dismiss'  ||
+  action === 'announcements.restore'
+) {
+  const raw = e.parameter.payload || (e.postData && e.postData.contents) || '';
+  if (!raw) return jsonError_('Missing payload', 400);
+
+  const payload = JSON.parse(raw);
+
+  const token = (e.parameter.token || payload.token || '').trim();
+  if (!token) return jsonError_('Missing token', 400);
+
+  const authInfo = verifyToken_(token);
+  payload.user_id = authInfo.user_id;
+
+  // Normalize item_id (allow announcement_id alias)
+  if (!payload.item_id && payload.announcement_id) {
+    payload.item_id = payload.announcement_id;
+  }
+
+  // markseen: normalize payload.items
+  if (action === 'announcements.markseen') {
+    let items = payload.items;
+
+    // handle items coming as JSON string
+    if (typeof items === 'string' && items.trim()) {
+      try { items = JSON.parse(items); } catch(e) { items = [items]; }
+    }
+
+    if (!Array.isArray(items)) {
+      if (payload.item_id) items = [payload.item_id];
+      else items = [];
+    }
+
+    payload.items = items;
+  }
+
+  let out;
+  if (action === 'announcements.markseen') out = announcementsMarkSeen_(payload);
+  if (action === 'announcements.dismiss')  out = announcementsDismiss_(payload);
+  if (action === 'announcements.restore')  out = announcementsRestore_(payload);
+
+  return json_(out);
+}
+
+
+
+    // Fallback for unknown actions
+    return jsonError_('Unknown action', 400);
+
+  } catch (err) {
+    return jsonError_(err.message || String(err), 500);
+  }
+}
+
+
+
+/* ==================== CORE LOGIC — BUILDER ==================== */
+
+// Returns {
+//   course_id,
+//   topics_main[],
+//   difficulties[],
+//   maxN,
+//   total,
+//   topic_counts:{ mainTopic -> total },
+//   difficulty_counts:{ difficulty -> total },
+//   topic_difficulty_counts: { mainTopic -> { difficulty -> count } },
+//   concept_suggestions: [ "Gout", "Acute Gouty Arthritis", ... ],
+//   concept_counts: { "Gout" -> total, "Acute Gouty Arthritis" -> total, ... }
+// }
+function getBuilderMeta_(courseId) {
+  const sheetId = getCourseSheetId_(courseId);
+  const items = readItems_(sheetId);
+
+  const mainTopicSet = new Set();
+  const diffSet = new Set();
+
+  // counters
+  const topicCounts = Object.create(null);         // main-topic -> count
+  const difficultyCounts = Object.create(null);    // difficulty -> count (whole course)
+  const topicDiffCounts = Object.create(null);     // main-topic -> { difficulty -> count }
+
+  // concept suggestions from subtopics / topics
+  const conceptSet = new Set();                    // unique concept strings
+  const conceptCounts = Object.create(null);       // concept -> count
+
+  items.forEach(r => {
+    const topicRaw = String(r.topic || '').trim();
+    const main = mainTopic_(topicRaw);             // e.g. "Gastrointestinal Surgery"
+    const dRaw = String(r.difficulty || '').trim();// e.g. "Easy", "Moderate", "Hard"
+
+    // ---- main topics + per-topic counts ----
+    if (main) {
+      const mainKey = String(main);
+      mainTopicSet.add(mainKey);
+      topicCounts[mainKey] = (topicCounts[mainKey] || 0) + 1;
+
+      // per-topic difficulty counts
+      if (dRaw) {
+        if (!topicDiffCounts[mainKey]) {
+          topicDiffCounts[mainKey] = Object.create(null);
+        }
+        topicDiffCounts[mainKey][dRaw] = (topicDiffCounts[mainKey][dRaw] || 0) + 1;
+      }
+    }
+
+    // ---- global difficulty counts ----
+    if (dRaw) {
+      diffSet.add(dRaw);
+      difficultyCounts[dRaw] = (difficultyCounts[dRaw] || 0) + 1;
+    }
+
+    // ---- concept suggestions (subtopics / topic text) + counts ----
+    if (topicRaw) {
+      const idx = topicRaw.indexOf(':');
+      let concept = '';
+
+      if (idx >= 0) {
+        // part after colon = subtopic, e.g. "Gout", "Acute Gouty Arthritis"
+        concept = topicRaw.slice(idx + 1).trim();
+      } else {
+        // no colon → treat whole topic as a concept, e.g. "Shock"
+        concept = topicRaw;
+      }
+
+      if (concept) {
+        conceptSet.add(concept);
+        conceptCounts[concept] = (conceptCounts[concept] || 0) + 1;
+      }
+    }
+  });
+
+  const concept_suggestions = Array.from(conceptSet).sort(function(a, b) {
+    return a.localeCompare(b);
+  });
+
+  return {
+    course_id: courseId,
+    topics_main: Array.from(mainTopicSet).sort(),
+    difficulties: Array.from(diffSet).sort(),
+    maxN: Math.min(items.length, MAX_N_DEFAULT),
+    total: items.length,
+    topic_counts: topicCounts,
+    difficulty_counts: difficultyCounts,
+    topic_difficulty_counts: topicDiffCounts,
+    concept_suggestions: concept_suggestions,
+    concept_counts: conceptCounts
+  };
+}
+
+
+// Spawn attempt (Builder): filters by payload and samples up to n rows
+// payload: {course_id, topics[], difficulties[], n, mode, source, duration_min?, user_id?, concept?, concepts?}
+function spawnAttempt_(payload) {
+  const courseId = must_(payload.course_id, 'payload.course_id required');
+  const nReq     = clampInt_(payload.n || 10, 1, MAX_N_DEFAULT);
+  const mode     = (payload.mode || 'instant').toLowerCase(); // 'instant' or 'timed'
+  const topics   = Array.isArray(payload.topics) ? payload.topics : [];
+  const diffs    = Array.isArray(payload.difficulties) ? payload.difficulties : [];
+
+  // Concept mode v2:
+  //  - payload.concepts[] = selected concept chips (multi-select)
+  //  - payload.concept    = free-text global search (optional)
+  const conceptQuery = String(payload.concept || '').toLowerCase().trim();
+
+  const conceptChoices = Array.isArray(payload.concepts)
+    ? payload.concepts
+        .map(function(c){ return String(c || '').toLowerCase().trim(); })
+        .filter(function(c){ return !!c; })
+    : [];
+
+
+  const sheetId  = getCourseSheetId_(courseId);
+  const items    = readItems_(sheetId); // array of row objects
+
+  // Filter pool
+  let pool = items.filter(function(r) {
+    // ----- Topic filter -----
+    let topicOk = true;
+    if (topics.length) {
+      topicOk = topics.some(function(t) {
+        if (String(t).indexOf(':') !== -1) {
+          // exact subtopic match (if we ever use topic:subtopic form)
+          return same_(r.topic, t);
+        } else {
+          // main-topic bucket
+          return same_(mainTopic_(r.topic), t);
+        }
+      });
+    }
+
+    // ----- Difficulty filter -----
+    let diffOk = true;
+    if (diffs.length) {
+      diffOk = diffs.some(function(d){ return same_(r.difficulty, d); });
+    }
+
+    // ----- Concept filter (v2) -----
+    // 1) If conceptChoices[] selected → filter by those
+    // 2) Else if conceptQuery typed → global search
+    // 3) Else → no concept-based restriction
+    let conceptOk = true;
+
+    if (conceptChoices.length) {
+      // For concept chips we can search topic + rationale (they’re concept-ish)
+      const hay = (
+        String(r.topic || '') + ' ' +
+        String(r.rationale || '')
+      ).toLowerCase();
+
+      conceptOk = conceptChoices.some(function(c){
+        return hay.indexOf(c) !== -1;
+      });
+
+    } else if (conceptQuery) {
+      // Pure global search: topic + stem + rationale
+      const hayGlobal = (
+        String(r.topic || '') + ' ' +
+        String(r.stem || '') + ' ' +
+        String(r.rationale || '')
+      ).toLowerCase();
+
+      conceptOk = hayGlobal.indexOf(conceptQuery) !== -1;
+    }
+
+    return topicOk && diffOk && conceptOk;
+
+  });
+
+  if (pool.length === 0) {
+    throw new Error('No items matched your filters.');
+  }
+
+  // Sample up to nReq without replacement
+  const n    = Math.min(nReq, pool.length);
+  const seed = makeSeed_();
+  const sampled = sample_(pool, n, seed);
+
+  // Decide duration_min (server-side, based on final n)
+  const durationMin = (mode === 'timed')
+    ? clampInt_(payload.duration_min || n, 1, 600)
+    : '';
+
+  const userId = String(payload.user_id || '').trim() || 'guest';
+
+  // ---- Local helpers just for label building ----
+  function canonicalDifficulty(d) {
+    const s = norm_(d);
+    if (s === 'easy') return 'Easy';
+    if (s === 'moderate' || s === 'medium') return 'Moderate';
+    if (s === 'hard' || s === 'difficult') return 'Hard';
+    return '';
+  }
+
+  function buildBuilderDisplayLabel(topicsArr, diffsArr, nQuestions) {
+    topicsArr = Array.isArray(topicsArr) ? topicsArr : [];
+    diffsArr  = Array.isArray(diffsArr)  ? diffsArr  : [];
+
+    // ----- TopicPart -----
+    const mainSet = new Set();
+    topicsArr.forEach(function(t) {
+      const main = mainTopic_(t);
+      if (main) mainSet.add(main);
+    });
+    const mains = Array.from(mainSet).sort(function(a, b) {
+      return a.localeCompare(b);
+    });
+
+    let topicPart;
+    if (!mains.length) {
+      // No explicit topics selected → treat as full bank / mixed
+      topicPart = 'Full bank';
+    } else if (mains.length === 1) {
+      topicPart = mains[0];
+    } else if (mains.length === 2) {
+      topicPart = mains[0] + ' & ' + mains[1];
+    } else if (mains.length === 3) {
+      topicPart = mains[0] + ', ' + mains[1] + ' & ' + mains[2];
+    } else {
+      topicPart = 'Mixed topics';
+    }
+
+    // ----- DiffPart -----
+    const order = ['Easy', 'Moderate', 'Hard'];
+    const canon = [];
+    diffsArr.forEach(function(d) {
+      const c = canonicalDifficulty(d);
+      if (c && canon.indexOf(c) < 0) canon.push(c);
+    });
+    canon.sort(function(a, b) {
+      return order.indexOf(a) - order.indexOf(b);
+    });
+
+    let diffPart;
+    if (!canon.length || canon.length === order.length) {
+      diffPart = 'Mixed';
+    } else if (canon.length === 1) {
+      diffPart = canon[0] + ' only';
+    } else if (canon.length === 2) {
+      diffPart = canon[0] + '+' + canon[1];
+    } else {
+      diffPart = 'Mixed';
+    }
+
+    const safeN = nQuestions || 0;
+    return 'Custom - ' + topicPart + ' (' + diffPart + ', ' + safeN + 'Q)';
+  }
+
+  // Build human-friendly label for this builder attempt
+  const displayLabel = buildBuilderDisplayLabel(topics, diffs, n);
+
+  // Persist attempt (initially in_progress)
+  const attemptId = 'ATT_' + Utilities.getUuid().replace(/-/g, '').slice(0, 24);
+  writeAttemptRow_({
+    attempt_id:     attemptId,
+    ts_iso:         new Date().toISOString(),
+    course_id:      courseId,
+    mode:           mode,
+    duration_min:   durationMin,
+    user_id:        userId,
+    n:              n,
+    seed:           seed,
+    source:         payload.source || 'builder',
+    item_ids:       sampled.map(function(r){ return r.item_id; }).join(','),
+    quiz_id:        '',                 // builder attempts have no quiz_id
+    display_label:  displayLabel,       // key for History/Review UI
+    status:         'in_progress'       // NEW: mark as in_progress at spawn
+    // scores, answers_json, etc. filled later by attempt.update / attempt.finish
+  });
+
+  return { attempt_id: attemptId, n: n, mode: mode, seed: seed, duration_min: durationMin };
+}
+
+
+
+// Returns full hydrated attempt: { meta, items[] }
+// options (all optional, for stronger security when provided):
+//   - token: string (qa_token from browser)
+//   - expectedMode: 'instant' | 'timed'
+//   - expectedCourseId: course_id string
+function getAttempt_(attemptId, options) {
+  options = options || {};
+  const token            = (options.token            || '').toString().trim();
+  const expectedMode     = (options.expectedMode     || '').toString().trim().toLowerCase();
+  const expectedCourseId = (options.expectedCourseId || '').toString().trim();
+
+  const att = readAttemptRow_(attemptId);
+  if (!att) throw new Error('Attempt not found');
+
+  // --- 1) Ownership check via token (if provided) ---
+  // We don't trust any user_id coming from the browser; we trust the token.
+  if (token) {
+    const authInfo        = verifyToken_(token); // uses TAB_TOKENS + TAB_USERS
+    const userIdFromToken = String(authInfo.user_id || '').trim();
+    const ownerId         = String(att.user_id      || '').trim();
+
+    if (ownerId && userIdFromToken && ownerId !== userIdFromToken) {
+      throw new Error('Attempt does not belong to this user');
+    }
+  }
+
+  // --- 2) Course match (if caller says which course it expects) ---
+  if (expectedCourseId) {
+    if (!same_(att.course_id, expectedCourseId)) {
+      throw new Error('Attempt is for a different course');
+    }
+  }
+
+  // --- 3) Mode match (if caller declares which mode it expects) ---
+  if (expectedMode) {
+    const modeNorm = norm_(att.mode || '');
+    if (modeNorm && modeNorm !== expectedMode) {
+      throw new Error('Attempt was created for a different mode');
+    }
+  }
+
+  // --- 4) Normal hydration (also enforces course is active via getCourseSheetId_) ---
+  const sheetId = getCourseSheetId_(att.course_id);
+  const items   = readItems_(sheetId);
+
+  const wanted = (att.item_ids || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const mapById = new Map(items.map(r => [String(r.item_id), r]));
+
+  const hydrated = wanted.map(function(id) {
+    const r = mapById.get(id);
+    if (!r) return null; // tolerate missing
+    return r;
+  }).filter(Boolean);
+
+  let answers = [];
+  if (att.answers_json) {
+    try {
+      const parsed = JSON.parse(att.answers_json);
+      if (Array.isArray(parsed)) answers = parsed;
+    } catch (err) {
+      answers = [];
+    }
+  }
+
+  return {
+    meta: {
+      attempt_id:        att.attempt_id,
+      course_id:         att.course_id,
+      mode:              att.mode,
+      n:                 hydrated.length,
+      duration_min:      att.duration_min || '',
+      user_id:           att.user_id || '',
+      source:            att.source || '',
+      quiz_id:           att.quiz_id || '',
+      ts_iso:            att.ts_iso,
+      status:            att.status || '',
+      score_raw:         att.score_raw || '',
+      score_total:       att.score_total || '',
+      score_pct:         att.score_pct || '',
+      time_taken_s:      att.time_taken_s || '',
+      origin_attempt_id: att.origin_attempt_id || '',
+      answers:           answers
+    },
+    items: hydrated
+  };
+}
+
+
+
+/* ==================== CORE LOGIC — FIXED QUIZZES ==================== */
+
+// GET: courseQuizzes — list visible quizzes for a course
+// Returns: { course_id, quizzes: [ {quiz_id, title, type, n, status, publish_at, unpublish_at} ] }
+function getCourseQuizzes_(courseId) {
+  const all = readQuizzes_(); // array of quiz row objects
+  const now = new Date();
+
+  const filtered = all.filter(q => {
+    if (!same_(q.course_id, courseId)) return false;
+    // Must be published
+    if (!isTruthy_(q.published)) return false;
+    // Must not be hidden
+    if (same_(q.visibility, 'hidden')) return false;
+    return true;
+  });
+
+  const quizzes = filtered.map(q => {
+    const status = computeQuizStatus_(q, now); // UPCOMING / ACTIVE / CLOSED
+    return {
+      quiz_id: q.quiz_id,
+      course_id: q.course_id,
+      title: q.title || '',
+      type: q.type || '',           // INSTANT / TIMED (as in quizzes tab)
+      n: q.n || '',                 // optional stored number of questions
+      status: status,
+      publish_at: q.publish_at || '',
+      unpublish_at: q.unpublish_at || ''
+    };
+  });
+
+  return { course_id: courseId, quizzes: quizzes };
+}
+
+// POST: fixed.spawn — create attempt for a fixed quiz
+// payload: {quiz_id, user_id?, source?}
+function spawnFixedAttempt_(payload) {
+  const quizId = must_(payload.quiz_id, 'payload.quiz_id required');
+  const userId = String(payload.user_id || '').trim() || 'guest';
+  const all = readQuizzes_();
+  const now = new Date();
+    // ✅ If user already has an in-progress attempt for this fixed quiz, reuse it
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+  const existing = findInProgressAttemptForFixedQuiz_(ss, userId, quizId);
+  if (existing) {
+    return {
+      attempt_id: existing.attempt_id,
+      mode: existing.mode || '',
+      n: existing.n || '',
+      duration_min: existing.duration_min || '',
+      reused: true
+    };
+  }
+
+
+  const quiz = all.find(q => same_(q.quiz_id, quizId));
+  if (!quiz) {
+    throw new Error('Quiz not found: ' + quizId);
+  }
+
+  // Enforce availability (publish, visibility, status)
+  if (!isTruthy_((quiz.published))) {
+    throw new Error('Quiz is not published');
+  }
+  if (same_(quiz.visibility, 'hidden')) {
+    throw new Error('Quiz is hidden');
+  }
+  const status = computeQuizStatus_(quiz, now);
+  if (status !== 'ACTIVE') {
+    throw new Error('Quiz is not currently active (' + status + ')');
+  }
+
+  const courseId = must_(quiz.course_id, 'quiz.course_id missing');
+  const typeRaw  = String(quiz.type || '').toUpperCase();
+  const mode     = (typeRaw === 'TIMED') ? 'timed' : 'instant'; // map quizzes.type -> attempts.mode
+
+  const sheetId  = getCourseSheetId_(courseId);
+  const items    = readItems_(sheetId);
+
+  // Determine which column to use for grouping items for this quiz
+  const groupKey = (typeRaw === 'TIMED') ? 'timed_id' : 'instant_id';
+
+  const pool = items.filter(r => same_(r[groupKey], quizId));
+  if (!pool.length) {
+    throw new Error('No items found for this quiz');
+  }
+
+  // Fixed order: keep sheet order (no shuffling)
+  const itemIds = pool.map(r => r.item_id);
+  const n = itemIds.length;
+
+  // Duration: for timed mode, use configured duration_min if present, else n
+  let durationMin = '';
+  if (mode === 'timed') {
+    const quizDur = quiz.duration_min;
+    if (quizDur !== undefined && quizDur !== null && String(quizDur).trim() !== '') {
+      durationMin = clampInt_(quizDur, 1, 600);
+    } else {
+      durationMin = clampInt_(n, 1, 600);
+    }
+  }
+
+  const attemptId = 'ATT_' + Utilities.getUuid().replace(/-/g, '').slice(0, 24);
+  writeAttemptRow_({
+    attempt_id:     attemptId,
+    ts_iso:         new Date().toISOString(),
+    course_id:      courseId,
+    mode:           mode,
+    duration_min:   durationMin,
+    user_id:        userId,
+    n:              n,
+    seed:           makeSeed_(),
+    source:         payload.source || 'fixed',
+    item_ids:       itemIds.join(','),
+    quiz_id:        quizId,                // link attempt → fixed quiz
+    display_label:  quiz.title || '',      // human title for History/Review
+    status:         'in_progress'          // NEW: mark as in_progress at spawn
+    // scores, answers_json, etc. filled later by attempt.update / attempt.finish
+  });
+
+  return {
+    attempt_id: attemptId,
+    mode: mode,
+    n: n,
+    duration_min: durationMin
+  };
+}
+
+
+/* ==================== SHEET HELPERS ==================== */
+
+function getCourseSheetId_(courseId) {
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+  const sh = ss.getSheetByName(TAB_COURSES);
+  if (!sh) throw new Error(`Missing "${TAB_COURSES}" tab in Portal DB`);
+  const values = sh.getDataRange().getValues();
+  if (!values.length) throw new Error('Empty courses table');
+
+  const header = values[0].map(s => String(s).trim().toLowerCase());
+  const rCourse = colIndex_(header, 'course_id');
+  const rSheet  = colIndex_(header, 'sheet_id');
+  const rStatus = colIndex_(header, 'status');
+
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    const cId = String(row[rCourse]).trim();
+    if (same_(cId, courseId)) {
+      const status = String(row[rStatus] || '').toLowerCase();
+      if (status && status !== 'active') {
+        throw new Error(`Course "${courseId}" is not active`);
+      }
+      const sid = String(row[rSheet]).trim();
+      if (!sid) throw new Error(`No sheet_id for course "${courseId}"`);
+      return sid;
+    }
+  }
+  throw new Error(`Course not found: ${courseId}`);
+}
+
+function listActiveCourses_() {
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+  const sh = ss.getSheetByName(TAB_COURSES);
+  if (!sh) throw new Error(`Missing "${TAB_COURSES}" tab`);
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) return [];
+
+  const header = values[0].map(s => String(s).trim().toLowerCase());
+  const iCourse = header.indexOf('course_id');
+  const iStatus = header.indexOf('status');
+
+  const out = [];
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r];
+    const course = String(row[iCourse] || '').trim();
+    const status = String(row[iStatus] || '').trim().toLowerCase();
+    if (!course) continue;
+    if (status && status !== 'active') continue; // only active or blank
+    out.push(course);
+  }
+  return out;
+}
+
+function readItems_(sheetId) {
+  const ss = SpreadsheetApp.openById(sheetId);
+  const sh = ss.getSheetByName('items');
+  if (!sh) throw new Error('Missing "items" tab');
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) return [];
+
+  const header = values[0].map(s => String(s).trim().toLowerCase());
+
+  // Expected columns (case-insensitive):
+  // item_id, stem, option_a, fb_a, option_b, fb_b, option_c, fb_c, option_d, fb_d,
+  // correct, rationale, rationale_img, subject, topic, difficulty, marks,
+  // instant_id?, timed_id?
+  const idx = Object.fromEntries([
+    'item_id','stem','option_a','fb_a','option_b','fb_b','option_c','fb_c','option_d','fb_d',
+    'correct','rationale','rationale_img','subject','topic','difficulty','marks',
+    'instant_id','timed_id'
+  ].map(k => [k, colIndexOptional_(header, k)]));
+
+  const out = [];
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    const obj = {
+      item_id:       getCell_(row, idx.item_id),
+      stem:          getCell_(row, idx.stem),
+      option_a:      getCell_(row, idx.option_a),
+      fb_a:          getCell_(row, idx.fb_a),
+      option_b:      getCell_(row, idx.option_b),
+      fb_b:          getCell_(row, idx.fb_b),
+      option_c:      getCell_(row, idx.option_c),
+      fb_c:          getCell_(row, idx.fb_c),
+      option_d:      getCell_(row, idx.option_d),
+      fb_d:          getCell_(row, idx.fb_d),
+      correct:       getCell_(row, idx.correct),
+      rationale:     getCell_(row, idx.rationale),
+      rationale_img: getCell_(row, idx.rationale_img),  // 🔹 NEW FIELD
+      subject:       getCell_(row, idx.subject),
+      topic:         getCell_(row, idx.topic),
+      difficulty:    getCell_(row, idx.difficulty),
+      marks:         getCell_(row, idx.marks)
+    };
+
+    // Optional grouping columns for fixed quizzes
+    if (idx.instant_id >= 0) obj.instant_id = getCell_(row, idx.instant_id);
+    if (idx.timed_id   >= 0) obj.timed_id   = getCell_(row, idx.timed_id);
+
+    out.push(obj);
+  }
+  return out.filter(r => r.item_id); // require item_id
+}
+
+
+// Append a new attempt row (used by builder.spawn and fixed.spawn)
+function writeAttemptRow_(rowObj) {
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+  let sh = ss.getSheetByName(TAB_ATTEMPTS);
+
+  // Create sheet and header if missing
+  if (!sh) {
+    sh = ss.insertSheet(TAB_ATTEMPTS);
+    sh.appendRow(ATTEMPTS_DEFAULT_HEADER);
+  }
+
+  // Current header row (lowercased)
+  let header = sh.getRange(1, 1, 1, sh.getLastColumn())
+    .getValues()[0]
+    .map(s => String(s).trim().toLowerCase());
+
+  // Ensure all expected columns exist
+  const needed = ATTEMPTS_DEFAULT_HEADER.filter(h => header.indexOf(h) < 0);
+  if (needed.length) {
+    sh.insertColumnsAfter(header.length || 1, needed.length);
+    header = header.concat(needed);
+    sh.getRange(1, 1, 1, header.length).setValues([header]);
+  }
+
+  // Build row aligned to header by name
+  const row = header.map(h => (h in rowObj) ? rowObj[h] : '');
+  sh.appendRow(row);
+}
+
+
+function readAttemptRow_(attemptId) {
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+  const sh = ss.getSheetByName(TAB_ATTEMPTS);
+  if (!sh) return null;
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) return null;
+
+  const header = values[0].map(s => String(s).trim().toLowerCase());
+  const H = {}; header.forEach((h, i) => H[h] = i);
+
+  const idCol = H['attempt_id'];
+  if (idCol == null) return null;
+
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    if (same_(row[idCol], attemptId)) {
+      return {
+        attempt_id:        row[H.attempt_id],
+        ts_iso:            row[H.ts_iso],
+        course_id:         row[H.course_id],
+        mode:              row[H.mode],
+        duration_min:      (H.duration_min      != null ? row[H.duration_min]      : ''),
+        user_id:           (H.user_id           != null ? row[H.user_id]           : ''),
+        n:                 row[H.n],
+        seed:              row[H.seed],
+        source:            row[H.source],
+        item_ids:          row[H.item_ids],
+        quiz_id:           (H.quiz_id           != null ? row[H.quiz_id]           : ''),
+        display_label:     (H.display_label     != null ? row[H.display_label]     : ''),
+        status:            (H.status            != null ? row[H.status]            : ''),
+        score_raw:         (H.score_raw         != null ? row[H.score_raw]         : ''),
+        score_total:       (H.score_total       != null ? row[H.score_total]       : ''),
+        score_pct:         (H.score_pct         != null ? row[H.score_pct]         : ''),
+        time_taken_s:      (H.time_taken_s      != null ? row[H.time_taken_s]      : ''),
+        answers_json:      (H.answers_json      != null ? row[H.answers_json]      : ''),
+        origin_attempt_id: (H.origin_attempt_id != null ? row[H.origin_attempt_id] : '')
+      };
+    }
+  }
+  return null;
+}
+
+
+/* ==================== attempt.finish & attempt.update HELPERS ==================== */
+
+// POST: attempt.finish — write back score + timing + answers
+// payload: {attempt_id, user_id?, score_raw, score_total, score_pct?, time_taken_s?, answers:[]}
+function finishAttempt_(payload) {
+  const attemptId = must_(payload.attempt_id, 'payload.attempt_id required');
+
+  // Basic numeric parsing
+  const scoreRaw   = clampInt_(payload.score_raw,   0, 1000000);
+  const scoreTotal = clampInt_(payload.score_total, 1, 1000000);
+  const scorePct   = Math.round((scoreRaw * 100) / scoreTotal);
+  const timeTaken  = clampInt_(payload.time_taken_s || 0, 0, 86400); // cap at 24h
+
+  const answersArr  = Array.isArray(payload.answers) ? payload.answers : [];
+  const answersJson = JSON.stringify(answersArr);
+
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+  let sh = ss.getSheetByName(TAB_ATTEMPTS);
+  if (!sh) throw new Error('Attempts table not found');
+
+  // Ensure header has all expected columns
+  let header = sh.getRange(1, 1, 1, sh.getLastColumn())
+    .getValues()[0]
+    .map(s => String(s).trim().toLowerCase());
+
+  const needed = ATTEMPTS_DEFAULT_HEADER.filter(h => header.indexOf(h) < 0);
+  if (needed.length) {
+    sh.insertColumnsAfter(header.length || 1, needed.length);
+    header = header.concat(needed);
+    sh.getRange(1, 1, 1, header.length).setValues([header]);
+  }
+
+  const H = {};
+  header.forEach((h, i) => H[h] = i);
+
+  const idCol = H['attempt_id'];
+  if (idCol == null) throw new Error('Missing attempt_id column');
+
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) throw new Error('No attempts found');
+
+  // Find the row for this attempt_id
+  const dataRange = sh.getRange(2, 1, lastRow - 1, header.length);
+  const values = dataRange.getValues();
+  let rowIndex = -1; // sheet row index (1-based)
+
+  for (let r = 0; r < values.length; r++) {
+    const row = values[r];
+    if (same_(row[idCol], attemptId)) {
+      rowIndex = r + 2; // +2 because data starts at row 2
+      break;
+    }
+  }
+
+  if (rowIndex < 0) {
+    throw new Error('Attempt not found');
+  }
+
+  // Check if already completed
+  const statusCol = H['status'];
+  let existingStatus = '';
+  if (statusCol != null) {
+    existingStatus = String(sh.getRange(rowIndex, statusCol + 1).getValue() || '');
+  }
+  if (norm_(existingStatus) === 'completed') {
+    throw new Error('Attempt already completed');
+  }
+
+  // Load full row to update in-memory then write back once
+  const rowVals = sh.getRange(rowIndex, 1, 1, header.length).getValues()[0];
+
+  function setField(key, value) {
+    const c = H[key];
+    if (c != null) rowVals[c] = value;
+  }
+
+  setField('status',        'completed');
+  setField('score_raw',     scoreRaw);
+  setField('score_total',   scoreTotal);
+  setField('score_pct',     scorePct);
+  setField('time_taken_s',  timeTaken);
+  setField('answers_json',  answersJson);
+
+  sh.getRange(rowIndex, 1, 1, header.length).setValues([rowVals]);
+
+  // Response back to runner
+  return {
+    ok:            true,
+    attempt_id:    attemptId,
+    status:        'completed',
+    score_raw:     scoreRaw,
+    score_total:   scoreTotal,
+    score_pct:     scorePct,
+    time_taken_s:  timeTaken
+  };
+}
+
+// POST: attempt.update — partial save while attempt is in_progress
+// payload: {attempt_id, answers:[], time_taken_s?}
+function updateAttempt_(payload) {
+  const attemptId = must_(payload.attempt_id, 'payload.attempt_id required');
+
+  const answersArr  = Array.isArray(payload.answers) ? payload.answers : [];
+  const answersJson = JSON.stringify(answersArr);
+  const timeTaken   = (payload.time_taken_s != null)
+    ? clampInt_(payload.time_taken_s, 0, 86400)
+    : null;
+
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+  let sh = ss.getSheetByName(TAB_ATTEMPTS);
+  if (!sh) throw new Error('Attempts table not found');
+
+  // Ensure header has all expected columns
+  let header = sh.getRange(1, 1, 1, sh.getLastColumn())
+    .getValues()[0]
+    .map(s => String(s).trim().toLowerCase());
+
+  const needed = ATTEMPTS_DEFAULT_HEADER.filter(h => header.indexOf(h) < 0);
+  if (needed.length) {
+    sh.insertColumnsAfter(header.length || 1, needed.length);
+    header = header.concat(needed);
+    sh.getRange(1, 1, 1, header.length).setValues([header]);
+  }
+
+  const H = {};
+  header.forEach((h, i) => H[h] = i);
+
+  const idCol = H['attempt_id'];
+  if (idCol == null) throw new Error('Missing attempt_id column');
+
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) throw new Error('No attempts found');
+
+  const dataRange = sh.getRange(2, 1, lastRow - 1, header.length);
+  const values = dataRange.getValues();
+  let rowIndex = -1; // sheet row index (1-based)
+
+  for (let r = 0; r < values.length; r++) {
+    const row = values[r];
+    if (same_(row[idCol], attemptId)) {
+      rowIndex = r + 2; // +2 because data starts at row 2
+      break;
+    }
+  }
+
+  if (rowIndex < 0) {
+    throw new Error('Attempt not found');
+  }
+
+  // Load full row for in-memory update
+  const rowVals = sh.getRange(rowIndex, 1, 1, header.length).getValues()[0];
+
+  const statusCol = H['status'];
+  let existingStatus = '';
+  if (statusCol != null) {
+    existingStatus = String(rowVals[statusCol] || '');
+  }
+
+  // If already completed, do NOT allow partial updates
+  if (norm_(existingStatus) === 'completed') {
+    throw new Error('Attempt already completed');
+  }
+
+  function setField(key, value) {
+    const c = H[key];
+    if (c != null) rowVals[c] = value;
+  }
+
+  // Keep / enforce in_progress
+  if (!existingStatus) {
+    setField('status', 'in_progress');
+  }
+
+  // Update answers_json snapshot
+  setField('answers_json', answersJson);
+
+  // Optional: update time_taken_s if provided
+  if (timeTaken !== null) {
+    setField('time_taken_s', timeTaken);
+  }
+
+  sh.getRange(rowIndex, 1, 1, header.length).setValues([rowVals]);
+
+  return {
+    ok:           true,
+    attempt_id:   attemptId,
+    status:       existingStatus || 'in_progress'
+  };
+}
+
+// POST: attempt.retake — spawn a NEW attempt with the same item_ids
+// payload: {attempt_id, user_id?}
+function retakeAttempt_(payload) {
+  const originalAttemptId = must_(payload.attempt_id, 'payload.attempt_id required');
+  const requestUserId = String(payload.user_id || '').trim(); // from frontend
+
+  // 1) Load original attempt
+  const original = readAttemptRow_(originalAttemptId);
+  if (!original) {
+    throw new Error('Original attempt not found');
+  }
+
+  // 2) Enforce user ownership (if provided)
+  const ownerId = String(original.user_id || '').trim();
+  if (requestUserId && ownerId && ownerId !== requestUserId) {
+    throw new Error('Attempt does not belong to this user');
+  }
+
+  // 3) Require item_ids
+  const itemIdsArr = String(original.item_ids || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  if (!itemIdsArr.length) {
+    throw new Error('Original attempt has no items to retake');
+  }
+
+  // 4) Only allow retake for completed attempts (business rule)
+  const statusNorm = norm_(original.status || '');
+  if (statusNorm !== 'completed') {
+    throw new Error('Only completed attempts can be retaken');
+  }
+
+  // 5) Decide duration for the new attempt
+  const n = itemIdsArr.length;
+  let durationMin = '';
+
+  if (norm_(original.mode) === 'timed') {
+    if (original.duration_min !== undefined && original.duration_min !== null && String(original.duration_min).trim() !== '') {
+      durationMin = clampInt_(original.duration_min, 1, 600);
+    } else {
+      durationMin = clampInt_(n, 1, 600);
+    }
+  }
+
+  // 6) Build new attempt row
+  const newAttemptId = 'ATT_' + Utilities.getUuid().replace(/-/g, '').slice(0, 24);
+
+  writeAttemptRow_({
+    attempt_id:        newAttemptId,
+    ts_iso:            new Date().toISOString(),
+    course_id:         original.course_id,
+    mode:              original.mode,
+    duration_min:      durationMin,
+    user_id:           ownerId || requestUserId || 'guest',
+    n:                 n,
+    seed:              makeSeed_(),
+    source:            original.source || 'builder',   // keep same source (builder/fixed)
+    item_ids:          itemIdsArr.join(','),
+    quiz_id:           original.quiz_id || '',         // preserves link for fixed quizzes
+    display_label:     original.display_label || '',   // same label in history
+    status:            'in_progress',
+    origin_attempt_id: original.attempt_id             // link back to original
+    // scores + answers_json start empty
+  });
+
+  return {
+    ok:           true,
+    attempt_id:   newAttemptId,
+    mode:         original.mode || '',
+    n:            n,
+    duration_min: durationMin
+  };
+}
+
+
+/* ==================== attempts.list HELPER ==================== */
+
+// GET: attempts.list — list attempts for a user (with optional filters)
+// filters: {user_id, course_id?, mode?, source?, status?}
+// Returns: { attempts:[...], summary:{count, avg_pct, instant_count, timed_count} }
+function listAttempts_(filters) {
+  const userId   = String(filters.user_id || '').trim();
+  if (!userId) throw new Error('user_id required');
+
+  const courseId = String(filters.course_id || '').trim().toLowerCase();
+  const mode     = String(filters.mode     || '').trim().toLowerCase();
+  const source   = String(filters.source   || '').trim().toLowerCase();
+  const status   = String(filters.status   || '').trim().toLowerCase();
+
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+  const sh = ss.getSheetByName(TAB_ATTEMPTS);
+  if (!sh) {
+    return { attempts: [], summary: { count: 0, avg_pct: 0, instant_count: 0, timed_count: 0 } };
+  }
+
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) {
+    return { attempts: [], summary: { count: 0, avg_pct: 0, instant_count: 0, timed_count: 0 } };
+  }
+
+  const header = values[0].map(s => String(s).trim().toLowerCase());
+  const H = {}; header.forEach((h, i) => H[h] = i);
+
+  function cell(row, key) {
+    const idx = H[key];
+    return (idx != null) ? row[idx] : '';
+  }
+
+  const attempts = [];
+  let countScored = 0;
+  let sumPct = 0;
+  let instantCount = 0;
+  let timedCount   = 0;
+
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r];
+
+    // Filter by user_id
+    const uid = String(cell(row, 'user_id') || '').trim();
+    if (!uid || uid !== userId) continue;
+
+    const cId  = String(cell(row, 'course_id') || '').trim().toLowerCase();
+    const mRaw = String(cell(row, 'mode')      || '').trim().toLowerCase();
+    const sRaw = String(cell(row, 'source')    || '').trim().toLowerCase();
+    const st   = String(cell(row, 'status')    || '').trim().toLowerCase();
+
+    if (courseId && cId !== courseId) continue;
+    if (mode     && mRaw !== mode)     continue;
+    if (source   && sRaw !== source)   continue;
+    if (status   && st   !== status)   continue;
+
+    const scoreRaw   = Number(cell(row, 'score_raw')   || 0);
+    const scoreTotal = Number(cell(row, 'score_total') || 0);
+    const scorePct   = Number(cell(row, 'score_pct')   || 0);
+    const modeNorm   = mRaw || '';
+
+    const att = {
+      attempt_id:    String(cell(row, 'attempt_id')    || ''),
+      ts_iso:        String(cell(row, 'ts_iso')        || ''),
+      course_id:     String(cell(row, 'course_id')     || ''),
+      quiz_id:       String(cell(row, 'quiz_id')       || ''),
+      display_label: String(cell(row, 'display_label') || ''),
+      mode:          modeNorm,
+      source:        sRaw || '',
+      status:        st || '',
+      n:             Number(cell(row, 'n') || 0),
+      duration_min:  cell(row, 'duration_min') || '',
+      score_raw:     scoreRaw,
+      score_total:   scoreTotal,
+      score_pct:     scorePct,
+      time_taken_s:  Number(cell(row, 'time_taken_s') || 0)
+    };
+
+    attempts.push(att);
+
+    // Summary stats (only count attempts that have a pct)
+    if (scorePct > 0) {
+      countScored += 1;
+      sumPct += scorePct;
+    }
+    if (modeNorm === 'instant') instantCount += 1;
+    if (modeNorm === 'timed')   timedCount   += 1;
+  }
+
+  const avgPct = countScored ? Math.round(sumPct / countScored) : 0;
+
+  return {
+    attempts: attempts,
+    summary: {
+      count:          attempts.length, // total attempts returned (not just scored)
+      avg_pct:        avgPct,
+      instant_count:  instantCount,
+      timed_count:    timedCount
+    }
+  };
+}
+
+
+/* ==================== QUIZZES TAB HELPERS ==================== */
+
+// Read all quizzes from TAB_QUIZZES into objects with normalized keys
+function readQuizzes_() {
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+  const sh = ss.getSheetByName(TAB_QUIZZES);
+  if (!sh) throw new Error(`Missing "${TAB_QUIZZES}" tab`);
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) return [];
+
+  const header = values[0].map(s => String(s).trim().toLowerCase());
+  const H = {};
+  header.forEach((h, i) => H[h] = i);
+
+  const out = [];
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r];
+    const quiz = {
+      quiz_id:       getCell_(row, H.quiz_id),
+      course_id:     getCell_(row, H.course_id),
+      type:          getCell_(row, H.type),
+      title:         getCell_(row, H.title),
+      published:     (H.published     != null ? row[H.published]     : ''),
+      visibility:    (H.visibility    != null ? row[H.visibility]    : ''),
+      publish_at:    (H.publish_at    != null ? row[H.publish_at]    : ''),
+      unpublish_at:  (H.unpublish_at  != null ? row[H.unpublish_at]  : ''),
+      n:             (H.n             != null ? row[H.n]             : ''),
+      duration_min:  (H.duration_min  != null ? row[H.duration_min]  : '')
+    };
+    if (!quiz.quiz_id) continue; // require quiz_id
+    out.push(quiz);
+  }
+  return out;
+}
+
+// Compute quiz status based on publish/unpublish dates and now
+// Returns: 'UPCOMING', 'ACTIVE', or 'CLOSED'
+function computeQuizStatus_(quiz, now) {
+  const pubAt  = asDateOrNull_(quiz.publish_at);
+  const unpubAt= asDateOrNull_(quiz.unpublish_at);
+
+  if (pubAt && now < pubAt) {
+    return 'UPCOMING';
+  }
+  if (unpubAt && now >= unpubAt) {
+    return 'CLOSED';
+  }
+  return 'ACTIVE';
+}
+
+// ====== TOKEN VERIFICATION (local, using Portal DB) ======
+function verifyToken_(token) {
+  if (!token) throw new Error('Missing token');
+
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+  const now = new Date();
+
+  // --- Look up token row ---
+  const shTok = ss.getSheetByName(TAB_TOKENS);
+  if (!shTok) throw new Error('Tokens table not found');
+
+  const valsTok = shTok.getDataRange().getValues();
+  if (valsTok.length < 2) throw new Error('Token not found');
+
+  const headerTok = valsTok[0].map(s => String(s).trim().toLowerCase());
+  const HT = {}; headerTok.forEach((h, i) => HT[h] = i);
+
+  const iToken    = HT['token'];
+  const iUserId   = HT['user_id'];
+  const iActive   = HT['active'];
+  const iExpires  = HT['expires_utc'];
+  const iLastSeen = HT['last_seen_utc'];
+
+  if (iToken == null || iUserId == null) {
+    throw new Error('Tokens table missing token/user_id columns');
+  }
+
+  let match = null;
+  let rowIndex = -1;
+
+  for (let r = 1; r < valsTok.length; r++) {
+    const row = valsTok[r];
+    if (String(row[iToken]).trim() !== token) continue;
+
+    // active flag
+    if (iActive != null && !isTruthy_(row[iActive])) {
+      throw new Error('Token inactive');
+    }
+
+    // expiry check
+    if (iExpires != null) {
+      const exp = asDateOrNull_(row[iExpires]);
+      if (exp && now >= exp) {
+        throw new Error('Token expired');
+      }
+    }
+
+    match = row;
+    rowIndex = r + 1; // sheet row index
+    break;
+  }
+
+  if (!match) {
+    throw new Error('Invalid token');
+  }
+
+  const userId = String(match[iUserId] || '').trim();
+  if (!userId) throw new Error('Token has no user_id');
+
+  // Touch last_seen_utc if the column exists
+  if (iLastSeen != null) {
+    match[iLastSeen] = now;
+    shTok.getRange(rowIndex, 1, 1, headerTok.length).setValues([match]);
+  }
+
+  // --- Sanity-check user is still active / not expired ---
+  const shUsers = ss.getSheetByName(TAB_USERS);
+  if (shUsers) {
+    const valsU = shUsers.getDataRange().getValues();
+    if (valsU.length >= 2) {
+      const headerU = valsU[0].map(s => String(s).trim().toLowerCase());
+      const HU = {}; headerU.forEach((h, i) => HU[h] = i);
+
+      const iuId  = HU['user_id'];
+      const iUAct = HU['active'];
+      const iUExp = HU['expires_utc'];
+
+      if (iuId != null) {
+        for (let r = 1; r < valsU.length; r++) {
+          const row = valsU[r];
+          if (String(row[iuId]).trim() !== userId) continue;
+
+          if (iUAct != null && !isTruthy_(row[iUAct])) {
+            throw new Error('User inactive');
+          }
+
+          if (iUExp != null) {
+            const uExp = asDateOrNull_(row[iUExp]);
+            if (uExp && now >= uExp) {
+              throw new Error('User expired');
+            }
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  // For now we only need user_id for attempts.list
+  return { user_id: userId };
+}
+
+
+/**
+ * GET: users.search (ADMIN ONLY)
+ *
+ * Params:
+ *   token  (required) – qa_token from admin browser
+ *   q      (optional) – free text query (email, name, phone, program, etc.)
+ *   ids    (optional) – CSV of user_id values to hydrate chips
+ *   limit  (optional) – max results (default 10, max 50)
+ *
+ * Behaviour:
+ *   - Verifies token via verifyToken_.
+ *   - Confirms caller is admin via isUserAdmin_.
+ *   - If `ids` provided → returns only those users (hydrate mode).
+ *   - Else uses `q` to search across user_id, email, name, program_id, level, cohort, phone.
+ *
+ * Response:
+ *   {
+ *     ok: true,
+ *     items: [
+ *       { user_id, email, name, program_id, level, cohort, phone, active, role }
+ *     ]
+ *   }
+ */
+function handleUsersSearch_(e) {
+  // 1) Auth + admin check
+  const token = reqParam_(e, 'token');  // throws if missing/empty
+  const authInfo = verifyToken_(token); // throws if invalid/expired
+  const userId   = authInfo.user_id;
+
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+  if (!isUserAdmin_(ss, userId)) {
+    throw new Error('Not authorized (admin only)');
+  }
+
+  // 2) Params
+  const rawQ    = (e.parameter.q   || '').toString();
+  const rawIds  = (e.parameter.ids || '').toString();
+  let   limit   = parseInt(e.parameter.limit || '10', 10);
+
+  let q = rawQ.toLowerCase().trim();
+  let idsCsv = rawIds.trim();
+
+  if (!limit || limit < 1) limit = 10;
+  if (limit > 50) limit = 50;
+
+  // 3) Open TAB_USERS
+  const sh = ss.getSheetByName(TAB_USERS);
+  if (!sh) {
+    // If no users sheet, just return empty list
+    return { ok: true, items: [] };
+  }
+
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) {
+    return { ok: true, items: [] };
+  }
+
+  const header = values[0].map(function(s){ return String(s).trim().toLowerCase(); });
+  const H = {};
+  header.forEach(function(h, i){ H[h] = i; });
+
+  function cell(row, key) {
+    const idx = H[key];
+    return (idx != null) ? row[idx] : '';
+  }
+
+  const items = [];
+  let idsSet = null;
+
+  // If ids CSV is provided, we go into "hydrate mode"
+  if (idsCsv) {
+    idsSet = {};
+    idsCsv.split(',').forEach(function(s){
+      const v = String(s || '').trim();
+      if (v) idsSet[v.toLowerCase()] = true;
+    });
+  }
+
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r];
+
+    const uid   = String(cell(row, 'user_id') || '').trim();
+    if (!uid) continue;
+
+    const uidLower = uid.toLowerCase();
+
+    const email    = String(cell(row, 'email')      || '').trim();
+    const name     = String(cell(row, 'name')       || '').trim();
+    const program  = String(cell(row, 'program_id') || cell(row, 'program') || '').trim();
+    const level    = String(cell(row, 'level')      || '').trim();
+    const cohort   = String(cell(row, 'cohort')     || '').trim();
+    const phone    = String(cell(row, 'phone')      || cell(row, 'phone_e164') || '').trim();
+    const active   = cell(row, 'active');
+    const role     = String(cell(row, 'role')       || '').trim();
+
+    // MODE A: hydrate by ids
+    if (idsSet) {
+      if (!idsSet[uidLower]) continue;
+    } else {
+      // MODE B: free-text search
+      if (!q) continue;  // no ids and no query → nothing
+
+      const hay = (
+        uid           + ' ' +
+        email         + ' ' +
+        name          + ' ' +
+        program       + ' ' +
+        level         + ' ' +
+        cohort        + ' ' +
+        phone
+      ).toLowerCase();
+
+      if (hay.indexOf(q) === -1) continue;
+    }
+
+    items.push({
+      user_id:    uid,
+      email:      email,
+      name:       name,
+      program_id: program,
+      level:      level,
+      cohort:     cohort,
+      phone:      phone,
+      active:     !!isTruthy_(active),
+      role:       role
+    });
+
+    if (items.length >= limit) break;
+  }
+
+  return { ok: true, items: items };
+}
+
+function findInProgressAttemptForFixedQuiz_(ss, userId, quizId) {
+  const sh = ss.getSheetByName(TAB_ATTEMPTS);
+  if (!sh) return null;
+
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) return null;
+
+  const header = values[0].map(s => String(s).trim().toLowerCase());
+  const H = {}; header.forEach((h,i)=>H[h]=i);
+
+  if (H.attempt_id == null || H.user_id == null || H.quiz_id == null) return null;
+
+  for (let r = values.length - 1; r >= 1; r--) { // scan newest-first
+    const row = values[r];
+    const uid = String(row[H.user_id] || '').trim();
+    const qid = String(row[H.quiz_id] || '').trim();
+    if (uid !== String(userId).trim()) continue;
+    if (qid !== String(quizId).trim()) continue;
+
+    const st = String((H.status != null ? row[H.status] : '') || '').trim().toLowerCase();
+    if (st === 'in_progress') {
+      return {
+        attempt_id: String(row[H.attempt_id] || '').trim(),
+        mode: String((H.mode != null ? row[H.mode] : '') || '').trim(),
+        duration_min: (H.duration_min != null ? row[H.duration_min] : ''),
+        n: Number((H.n != null ? row[H.n] : '') || 0)
+      };
+    }
+  }
+  return null;
+}
+
+/* ==================== ANNOUNCEMENTS — HELPERS & API ==================== */
+
+/**
+ * GET: announcements.list
+ * filters: { user_id, course_id?, limit? }
+ * Returns:
+ *   {
+ *     items: [
+ *       {
+ *         announcement_id,
+ *         title,
+ *         body,          // plain or HTML-ish text from sheet
+ *         status,
+ *         created_at,
+ *         start_at,
+ *         end_at,
+ *         pinned,        // boolean
+ *         priority,      // number
+ *         dismissible    // boolean
+ *       },
+ *       ...
+ *     ],
+ *     meta: { count, serverTime }
+ *   }
+ */
+function listAnnouncementsForUser_(filters) {
+  const userId   = String(filters.user_id || '').trim();
+  const courseId = String(filters.course_id || '').trim();
+  const limit    = clampInt_(filters.limit || 20, 1, 100);
+
+  const mode       = String(filters.mode || '').trim().toLowerCase();   // '' | 'archive' | 'dashboard'
+  const recentDays = clampInt_(filters.recent_days || 30, 1, 730);      // allow up to ~2 years
+
+
+  if (!userId) throw new Error('user_id required');
+
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+
+  // Build a user context from users + subscriptions + products
+  const userCtx = buildAnnouncementUserContext_(ss, userId);
+
+  // Read announcements table
+  const announcements = readAnnouncementsTable_(ss);
+  if (!announcements.length) {
+    return {
+      items: [],
+      meta: {
+        count: 0,
+        serverTime: new Date().toISOString()
+      }
+    };
+  }
+
+  const now = new Date();
+  const items = [];
+
+  announcements.forEach(function(a) {
+    if (!announcementMatchesUser_(a, userCtx, courseId, now, mode, recentDays)) return;  // 🔹 pass mode + window
+    items.push(normalizeAnnouncementForApi_(a));
+  });
+
+  // Sort: pinned first, then higher priority, then most recent (start_at / created_at)
+  items.sort(function(a, b) {
+    if (a.pinned !== b.pinned) {
+      return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0); // true first
+    }
+    const pa = a.priority || 0;
+    const pb = b.priority || 0;
+    if (pa !== pb) {
+      return pb - pa; // higher priority first
+    }
+
+    const ta = a._sort_ts || 0;
+    const tb = b._sort_ts || 0;
+    return tb - ta; // newer first
+  });
+
+  // Cap number returned
+  const sliced = items.slice(0, limit).map(function(x) {
+    // Remove internal sort field from API output
+    delete x._sort_ts;
+    return x;
+  });
+
+    // ===============================
+  // 🔗 Merge per-user notice state
+  // ===============================
+  const statesById = {};
+
+  const shState = ss.getSheetByName(TAB_NOTICE_STATE);
+  if (shState) {
+    const vals = shState.getDataRange().getValues();
+    if (vals.length >= 2) {
+      const header = vals[0].map(s => String(s||'').trim().toLowerCase());
+      const H = headerMap_(header);
+
+      for (let r = 1; r < vals.length; r++) {
+        const row = vals[r];
+
+        if (String(row[H.user_id]||'').trim() !== userId) continue;
+        if (String(row[H.item_type]||'').trim() !== NOTICE_ITEM_ANN) continue;
+
+        const itemId = String(row[H.item_id]||'').trim();
+        if (!itemId) continue;
+
+        statesById[itemId] = {
+          state:      String(row[H.state]||'').trim(),
+          seen_at:    row[H.seen_at] || '',
+          updated_at: row[H.updated_at] || ''
+        };
+      }
+    }
+  }
+
+
+return {
+  items: sliced,
+  states: statesById,
+  meta: {
+    count: sliced.length,
+    serverTime: new Date().toISOString()
+  }
+};
+}
+
+
+// Admin-facing listing with filters
+// filters: {status, program_id, course_id, cohort, subscription_kind, product_id, audience, search, offset, limit}
+function listAnnouncementsAdmin_(filters) {
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+  const announcements = readAnnouncementsTable_(ss);
+  if (!announcements.length) {
+    return {
+      ok: true,
+      total: 0,
+      offset: filters.offset || 0,
+      limit: filters.limit || 20,
+      items: []
+    };
+  }
+
+  const now      = new Date();
+  const offset   = filters.offset || 0;
+  const limit    = clampInt_(filters.limit || 20, 1, 200);
+  const search   = (filters.search || '').toLowerCase();
+
+  const statusCsv = (filters.status || '').toLowerCase().trim();
+  const statusTokens = statusCsv
+    ? statusCsv.split(',').map(function(s){ return s.trim(); }).filter(Boolean)
+    : [];
+
+  const programId  = (filters.program_id       || '').trim();
+  const courseId   = (filters.course_id        || '').trim();
+  const cohort     = (filters.cohort           || '').trim();
+  const subKind    = (filters.subscription_kind|| '').trim();
+  const productId  = (filters.product_id       || '').trim();
+  const audience   = (filters.audience         || '').trim();
+
+  const items = [];
+
+  announcements.forEach(function(a) {
+    // Effective status first
+    var effStatus = computeAnnouncementEffectiveStatus_(a, now);
+
+    // Status filter (if given) can match effective OR raw
+    if (statusTokens.length) {
+      var rawStatus = norm_(a.status || '');
+      var hit = false;
+      for (var i = 0; i < statusTokens.length; i++) {
+        var t = statusTokens[i];
+        if (t === effStatus || t === rawStatus) {
+          hit = true;
+          break;
+        }
+      }
+      if (!hit) return;
+    }
+
+    // Program filter: show global (empty) or matching program
+    if (programId && !matchesCsvScopeField_(a.scope_programs, programId)) return;
+
+    // Course filter: same logic
+    if (courseId && !matchesCsvScopeField_(a.scope_courses, courseId)) return;
+
+    // Cohort filter
+    if (cohort && !matchesCsvScopeField_(a.scope_cohort, cohort)) return;
+
+    // Level filter
+    if (filters.level && !matchesCsvScopeField_(a.scope_level, filters.level)) return;
+
+    // Subscription kind filter
+    if (subKind && !matchesCsvScopeField_(a.scope_subscription_kind, subKind)) return;
+
+    // Product filter
+    if (productId && !matchesCsvScopeField_(a.scope_product_ids, productId)) return;
+
+    // Audience filter (uses same CSV semantics: empty = global, 'ALL' = everyone)
+    if (audience && !matchesCsvScopeField_(a.scope_audience, audience)) return;
+
+    // Text search over title + bodies
+    if (search) {
+      var hay = (
+        String(a.title || '')      + ' ' +
+        String(a.body || '')       + ' ' +
+        String(a.body_html || '')  + ' ' +
+        String(a.body_text || '')
+      ).toLowerCase();
+
+      if (hay.indexOf(search) === -1) return;
+    }
+
+    // Shape for API using existing normaliser
+    var base = normalizeAnnouncementForApi_(a);
+
+    items.push({
+      announcement_id: base.announcement_id,
+      title:           base.title,
+      body:            base.body,
+      status:          base.status,
+      status_effective:effStatus,
+      created_at:      base.created_at,
+      start_at:        base.start_at,
+      end_at:          base.end_at,
+      pinned:          base.pinned,
+      priority:        base.priority,
+      dismissible:     base.dismissible,
+      scope_programs:  String(a.scope_programs          || ''),
+      scope_courses:   String(a.scope_courses           || ''),
+      scope_level:     String(a.scope_level             || ''),
+      scope_subscription_kind: String(a.scope_subscription_kind || ''),
+      scope_product_ids:       String(a.scope_product_ids       || ''),
+      scope_audience:          String(a.scope_audience          || ''),
+      scope_cohort:            String(a.scope_cohort            || ''),
+      scope_user_ids:          String(a.scope_user_ids          || ''), // 🔹 NEW
+      _sort_ts:        base._sort_ts   // keep internal for sorting
+    });
+  });
+
+  // Sort: pinned, then priority, then newest
+  items.sort(function(a, b) {
+    if (a.pinned !== b.pinned) {
+      return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
+    }
+    var pa = a.priority || 0;
+    var pb = b.priority || 0;
+    if (pa !== pb) return pb - pa;
+
+    var ta = a._sort_ts || 0;
+    var tb = b._sort_ts || 0;
+    return tb - ta;
+  });
+
+  var total = items.length;
+  var sliced = items.slice(offset, offset + limit).map(function(x) {
+    delete x._sort_ts;
+    return x;
+  });
+
+  return {
+    ok: true,
+    total: total,
+    offset: offset,
+    limit: limit,
+    items: sliced
+  };
+}
+
+
+function getOrCreateNoticeStateSheet_(ss) {
+  let sh = ss.getSheetByName(TAB_NOTICE_STATE);
+  if (!sh) {
+    sh = ss.insertSheet(TAB_NOTICE_STATE);
+    sh.appendRow(NOTICE_STATE_HEADER);
+  } else {
+    // ensure header exists / includes all expected columns
+    const header = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(x => String(x||'').trim().toLowerCase());
+    const needed = NOTICE_STATE_HEADER.filter(h => header.indexOf(h) < 0);
+    if (needed.length) {
+      sh.insertColumnsAfter(header.length || 1, needed.length);
+      const newHeader = header.concat(needed);
+      sh.getRange(1,1,1,newHeader.length).setValues([newHeader]);
+    }
+  }
+  return sh;
+}
+
+function headerMap_(headerRow) {
+  const H = {};
+  headerRow.forEach((h,i) => H[String(h||'').trim().toLowerCase()] = i);
+  return H;
+}
+
+function getUserSnapshot_(ss, userId) {
+  // returns { user_label, user_email }
+  let label = userId;
+  let email = '';
+
+  const sh = ss.getSheetByName(TAB_USERS);
+  if (!sh) return { user_label: label, user_email: email };
+
+  const vals = sh.getDataRange().getValues();
+  if (vals.length < 2) return { user_label: label, user_email: email };
+
+  const header = vals[0].map(s => String(s||'').trim().toLowerCase());
+  const H = headerMap_(header);
+
+  const iUid   = H['user_id'];
+  const iName  = H['name'];
+  const iEmail = H['email'];
+  const iProg  = (H['program_id'] != null) ? H['program_id'] : H['program'];
+
+  if (iUid == null) return { user_label: label, user_email: email };
+
+  for (let r=1; r<vals.length; r++) {
+    const row = vals[r];
+    if (String(row[iUid]||'').trim() !== String(userId).trim()) continue;
+
+    const nm = (iName  != null) ? String(row[iName]||'').trim() : '';
+    const em = (iEmail != null) ? String(row[iEmail]||'').trim() : '';
+    const pg = (iProg  != null) ? String(row[iProg]||'').trim() : '';
+
+    email = em || '';
+    if (nm) label = pg ? (nm + ' (' + pg + ')') : nm;
+
+    break;
+  }
+  return { user_label: label, user_email: email };
+}
+
+function keyNotice_(userId, itemId) {
+  return String(userId).trim() + '|' + NOTICE_ITEM_ANN + '|' + String(itemId).trim();
+}
+
+function uniqIds_(arr) {
+  if (!Array.isArray(arr)) return [];
+  const seen = {};
+  const out = [];
+  arr.forEach(x => {
+    const s = String(x||'').trim();
+    if (!s || seen[s]) return;
+    seen[s] = true;
+    out.push(s);
+  });
+  return out;
+}
+
+function announcementStates_(opts) {
+  const userId = String(opts.user_id || '').trim();
+  const itemIds = Array.isArray(opts.item_ids) ? opts.item_ids : [];
+  if (!userId) throw new Error('user_id required');
+
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+  const sh = getOrCreateNoticeStateSheet_(ss);
+
+  const vals = sh.getDataRange().getValues();
+  if (vals.length < 2) return { ok: true, states: {} };
+
+  const header = vals[0].map(s => String(s||'').trim().toLowerCase());
+  const H = headerMap_(header);
+
+  const want = {};
+  if (itemIds.length) itemIds.forEach(id => want[String(id)] = true);
+
+  const states = {};
+  for (let r=1; r<vals.length; r++) {
+    const row = vals[r];
+    const uid = String(row[H.user_id]||'').trim();
+    const it  = String(row[H.item_type]||'').trim();
+    const iid = String(row[H.item_id]||'').trim();
+    if (uid !== userId) continue;
+    if (it !== NOTICE_ITEM_ANN) continue;
+    if (itemIds.length && !want[iid]) continue;
+
+    states[iid] = {
+      state:      String(row[H.state]||'').trim(),
+      seen_at:    row[H.seen_at] || '',
+      updated_at: row[H.updated_at] || ''
+    };
+  }
+
+  return { ok: true, states: states };
+}
+
+function announcementsMarkSeen_(payload) {
+  const userId = String(payload.user_id || '').trim();
+  const items  = uniqIds_(payload.items || []);
+  if (!userId) throw new Error('user_id required');
+  if (!items.length) return { ok: true, applied: 0, skipped: 0 };
+
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+  const sh = getOrCreateNoticeStateSheet_(ss);
+
+  const snap = getUserSnapshot_(ss, userId);
+  const now  = new Date();
+
+  const vals = sh.getDataRange().getValues();
+  const header = vals[0].map(s => String(s||'').trim().toLowerCase());
+  const H = headerMap_(header);
+
+  // Build index of existing rows for this user + ANNOUNCEMENT
+  const rowByItem = {}; // item_id -> sheetRowNumber
+  const stateByItem = {};
+  for (let r=1; r<vals.length; r++) {
+    const row = vals[r];
+    if (String(row[H.user_id]||'').trim() !== userId) continue;
+    if (String(row[H.item_type]||'').trim() !== NOTICE_ITEM_ANN) continue;
+    const iid = String(row[H.item_id]||'').trim();
+    if (!iid) continue;
+    rowByItem[iid] = r + 1; // sheet row (1-based)
+    stateByItem[iid] = String(row[H.state]||'').trim();
+  }
+
+  let applied = 0, skipped = 0;
+  const toAppend = [];
+
+  items.forEach(function(itemId){
+    const existingRow = rowByItem[itemId];
+
+    if (!existingRow) {
+      // NEW -> create seen
+      toAppend.push([
+        userId,
+        snap.user_label,
+        snap.user_email,
+        NOTICE_ITEM_ANN,
+        itemId,
+        NOTICE_STATE_SEEN,
+        now,
+        now
+      ]);
+      applied++;
+      return;
+    }
+
+    const cur = stateByItem[itemId] || '';
+    if (cur === NOTICE_STATE_DISMISSED) { skipped++; return; }
+    if (cur === NOTICE_STATE_SEEN) { skipped++; return; }
+
+    // normalize unknown -> seen, preserve seen_at if any
+    const rowVals = sh.getRange(existingRow, 1, 1, header.length).getValues()[0];
+    const seenAt  = rowVals[H.seen_at] || now;
+
+    rowVals[H.user_label] = snap.user_label;
+    rowVals[H.user_email] = snap.user_email;
+    rowVals[H.state]      = NOTICE_STATE_SEEN;
+    rowVals[H.seen_at]    = seenAt;
+    rowVals[H.updated_at] = now;
+
+    sh.getRange(existingRow, 1, 1, header.length).setValues([rowVals]);
+    applied++;
+  });
+
+  if (toAppend.length) {
+    sh.getRange(sh.getLastRow()+1, 1, toAppend.length, header.length).setValues(toAppend);
+  }
+
+  return { ok: true, applied: applied, skipped: skipped };
+}
+
+function announcementsDismiss_(payload) {
+  const userId = String(payload.user_id || '').trim();
+  const itemId = String(payload.item_id || '').trim();
+  if (!userId) throw new Error('user_id required');
+  if (!itemId) throw new Error('item_id required');
+
+  return upsertAnnouncementState_(userId, itemId, NOTICE_STATE_DISMISSED, { onlyIfCurrentlyDismissed: false });
+}
+
+function announcementsRestore_(payload) {
+  const userId = String(payload.user_id || '').trim();
+  const itemId = String(payload.item_id || '').trim();
+  if (!userId) throw new Error('user_id required');
+  if (!itemId) throw new Error('item_id required');
+
+  return upsertAnnouncementState_(userId, itemId, NOTICE_STATE_SEEN, { onlyIfCurrentlyDismissed: true });
+}
+
+function upsertAnnouncementState_(userId, itemId, nextState, opts) {
+  opts = opts || {};
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+  const sh = getOrCreateNoticeStateSheet_(ss);
+  const snap = getUserSnapshot_(ss, userId);
+  const now = new Date();
+
+  const vals = sh.getDataRange().getValues();
+  const header = vals[0].map(s => String(s||'').trim().toLowerCase());
+  const H = headerMap_(header);
+
+  let foundRowNum = -1;
+  let foundRow = null;
+
+  for (let r=1; r<vals.length; r++) {
+    const row = vals[r];
+    if (String(row[H.user_id]||'').trim() !== userId) continue;
+    if (String(row[H.item_type]||'').trim() !== NOTICE_ITEM_ANN) continue;
+    if (String(row[H.item_id]||'').trim() !== itemId) continue;
+
+    foundRowNum = r + 1; // sheet row number
+    foundRow = row;
+    break;
+  }
+
+  if (foundRowNum < 0) {
+    // create
+    const seenAt = now; // dismiss implies seen; seen also sets seen_at
+    sh.appendRow([
+      userId,
+      snap.user_label,
+      snap.user_email,
+      NOTICE_ITEM_ANN,
+      itemId,
+      nextState,
+      seenAt,
+      now
+    ]);
+    return { ok: true, applied: 1, skipped: 0 };
+  }
+
+  const cur = String(foundRow[H.state]||'').trim();
+
+  if (opts.onlyIfCurrentlyDismissed && cur !== NOTICE_STATE_DISMISSED) {
+    return { ok: true, applied: 0, skipped: 1 };
+  }
+
+  if (cur === nextState) {
+    return { ok: true, applied: 0, skipped: 1 };
+  }
+
+  // update row
+  const rowVals = sh.getRange(foundRowNum, 1, 1, header.length).getValues()[0];
+
+  rowVals[H.user_label] = snap.user_label;
+  rowVals[H.user_email] = snap.user_email;
+  rowVals[H.state]      = nextState;
+
+  if (!rowVals[H.seen_at]) rowVals[H.seen_at] = now;
+  rowVals[H.updated_at] = now;
+
+  sh.getRange(foundRowNum, 1, 1, header.length).setValues([rowVals]);
+
+  return { ok: true, applied: 1, skipped: 0 };
+}
+
+
+function getAnnouncementsMeta_() {
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+
+  const programs    = [];
+  const courses     = [];
+  const productIds  = [];
+  const cohorts     = [];
+  const levels      = [];
+
+  const programMap  = {};          // program_id -> {id,label}
+  const levelSet    = new Set();   // level strings
+  const cohortSet   = new Set();   // cohort strings
+  const prodSet     = new Set();   // product_id strings
+
+  /* ---------- COURSES → courses[] + fallback programs + fallback levels ---------- */
+  const shCourses = ss.getSheetByName(TAB_COURSES);
+  if (shCourses) {
+    const vals = shCourses.getDataRange().getValues();
+    if (vals.length >= 2) {
+      const header = vals[0].map(function(s){ return String(s).trim().toLowerCase(); });
+      const H = {};
+      header.forEach(function(h, i){ H[h] = i; });
+
+      const iCourse  = H['course_id'];
+      const iStatus  = H['status'];
+      const iTitle   = H['title'];
+      const iProgId  = H['program_id'];
+      const iProgNm  = H['program_name'] != null ? H['program_name'] : H['program'];
+      const iLevel   = H['level'];
+
+      for (var r = 1; r < vals.length; r++) {
+        var row = vals[r];
+
+        var cid = iCourse != null ? String(row[iCourse] || '').trim() : '';
+        if (!cid) continue;
+
+        var status = iStatus != null ? String(row[iStatus] || '').trim().toLowerCase() : '';
+        if (status && status !== 'active') continue;
+
+        var title = iTitle != null ? String(row[iTitle] || '').trim() : '';
+        courses.push({ id: cid, label: title || cid });
+
+        // Fallback programs from courses
+        if (iProgId != null) {
+          var pid   = String(row[iProgId] || '').trim();
+          var pname = iProgNm != null ? String(row[iProgNm] || '').trim() : '';
+
+          if (pid) {
+            if (!programMap[pid]) {
+              programMap[pid] = {
+                id: pid,
+                label: pname || pid
+              };
+            }
+          }
+        }
+
+        // Fallback levels from courses
+        if (iLevel != null) {
+          var lvl = String(row[iLevel] || '').trim();
+          if (lvl) levelSet.add(lvl);
+        }
+      }
+    }
+  }
+
+  /* ---------- PROGRAMS TAB (canonical source) ---------- */
+  const shProg = ss.getSheetByName(TAB_PROGRAMS);
+  if (shProg) {
+    const vals = shProg.getDataRange().getValues();
+    if (vals.length >= 2) {
+      const header = vals[0].map(function(s){ return String(s).trim().toLowerCase(); });
+      const H = {};
+      header.forEach(function(h, i){ H[h] = i; });
+
+      const iPid   = H['program_id'];
+      const iName  = H['program_name'] != null ? H['program_name'] : H['name'];
+
+      if (iPid != null) {
+        for (var r = 1; r < vals.length; r++) {
+          var row = vals[r];
+          var pid = String(row[iPid] || '').trim();
+          if (!pid) continue;
+
+          var label = iName != null ? String(row[iName] || '').trim() : '';
+          programMap[pid] = {
+            id: pid,
+            label: label || pid
+          };
+        }
+      }
+    }
+  }
+
+  // Materialise programs[] from programMap (sorted by id)
+  Object.keys(programMap).sort().forEach(function(id){
+    programs.push(programMap[id]);
+  });
+
+  /* ---------- LEVELS TAB (canonical source) ---------- */
+  const shLevels = ss.getSheetByName(TAB_LEVELS);
+  if (shLevels) {
+    const vals = shLevels.getDataRange().getValues();
+    if (vals.length >= 2) {
+      const header = vals[0].map(function(s){ return String(s).trim().toLowerCase(); });
+      const H = {};
+      header.forEach(function(h, i){ H[h] = i; });
+
+      // You said column will be "level_ids"
+      const iLvl = (H['level_ids'] != null) ? H['level_ids'] : H['level_id'];
+      if (iLvl != null) {
+        for (var r = 1; r < vals.length; r++) {
+          var row = vals[r];
+          var lvl = String(row[iLvl] || '').trim();
+          if (lvl) levelSet.add(lvl);
+        }
+      }
+    }
+  }
+
+  /* ---------- USERS → cohorts + fallback levels & programs if needed ---------- */
+  const shUsers = ss.getSheetByName(TAB_USERS);
+  if (shUsers) {
+    const vals = shUsers.getDataRange().getValues();
+    if (vals.length >= 2) {
+      const header = vals[0].map(function(s){ return String(s).trim().toLowerCase(); });
+      const H = {};
+      header.forEach(function(h, i){ H[h] = i; });
+
+      const iCoh   = H['cohort'];
+      const iLevel = H['level'];
+      const iProg  = H['program_id'] != null ? H['program_id'] : H['program'];
+
+      for (var u = 1; u < vals.length; u++) {
+        var row = vals[u];
+
+        if (iCoh != null) {
+          var coh = String(row[iCoh] || '').trim();
+          if (coh) cohortSet.add(coh);
+        }
+
+        if (iLevel != null) {
+          var lvl = String(row[iLevel] || '').trim();
+          if (lvl) levelSet.add(lvl);
+        }
+
+        // Absolute fallback programs from users if needed
+        if (!programs.length && iProg != null) {
+          var pid = String(row[iProg] || '').trim();
+          if (pid && !programMap[pid]) {
+            programMap[pid] = { id: pid, label: pid };
+          }
+        }
+      }
+    }
+  }
+
+  // Finalise levels[]
+  levelSet.forEach(function(lvl){ levels.push(lvl); });
+  levels.sort();
+
+  // Finalise cohorts[]
+  cohortSet.forEach(function(c){ cohorts.push(c); });
+  cohorts.sort();
+
+  /* ---------- PRODUCTS → product_ids[] ---------- */
+  const shProd = ss.getSheetByName(TAB_PRODUCTS);
+  if (shProd) {
+    const vals = shProd.getDataRange().getValues();
+    if (vals.length >= 2) {
+      const header = vals[0].map(function(s){ return String(s).trim().toLowerCase(); });
+      const H = {};
+      header.forEach(function(h, i){ H[h] = i; });
+
+      const iPid    = H['product_id'];
+      const iStatus = H['status'];
+
+      if (iPid != null) {
+        for (var p = 1; p < vals.length; p++) {
+          var row = vals[p];
+          var pid = String(row[iPid] || '').trim();
+          if (!pid) continue;
+
+          var status = iStatus != null ? String(row[iStatus] || '').trim().toLowerCase() : '';
+          if (status && status !== 'active') continue;
+
+          prodSet.add(pid);
+        }
+      }
+    }
+  }
+
+  prodSet.forEach(function(pid){ productIds.push(pid); });
+  productIds.sort();
+
+  /* ---------- Static options ---------- */
+  const statusOptions       = ['draft','active','scheduled','expired','archived'];
+  const priorityOptions     = [0,1,2,3];
+  const subscriptionKinds   = ['PAID','TRIAL','FREE'];
+  const audiences           = ['ALL','PAID','TRIAL','FREE']; // manually defined
+
+  return {
+    ok: true,
+    programs: programs,           // [{id,label}]
+    courses: courses,             // [{id,label}]
+    levels: levels,               // ['L100','L200',... or whatever]
+    product_ids: productIds,      // ['RN_FULL_2026', ...]
+    cohorts: cohorts,             // ['COHORT_A', '2026A', ...]
+    status_options: statusOptions,
+    priority_options: priorityOptions,
+    subscription_kinds: subscriptionKinds,
+    audiences: audiences
+  };
+}
+
+
+/**
+ * Build a user context for announcement targeting:
+ *  - program, level, cohort (from users)
+ *  - active subscription kinds (PAID/TRIAL/FREE) and product_ids
+ */
+function buildAnnouncementUserContext_(ss, userId) {
+  const ctx = {
+    user_id: userId,
+    program_id: '',
+    level: '',
+    cohort: '',
+    is_admin: false,       // NEW: admin flag (if you later add is_admin column)
+    subscriptionKinds: [], // e.g. ['PAID','TRIAL']
+    productIds: [],        // e.g. ['RN_FULL']
+    course_ids: [],        // e.g. ['RN_MED','RN_SURG','GP'] from products.courses_included
+    hasPaid: false,
+    hasTrial: false,
+    hasFree: false
+  };
+
+  // ---- USERS table ----
+  const shUsers = ss.getSheetByName(TAB_USERS);
+  if (shUsers) {
+    const vals = shUsers.getDataRange().getValues();
+    if (vals.length >= 2) {
+      const header = vals[0].map(function(s){ return String(s).trim().toLowerCase(); });
+      const H = {};
+      header.forEach(function(h, i){ H[h] = i; });
+
+      const iUid   = H['user_id'];
+      const iProg1 = H['program_id'];
+      const iProg2 = H['program'];
+      const iLevel = H['level'];
+      const iCoh   = H['cohort'];
+      const iAdmin = H['is_admin']; // optional
+
+      if (iUid != null) {
+        for (var r = 1; r < vals.length; r++) {
+          var row = vals[r];
+          if (String(row[iUid]).trim() !== userId) continue;
+
+          ctx.program_id = (iProg1 != null ? String(row[iProg1] || '') : (iProg2 != null ? String(row[iProg2] || '') : '')).trim();
+          ctx.level      = (iLevel != null ? String(row[iLevel] || '') : '').trim();
+          ctx.cohort     = (iCoh   != null ? String(row[iCoh]   || '') : '').trim();
+
+          if (iAdmin != null) {
+            ctx.is_admin = isTruthy_(row[iAdmin]);
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  // ---- SUBSCRIPTIONS + PRODUCTS ----
+  const shSubs = ss.getSheetByName(TAB_SUBSCRIPTIONS);
+  const shProd = ss.getSheetByName(TAB_PRODUCTS);
+
+  if (shSubs && shProd) {
+    const valsSubs = shSubs.getDataRange().getValues();
+    const valsProd = shProd.getDataRange().getValues();
+
+    if (valsSubs.length >= 2 && valsProd.length >= 2) {
+      const headerSubs = valsSubs[0].map(function(s){ return String(s).trim().toLowerCase(); });
+      const HS = {};
+      headerSubs.forEach(function(h, i){ HS[h] = i; });
+
+      const headerProd = valsProd[0].map(function(s){ return String(s).trim().toLowerCase(); });
+      const HP = {};
+      headerProd.forEach(function(h, i){ HP[h] = i; });
+
+      const iSubUid   = HS['user_id'];
+      const iSubPid   = HS['product_id'];
+      const iSubStat  = HS['status'];
+      const iSubStart = HS['start_utc'];
+      const iSubExp   = HS['expires_utc'];
+
+      const iProdId       = HP['product_id'];
+      const iProdKind     = HP['kind'];             // PAID / TRIAL / FREE
+      const iProdCourses  = HP['courses_included']; // CSV of course_ids (e.g. RN_MED,RN_SURG,GP)
+
+      // Build products lookup
+      const productsById = {};
+      for (var p = 1; p < valsProd.length; p++) {
+        var prow = valsProd[p];
+        var pid  = iProdId != null ? String(prow[iProdId] || '').trim().toUpperCase() : '';
+        if (!pid) continue;
+        productsById[pid] = prow;
+      }
+
+      const now      = new Date();
+      const kindSet  = new Set();
+      const prodSet  = new Set();
+      const courseSet= new Set(); // NEW: track all courses user has via products
+
+
+      if (iSubUid != null && iSubPid != null && iSubStat != null) {
+        for (var s = 1; s < valsSubs.length; s++) {
+          var srow = valsSubs[s];
+          if (String(srow[iSubUid]).trim() !== userId) continue;
+
+          var status = String(srow[iSubStat] || '').trim().toUpperCase();
+          if (status !== 'ACTIVE') continue;
+
+          // date window
+          var start = (iSubStart != null ? asDateOrNull_(srow[iSubStart]) : null);
+          var exp   = (iSubExp   != null ? asDateOrNull_(srow[iSubExp])   : null);
+
+          if (start && now < start) continue;
+          if (exp   && now >= exp)  continue;
+
+          var pidSub = String(srow[iSubPid] || '').trim().toUpperCase();
+          if (!pidSub) continue;
+
+          var prodRow = productsById[pidSub];
+          var kindRaw = '';
+          if (prodRow && iProdKind != null) {
+            kindRaw = String(prodRow[iProdKind] || '').trim().toUpperCase();
+          }
+
+          // Track product kinds (PAID/TRIAL/FREE)
+          if (pidSub) prodSet.add(pidSub);
+          if (kindRaw) kindSet.add(kindRaw);
+
+          // NEW: derive courses from this product
+          if (prodRow && iProdCourses != null) {
+            var coursesRaw = String(prodRow[iProdCourses] || '').trim();
+            if (coursesRaw) {
+              coursesRaw.split(',').forEach(function(c){
+                var cid = String(c || '').trim();
+                if (cid) {
+                  courseSet.add(cid.toUpperCase());
+                }
+              });
+            }
+          }
+        }
+      }
+
+      ctx.subscriptionKinds = Array.from(kindSet);
+      ctx.productIds        = Array.from(prodSet);
+      ctx.course_ids        = Array.from(courseSet); // NEW: all courses user has via subscriptions
+
+      ctx.hasPaid  = ctx.subscriptionKinds.indexOf('PAID')  >= 0;
+      ctx.hasTrial = ctx.subscriptionKinds.indexOf('TRIAL') >= 0;
+      ctx.hasFree  = ctx.subscriptionKinds.indexOf('FREE')  >= 0;
+    }
+  }
+
+
+  return ctx;
+}
+
+/**
+ * Read the announcements table into an array of row objects keyed by column name.
+ */
+function readAnnouncementsTable_(ss) {
+  const sh = ss.getSheetByName(TAB_ANNOUNCEMENTS);
+  if (!sh) {
+    // No announcements tab yet → empty
+    return [];
+  }
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) return [];
+
+  const header = values[0].map(function(s){ return String(s).trim().toLowerCase(); });
+
+  function rowToObj(header, row) {
+    const o = {};
+    header.forEach(function(h, i) {
+      o[h] = (i < row.length ? row[i] : '');
+    });
+    return o;
+  }
+
+  const out = [];
+  for (var r = 1; r < values.length; r++) {
+    var row = values[r];
+    var obj = rowToObj(header, row);
+    // Require at least an id or title to be meaningful
+    var id   = String(obj.announcement_id || obj.id || '').trim();
+    var title = String(obj.title || '').trim();
+    if (!id && !title) continue;
+    if (!id) {
+      // Simple fallback id
+      id = 'A_' + (r + 1);
+      obj.announcement_id = id;
+    }
+    out.push(obj);
+  }
+  return out;
+}
+
+/**
+ * Decide if a single announcement row applies to this user/context.
+ * Uses:
+ *  - status (ACTIVE only)
+ *  - start_at / end_at
+ *  - scope_programs
+ *  - scope_courses
+ *  - scope_level
+ *  - scope_subscription_kind
+ *  - scope_product_ids
+ *  - scope_audience
+ *  - scope_cohort
+ */
+// Decide if a single announcement row applies to this user/context.
+//
+// mode:
+//   - 'dashboard' or ''  → LIVE ONLY (start_at <= now < end_at)
+//   - 'archive'          → LIVE + UPCOMING + RECENTLY ENDED (within recentDays)
+//
+// recentDays: how many days back to keep ended announcements in archive mode.
+function announcementMatchesUser_(a, ctx, courseId, now, mode, recentDays) {
+  now        = now || new Date();
+  mode       = String(mode || '').trim().toLowerCase();
+  recentDays = clampInt_(recentDays || 30, 1, 730);
+
+
+  // Status: only ACTIVE announcements (draft / archived etc. are always excluded)
+  var status = norm_(a.status || '');
+  if (status && status !== 'active') {
+    return false;
+  }
+
+  // ----- TIME WINDOW HANDLING -----
+  var startAt = asDateOrNull_(a.start_at);
+  var endAt   = asDateOrNull_(a.end_at);
+
+  if (mode === 'archive') {
+    // ANNOUNCEMENTS PAGE:
+    // - allow UPCOMING (start in future)
+    // - allow LIVE (start <= now < end, or no end)
+    // - allow RECENTLY ENDED (end within last recentDays)
+    var cutoff = new Date(now.getTime() - recentDays * 24 * 60 * 60 * 1000);
+
+    // If it ended *before* the cutoff, hide it from archive
+    if (endAt && endAt < cutoff) {
+      return false;
+    }
+    // Otherwise: upcoming, live, or recently ended → allowed
+  } else {
+    // DASHBOARD (default) — only LIVE announcements
+    if (startAt && now < startAt) return false; // upcoming → hide
+    if (endAt   && now >= endAt)  return false; // ended   → hide
+  }
+
+  // 🔹 User-specific scope (whitelist)
+  if (!matchesUserIdScope_(a.scope_user_ids, ctx.user_id)) {
+    return false;
+  }
+
+  // Program scope
+  if (!matchesCsvScopeField_(a.scope_programs, ctx.program_id)) {
+    return false;
+  }
+
+  // Cohort scope
+  if (!matchesCsvScopeField_(a.scope_cohort, ctx.cohort)) {
+    return false;
+  }
+
+  // Level scope (e.g. L100/L200)
+  if (!matchesCsvScopeField_(a.scope_level, ctx.level)) {
+    return false;
+  }
+
+  // ----- COURSE SCOPE -----
+  var hasCourseScope = hasNonEmptyCsv_(a.scope_courses);
+
+  if (courseId) {
+    // COURSE PAGE MODE:
+    // Only show announcements that explicitly list this course.
+    if (!hasCourseScope) return false;
+    if (!matchesCsvScopeField_(a.scope_courses, courseId)) return false;
+  } else {
+    // DASHBOARD / GLOBAL MODE:
+    // If course scope is set, it must intersect with user’s courses.
+    if (hasCourseScope) {
+      if (!matchesAnyCourseForUser_(a.scope_courses, ctx.course_ids)) return false;
+    }
+  }
+
+  // Subscription kind scope (PAID / TRIAL / FREE)
+  if (!matchesSubscriptionKindScope_(a.scope_subscription_kind, ctx.subscriptionKinds)) {
+    return false;
+  }
+
+  // Product ID scope
+  if (!matchesProductScope_(a.scope_product_ids, ctx.productIds)) {
+    return false;
+  }
+
+  // High-level audience scope
+  if (!matchesAudienceScope_(a.scope_audience, ctx)) {
+    return false;
+  }
+
+  return true;
+}
+
+
+
+function computeAnnouncementEffectiveStatus_(a, now) {
+  now = now || new Date();
+
+  var rawStatus = norm_(a.status || '');
+  if (!rawStatus) rawStatus = 'active';
+
+  // Draft / archived stay as-is
+  if (rawStatus === 'draft' || rawStatus === 'archived') return rawStatus;
+
+  var startAt = asDateOrNull_(a.start_at);
+  var endAt   = asDateOrNull_(a.end_at);
+
+  if (startAt && now < startAt) return 'scheduled';
+  if (endAt   && now >= endAt)  return 'expired';
+
+  return 'active';
+}
+
+
+/**
+ * Turn a raw announcement row into an API-friendly object.
+ * Tries to support either body / body_html / body_text column names.
+ */
+function normalizeAnnouncementForApi_(a) {
+  var id    = String(a.announcement_id || a.id || '').trim();
+  var title = String(a.title || '').trim();
+
+  // Body: prefer body_html > body_text > body
+  var body = '';
+  if (a.body_html != null && String(a.body_html).trim() !== '') {
+    body = String(a.body_html);
+  } else if (a.body_text != null && String(a.body_text).trim() !== '') {
+    body = String(a.body_text);
+  } else if (a.body != null) {
+    body = String(a.body);
+  }
+
+  var createdAt = asDateOrNull_(a.created_at);
+  var startAt   = asDateOrNull_(a.start_at);
+  var endAt     = asDateOrNull_(a.end_at);
+
+  // Sort timestamp: prefer start_at, else created_at, else now
+  var sortDate = startAt || createdAt || new Date();
+
+  var pinned = isTruthy_(a.pinned);
+  var dismissible = isTruthy_(a.dismissible);
+  var priorityRaw = a.priority;
+  var priority = 0;
+  if (priorityRaw !== undefined && priorityRaw !== null && String(priorityRaw).trim() !== '') {
+    priority = parseInt(priorityRaw, 10);
+    if (isNaN(priority)) priority = 0;
+  }
+
+return {
+  announcement_id: id,
+  title: title,
+
+  // ✅ send all variants
+  body_html: (a.body_html != null ? String(a.body_html) : ''),
+  body_text: (a.body_text != null ? String(a.body_text) : ''),
+  body_raw:  (a.body      != null ? String(a.body)      : ''),
+
+  // ✅ keep your chosen field for convenience
+  body: body,
+
+  status: String(a.status || '').trim(),
+  created_at: createdAt ? createdAt.toISOString() : '',
+  start_at:   startAt   ? startAt.toISOString()   : '',
+  end_at:     endAt     ? endAt.toISOString()     : '',
+  pinned: pinned,
+  priority: priority,
+  dismissible: dismissible,
+  _sort_ts: sortDate.getTime()
+};
+
+}
+
+/* ===== ANNOUNCEMENT SCOPE HELPERS ===== */
+
+// Does a CSV-ish field contain a match for value?
+// - Empty field → true (no restriction)
+// - 'ALL' → true
+// - Otherwise: any token equals value (case-insensitive)
+
+
+// userId whitelist scope:
+// - Empty field → no restriction (true)
+// - Otherwise announcement only applies if ctx.user_id is in that CSV.
+function matchesUserIdScope_(fieldValue, userId) {
+  var raw = String(fieldValue || '').trim();
+  if (!raw) return true; // no restriction
+
+  var tokens = raw.split(',')
+    .map(function(s){ return String(s || '').trim().toLowerCase(); })
+    .filter(Boolean);
+
+  if (!tokens.length) return true;
+
+  if (!userId) return false;
+  var v = String(userId || '').trim().toLowerCase();
+
+  return tokens.indexOf(v) >= 0;
+}
+
+
+function matchesCsvScopeField_(fieldValue, value) {
+  var raw = String(fieldValue || '').trim();
+  if (!raw) return true; // no restriction
+
+  var tokens = raw.split(',').map(function(s){ return norm_((s || '').replace(/\s+/g, ' ')); }).filter(Boolean);
+  if (!tokens.length) return true;
+
+  if (tokens.indexOf('all') >= 0) return true;
+  if (!value) return false;
+
+  var v = norm_(value);
+  return tokens.indexOf(v) >= 0;
+}
+
+// Does the CSV field have any non-empty token?
+function hasNonEmptyCsv_(fieldValue) {
+  var raw = String(fieldValue || '').trim();
+  if (!raw) return false;
+  var tokens = raw.split(',').map(function(s){ return String(s).trim(); }).filter(Boolean);
+  return tokens.length > 0;
+}
+
+// subscriptionKinds is an array like ['PAID','TRIAL']
+// fieldValue is CSV of kinds, e.g. "PAID,TRIAL"
+function matchesSubscriptionKindScope_(fieldValue, subscriptionKinds) {
+  var raw = String(fieldValue || '').trim();
+  if (!raw) return true; // no restriction
+
+  var tokens = raw.split(',').map(function(s){ return String(s || '').trim().toUpperCase(); }).filter(Boolean);
+  if (!tokens.length) return true;
+  if (tokens.indexOf('ALL') >= 0) return true;
+
+  if (!Array.isArray(subscriptionKinds) || !subscriptionKinds.length) return false;
+  var kindSet = new Set(subscriptionKinds.map(function(k){ return String(k || '').trim().toUpperCase(); }));
+
+  // Any overlap between tokens and kindSet
+  return tokens.some(function(t){ return kindSet.has(t); });
+}
+
+// productIds is an array like ['RN_FULL_2026','GP_ADDON']
+// fieldValue is CSV of product_ids
+function matchesProductScope_(fieldValue, productIds) {
+  var raw = String(fieldValue || '').trim();
+  if (!raw) return true; // no restriction
+
+  var tokens = raw.split(',').map(function(s){ return String(s || '').trim().toUpperCase(); }).filter(Boolean);
+  if (!tokens.length) return true;
+  if (tokens.indexOf('ALL') >= 0) return true;
+
+  if (!Array.isArray(productIds) || !productIds.length) return false;
+  var prodSet = new Set(productIds.map(function(pid){ return String(pid || '').trim().toUpperCase(); }));
+
+  return tokens.some(function(t){ return prodSet.has(t); });
+}
+
+// courseIds is an array like ['RN_MED','RN_SURG','GP']
+// fieldValue is CSV of course_ids, e.g. "RN_MED,RN_SURG"
+function matchesAnyCourseForUser_(fieldValue, courseIds) {
+  var raw = String(fieldValue || '').trim();
+  if (!raw) return true; // no restriction
+
+  var tokens = raw.split(',')
+    .map(function(s){ return String(s || '').trim().toUpperCase(); })
+    .filter(Boolean);
+  if (!tokens.length) return true;
+  if (tokens.indexOf('ALL') >= 0) return true;
+
+  if (!Array.isArray(courseIds) || !courseIds.length) return false;
+  var courseSet = new Set(courseIds.map(function(c){
+    return String(c || '').trim().toUpperCase();
+  }));
+
+  // Any overlap between tokens and courseSet
+  return tokens.some(function(t){ return courseSet.has(t); });
+}
+
+
+/**
+ * scope_audience: high-level segment based on subscriptions.
+ * Values (CSV allowed):
+ *   ALL   – everyone
+ *   PAID  – has at least one PAID subscription
+ *   TRIAL – has a TRIAL but no PAID
+ *   FREE  – has a FREE but no PAID
+ */
+function matchesAudienceScope_(fieldValue, ctx) {
+  var raw = String(fieldValue || '').trim();
+  if (!raw) return true; // no restriction
+
+  var tokens = raw.split(',').map(function(s){ return String(s || '').trim().toUpperCase(); }).filter(Boolean);
+  if (!tokens.length) return true;
+  if (tokens.indexOf('ALL') >= 0) return true;
+
+  var hasPaid  = !!ctx.hasPaid;
+  var hasTrial = !!ctx.hasTrial;
+  var hasFree  = !!ctx.hasFree;
+
+  // Evaluate each token as OR
+  for (var i = 0; i < tokens.length; i++) {
+    var t = tokens[i];
+    if (t === 'PAID' && hasPaid) return true;
+    if (t === 'TRIAL' && hasTrial && !hasPaid) return true;
+    if (t === 'FREE' && hasFree && !hasPaid) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Admin-only wrapper: verify token, check admin, then upsert announcement.
+ * payload shape (admin page): {
+ *   announcement_id?, title, body_html?, body_text?, body?,
+ *   status, start_at?, end_at?, pinned?, dismissible?, priority?,
+ *   scope_programs?, scope_courses?, scope_level?,
+ *   scope_subscription_kind?, scope_product_ids?, scope_audience?, scope_cohort?,
+ *   scope_user_ids?    // CSV of user_id values (whitelist)
+ * }
+ */
+function saveAnnouncementFromAdmin_(token, payload) {
+  // 1) Check token (throws if invalid/expired)
+  const authInfo = verifyToken_(token);
+  const userId   = authInfo.user_id;
+
+  const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+
+  // 2) Check admin rights
+  if (!isUserAdmin_(ss, userId)) {
+    throw new Error('Not authorized (admin only)');
+  }
+
+  // 3) Upsert announcement row
+  const result = upsertAnnouncement_(ss, payload);
+
+  return {
+    ok: true,
+    announcement_id: result.announcement_id,
+    created: result.isNew,
+    updated: !result.isNew
+  };
+}
+
+/**
+ * Very small helper: user is admin if:
+ *  - users.is_admin is truthy
+ *  - OR users.role equals "ADMIN" (case-insensitive)
+ */
+function isUserAdmin_(ss, userId) {
+  const sh = ss.getSheetByName(TAB_USERS);
+  if (!sh) return false;
+
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) return false;
+
+  const header = values[0].map(function(s){ return String(s).trim().toLowerCase(); });
+  const H = {}; header.forEach(function(h, i){ H[h] = i; });
+
+  const iUid   = H['user_id'];
+  const iRole  = H['role'];
+  const iAdmin = H['is_admin'];
+
+  if (iUid == null) return false;
+
+  for (var r = 1; r < values.length; r++) {
+    var row = values[r];
+    if (String(row[iUid]).trim() !== String(userId).trim()) continue;
+
+    if (iAdmin != null && isTruthy_(row[iAdmin])) return true;
+
+    if (iRole != null) {
+      var role = String(row[iRole] || '').trim().toUpperCase();
+      if (role === 'ADMIN') return true;
+    }
+
+    return false;
+  }
+
+  return false;
+}
+
+function getOrCreateAnnouncementsSheet_(ss) {
+  var sh = ss.getSheetByName(TAB_ANNOUNCEMENTS);
+  if (!sh) {
+    sh = ss.insertSheet(TAB_ANNOUNCEMENTS);
+    sh.appendRow(ANNOUNCEMENTS_DEFAULT_HEADER);
+  }
+  return sh;
+}
+
+/**
+ * Create or update an announcement row in TAB_ANNOUNCEMENTS.
+ * Returns: { announcement_id, isNew }
+ */
+function upsertAnnouncement_(ss, payload) {
+  var sh = getOrCreateAnnouncementsSheet_(ss);
+
+  // Current header
+  var header = sh.getRange(1, 1, 1, sh.getLastColumn())
+    .getValues()[0]
+    .map(function(s){ return String(s).trim().toLowerCase(); });
+
+  // Ensure all standard columns exist
+  var needed = ANNOUNCEMENTS_DEFAULT_HEADER.filter(function(h){
+    return header.indexOf(h) < 0;
+  });
+  if (needed.length) {
+    sh.insertColumnsAfter(header.length || 1, needed.length);
+    header = header.concat(needed);
+    sh.getRange(1, 1, 1, header.length).setValues([header]);
+  }
+
+  var H = {};
+  header.forEach(function(h, i){ H[h] = i; });
+
+  // Determine ID + whether we are creating or updating
+  var id = String(payload.announcement_id || payload.id || '').trim();
+  var rowIndex = -1;
+  var isNew = false;
+
+  if (id) {
+    // Try to find existing row by announcement_id
+    var lastRow = sh.getLastRow();
+    if (lastRow >= 2 && H['announcement_id'] != null) {
+      var data = sh.getRange(2, 1, lastRow - 1, header.length).getValues();
+      for (var r = 0; r < data.length; r++) {
+        var row = data[r];
+        if (String(row[H['announcement_id']] || '').trim() === id) {
+          rowIndex = r + 2; // sheet row index
+          break;
+        }
+      }
+    }
+  }
+
+  if (rowIndex < 0) {
+    // Create new
+    isNew = true;
+    if (!id) {
+      id = 'ANN_' + Utilities.getUuid().replace(/-/g, '').slice(0, 10);
+    }
+    rowIndex = sh.getLastRow() + 1;
+    if (rowIndex === 1) {
+      rowIndex = 2; // just in case header was missing before
+    }
+    var emptyRow = new Array(header.length);
+    for (var i = 0; i < header.length; i++) emptyRow[i] = '';
+    sh.getRange(rowIndex, 1, 1, header.length).setValues([emptyRow]);
+  }
+
+  // Load current row values to update in-memory
+  var rowVals = sh.getRange(rowIndex, 1, 1, header.length).getValues()[0];
+
+  function setField(key, value) {
+    var c = H[key];
+    if (c != null) rowVals[c] = value;
+  }
+
+  // ID is always set
+  setField('announcement_id', id);
+
+  // Title
+  setField('title', payload.title || '');
+
+  // Body fields: prefer HTML, then text, then plain body
+  if ('body_html' in payload || 'body_text' in payload || 'body' in payload) {
+    setField('body_html', payload.body_html || '');
+    setField('body_text', payload.body_text || '');
+    setField('body',      payload.body      || '');
+  }
+
+  // Status (e.g. ACTIVE / DRAFT)
+  if ('status' in payload) {
+    setField('status', payload.status || '');
+  }
+
+  // Dates: start_at / end_at just stored as whatever string admin sends
+  if ('start_at' in payload) {
+    setField('start_at', payload.start_at || '');
+  }
+  if ('end_at' in payload) {
+    setField('end_at', payload.end_at || '');
+  }
+
+  // created_at: preserve if exists on update; set now for new or empty
+  var nowIso = new Date().toISOString();
+  var createdCol = H['created_at'];
+  if (createdCol != null) {
+    var existingCreated = String(rowVals[createdCol] || '').trim();
+    if (isNew) {
+      rowVals[createdCol] = payload.created_at || nowIso;
+    } else {
+      if ('created_at' in payload) {
+        rowVals[createdCol] = payload.created_at || existingCreated || nowIso;
+      } else if (!existingCreated) {
+        rowVals[createdCol] = nowIso;
+      }
+    }
+  }
+
+  // Boolean flags
+  if ('pinned' in payload) {
+    setField('pinned', !!payload.pinned);
+  }
+  if ('dismissible' in payload) {
+    setField('dismissible', !!payload.dismissible);
+  }
+
+  // Priority (number)
+  if ('priority' in payload) {
+    var p = payload.priority;
+    if (p !== undefined && p !== null && String(p).trim() !== '') {
+      var pr = parseInt(p, 10);
+      if (isNaN(pr)) pr = 0;
+      setField('priority', pr);
+    } else {
+      setField('priority', '');
+    }
+  }
+
+  // Scope fields: we expect CSV strings from admin UI
+  if ('scope_programs' in payload) {
+    setField('scope_programs', payload.scope_programs || '');
+  }
+  if ('scope_courses' in payload) {
+    setField('scope_courses', payload.scope_courses || '');
+  }
+  if ('scope_level' in payload) {
+    setField('scope_level', payload.scope_level || '');
+  }
+  if ('scope_subscription_kind' in payload) {
+    setField('scope_subscription_kind', payload.scope_subscription_kind || '');
+  }
+  if ('scope_product_ids' in payload) {
+    setField('scope_product_ids', payload.scope_product_ids || '');
+  }
+  if ('scope_audience' in payload) {
+    setField('scope_audience', payload.scope_audience || '');
+  }
+  if ('scope_cohort' in payload) {
+    setField('scope_cohort', payload.scope_cohort || '');
+  }
+    if ('scope_user_ids' in payload) {               // 🔹 NEW
+    setField('scope_user_ids', payload.scope_user_ids || '');
+  }
+
+  // Write row back
+  sh.getRange(rowIndex, 1, 1, header.length).setValues([rowVals]);
+
+  return { announcement_id: id, isNew: isNew };
+}
+
+/* ==================== UTILITIES ==================== */
+
+function json_(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function jsonError_(message, code) {
+  const payload = {
+    ok: false,
+    error: String(message || 'Error'),
+    code: Number(code || 500)
+  };
+  return ContentService
+    .createTextOutput(JSON.stringify(payload))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function reqParam_(e, key) {
+  const v = (e.parameter && e.parameter[key]) ? String(e.parameter[key]).trim() : '';
+  if (!v) throw new Error(`Missing parameter: ${key}`);
+  return v;
+}
+
+function must_(v, msg) {
+  if (v === undefined || v === null || String(v).trim() === '') {
+    throw new Error(msg || 'Missing required value');
+  }
+  return v;
+}
+
+function same_(a, b) {
+  return norm_(a) === norm_(b);
+}
+
+function norm_(s) {
+  return String(s || '').trim().toLowerCase();
+}
+
+function mainTopic_(topic) {
+  const t = String(topic || '').trim();
+  if (!t) return '';
+  const idx = t.indexOf(':');
+  return (idx >= 0) ? t.slice(0, idx).trim() : t;
+}
+
+function colIndex_(header, name) {
+  const idx = header.indexOf(String(name).toLowerCase());
+  if (idx < 0) throw new Error(`Missing column: ${name}`);
+  return idx;
+}
+function colIndexOptional_(header, name) {
+  const idx = header.indexOf(String(name).toLowerCase());
+  return idx >= 0 ? idx : -1;
+}
+function getCell_(row, idx) {
+  return (idx >= 0 && idx < row.length) ? row[idx] : '';
+}
+
+function clampInt_(n, min, max) {
+  n = parseInt(n, 10);
+  if (isNaN(n)) n = min;
+  return Math.max(min, Math.min(max, n));
+}
+
+function makeSeed_() {
+  // lightweight seed from current time
+  return String(new Date().getTime());
+}
+
+function sample_(arr, n, seedStr) {
+  // Fisher-Yates with seeded pseudo-rng for reproducibility
+  const a = arr.slice();
+  let seed = 0;
+  for (let i = 0; i < seedStr.length; i++) seed = (seed * 31 + seedStr.charCodeAt(i)) >>> 0;
+
+  function rnd() {
+    // xorshift32
+    seed ^= seed << 13; seed >>>= 0;
+    seed ^= seed >> 17; seed >>>= 0;
+    seed ^= seed << 5;  seed >>>= 0;
+    return (seed >>> 0) / 0xFFFFFFFF;
+  }
+
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a.slice(0, n);
+}
+
+// Treat various “truthy” values as true (for quizzes.published)
+function isTruthy_(v) {
+  if (typeof v === 'boolean') return v;
+  const s = norm_(v);
+  return (s === 'true' || s === 'yes' || s === 'y' || s === '1');
+}
+
+// Convert a cell (Date or string or empty) into Date or null
+function asDateOrNull_(cell) {
+  if (!cell && cell !== 0) return null;
+  if (cell instanceof Date) return cell;
+  const s = String(cell).trim();
+  if (!s) return null;
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return null;
+  return d;
+}
+
+
+
