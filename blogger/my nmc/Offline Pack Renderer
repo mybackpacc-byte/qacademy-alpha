@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>QAcademy — Offline Pack</title>
+  <style>
+    :root{
+      --brand:#0b7a75; --muted:#859998; --ink:#1f2a28; --bg:#f6f8f7; --card:#ffffff; --line:#e5e7eb;
+      --soft:rgba(0,0,0,.06);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+    .wrap{max-width:980px;margin:18px auto;padding:0 14px}
+
+    /* Topbar (buttons only) */
+    .topbar{
+      background:var(--card); border:1px solid var(--soft); border-radius:14px;
+      padding:10px 12px; box-shadow:0 10px 24px rgba(0,0,0,.06);
+      display:flex; gap:10px; align-items:center; justify-content:flex-end;
+    }
+    .btnrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .btn{
+      border:1px solid var(--soft); background:#fff; color:#111827;
+      padding:8px 10px; border-radius:12px; cursor:pointer; font-weight:800; font-size:12px;
+    }
+    .btn.primary{background:var(--brand);color:#fff;border-color:transparent}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+
+    /* Loader */
+    .overlay{
+      position:fixed;inset:0;background:rgba(255,255,255,.78);backdrop-filter:blur(2px);
+      display:none;align-items:center;justify-content:center;z-index:9999;
+    }
+    .overlay.show{display:flex}
+    .spinner{
+      width:34px;height:34px;border-radius:999px;border:3px solid #cbd5e1;border-top-color:var(--brand);
+      animation:spin .9s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .err{
+      color:#7f1d1d;background:#fff1f2;border:1px solid rgba(127,29,29,.18);
+      padding:10px 12px;border-radius:12px;font-size:13px;margin-top:12px;
+    }
+
+    /* Cards / blocks */
+    .card{
+      background:var(--card); border:1px solid var(--soft); border-radius:14px;
+      padding:14px; margin-top:12px; box-shadow:0 10px 24px rgba(0,0,0,.06);
+    }
+    .sectionTitle{
+      font-size:14px;
+      font-weight:900;
+      margin:0 0 8px 0;
+      color:#111827;
+    }
+    .divider{height:1px;background:rgba(0,0,0,.10);margin:8px 0 10px 0}
+
+    /* Cover block */
+    .coverRow{
+      display:flex;
+      gap:14px;
+      align-items:stretch;
+    }
+    .logoBox{
+      width:92px;flex:0 0 92px;
+      border-radius:16px;
+      border:2px solid rgba(11,122,117,.18);
+      background:rgba(11,122,117,.04);
+      display:flex;align-items:center;justify-content:center;
+      padding:10px;
+    }
+    .logoBox img{
+      max-width:100%;
+      max-height:56px;
+      display:block;
+      object-fit:contain;
+    }
+    .coverMain{flex:1;min-width:0}
+    .coverTitle{
+      margin:0;
+      font-weight:900;
+      font-size:18px;
+      line-height:1.2;
+      color:#111827;
+    }
+    .coverSub{
+      margin-top:6px;
+      font-size:12px;
+      color:#374151;
+      display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+    }
+    .tag{
+      display:inline-flex;align-items:center;
+      padding:5px 9px;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.10);
+      background:#fff;
+      font-size:12px;
+      color:#111827;
+    }
+    .coverOwner{
+      margin-top:10px;
+      font-size:12px;
+      color:#111827;
+      padding:10px 12px;
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:12px;
+      background:#fff;
+    }
+    .muted{color:#6b7280}
+
+    /* Overview */
+    .kvList{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+    .kvBox{
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:12px;
+      padding:10px 12px;
+      background:#fff;
+      font-size:13px;
+    }
+    .kvBox .k{font-size:11px;color:#6b7280;margin-bottom:4px}
+
+    .compactLine{
+      margin-top:6px;
+      font-size:12px;
+      line-height:1.45;
+      color:#111827;
+      padding:10px 12px;
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:12px;
+      background:#fff;
+      white-space:normal;
+      word-break:break-word;
+    }
+    .compactLine .label{
+      font-weight:900;
+      color:#111827;
+      margin-right:8px;
+    }
+    .compactLine .value{
+      color:#374151;
+    }
+
+    /* Questions */
+    .q{
+      padding:10px 0;
+      border-bottom:1px dashed var(--line);
+    }
+    .q:last-child{border-bottom:none}
+    .qhead{display:flex;gap:10px;align-items:flex-start}
+    .qno{width:44px;flex:0 0 44px;font-weight:900;color:var(--brand)}
+    .qstem{flex:1;font-size:14px;line-height:1.35}
+    .opts{margin:8px 0 0 54px;padding:0;list-style:none}
+    .opt{display:flex;gap:10px;margin:4px 0;font-size:13px;line-height:1.35}
+    .olabel{width:22px;flex:0 0 22px;font-weight:900;color:#111827}
+    .otext{flex:1}
+    .topicLine{
+      margin:8px 0 0 54px;
+      font-size:12px;
+      color:#374151;
+    }
+    .topicLine b{color:#111827}
+
+    /* Owner separator (every 10 questions) */
+    .ownerSep{
+      margin:14px 0;
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:14px;
+      background:
+        linear-gradient(135deg, rgba(11,122,117,.06), rgba(0,0,0,0));
+      padding:10px 12px;
+      position:relative;
+      overflow:hidden;
+    }
+    .ownerSep::before{
+      content: attr(data-watermark);
+      position:absolute;
+      left:50%;
+      top:50%;
+      transform:translate(-50%,-50%) rotate(-18deg);
+      font-weight:900;
+      font-size:18px;
+      letter-spacing:.4px;
+      color:rgba(0,0,0,.06);
+      white-space:nowrap;
+      pointer-events:none;
+    }
+    .ownerSepRow{
+      display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+      position:relative;
+    }
+    .ownerSepRow b{color:#111827}
+    .ownerSepSmall{font-size:12px;color:#374151}
+    .ownerSepChip{
+      font-size:11px;
+      padding:5px 9px;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.10);
+      background:#fff;
+      color:#111827;
+      white-space:nowrap;
+    }
+
+    /* Answer key */
+    .akeyGrid{
+      display:grid;
+      grid-template-columns:repeat(4, minmax(0,1fr));
+      gap:8px 12px;
+      margin-top:10px;
+    }
+    .kv{
+      font-size:12px; padding:8px 10px;
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:12px;
+      background:#fff;
+      display:flex;align-items:center;justify-content:space-between;
+    }
+    .kv span{color:#6b7280}
+    .kv b{color:#111827}
+
+    /* Small screens */
+    @media (max-width:720px){
+      .btnrow{justify-content:flex-start}
+      .kvList{grid-template-columns:1fr}
+      .akeyGrid{grid-template-columns:repeat(2, minmax(0,1fr))}
+      .qno{width:40px;flex-basis:40px}
+      .opts,.topicLine{margin-left:50px}
+    }
+
+    /* Print */
+    @media print{
+      body{background:#fff}
+      .wrap{max-width:none;margin:0;padding:0}
+      .topbar,.overlay,.err{display:none!important}
+      .card{box-shadow:none; border:1px solid #ddd; border-radius:0; margin:0 0 10mm 0}
+      .ownerSep{border-radius:0}
+    }
+  </style>
+</head>
+<body>
+  <div class="overlay" id="qaOverlay"><div class="spinner" aria-label="Loading"></div></div>
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="btnrow">
+        <button class="btn" id="btnBack" type="button">Back</button>
+        <button class="btn" id="btnPrint" type="button">Print</button>
+        <button class="btn primary" id="btnPdf" type="button">Download PDF</button>
+        <button class="btn primary" id="btnRefresh" type="button">Reload</button>
+      </div>
+    </div>
+
+    <div id="qaCover" class="card" style="display:none;"></div>
+    <div id="qaOverview" class="card" style="display:none;"></div>
+    <div id="qaQuestions" class="card" style="display:none;"></div>
+    <div id="qaAnswerKey" class="card" style="display:none;"></div>
+
+    <div class="err" id="qaError" style="display:none;"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+  <script>
+    /**********************
+     * CONFIG
+     **********************/
+    const QA = {
+      BRAND: 'QAcademy Nurses HUB',
+      LOGO_URL: 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhtFY8tTd1ogz7DDF1d-zsHj6HFkWoqFH-nkrEm7-dDwEtBUonTc48AH8WLm3QV-r4ildfoUqDHFwdXB70ALFJuOF0BM2FTavGnJKAWAXfwKwZolsIf1uBQUogyf6ku31qfUN2UnosViCmqPTMHNESYBZjwZQPANjkV8mH2774r_gp2RIuZ1xZ5RHE9g3eX/s320/logo-small.png',
+      OFFLINE_API_URL: 'https://script.google.com/macros/s/AKfycbxT6cV424Ppes5DdZxtqdqPDCS9d-TKWDO4RV5ZTtlMOxz3ygkoOdTrrXTOCxJ32WDF/exec',
+      TOKEN_KEY: 'qa_token',
+      LOGIN_URL: '/p/login_23.html',
+      DASHBOARD_URL: '/p/dashboard_23.html',
+      OWNER_MARK_EVERY: 10
+    };
+// OPTIONAL (STRONGEST): Embed the logo as a DataURL so PDF ALWAYS renders it.
+// If you paste a real base64 data URL here, PDF cover will never depend on CORS.
+const QA_LOGO_DATA_URL = 'To put Base64'; // e.g. "data:image/png;base64,....."
+
+    /**********************
+     * Helpers
+     **********************/
+    const $ = (id)=>document.getElementById(id);
+    function showOverlay(on){ $('qaOverlay').classList.toggle('show', !!on); }
+    function esc(s){
+      return String(s ?? '')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+    function getParam(name){
+      const u = new URL(location.href);
+      return (u.searchParams.get(name) || '').trim();
+    }
+    function go(url){ location.href = url; }
+
+    function normalizeCorrectLetter(v){
+      const s = String(v||'').trim();
+      if (!s) return '';
+      const up = s.toUpperCase();
+      if (['A','B','C','D'].includes(up)) return up;
+      if (up.includes('OPTION_A')) return 'A';
+      if (up.includes('OPTION_B')) return 'B';
+      if (up.includes('OPTION_C')) return 'C';
+      if (up.includes('OPTION_D')) return 'D';
+      const n = parseInt(s,10);
+      if ([1,2,3,4].includes(n)) return ['A','B','C','D'][n-1];
+      return up.slice(0,1);
+    }
+
+    async function apiGetPack(packId, token){
+      const url = new URL(QA.OFFLINE_API_URL);
+      url.searchParams.set('action','downloads.pack');
+      url.searchParams.set('pack_id', packId);
+      url.searchParams.set('token', token);
+
+      const res = await fetch(url.toString(), { method:'GET' });
+      const data = await res.json().catch(()=>null);
+      if (!data || !data.ok) {
+        const msg = (data && (data.error || data.blocked_reason)) ? (data.error || data.blocked_reason) : 'Failed to load pack';
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    function showError(msg){
+      $('qaError').style.display = 'block';
+      $('qaError').textContent = String(msg || 'Error');
+    }
+
+    function renderBlocks(pack){
+      const items = Array.isArray(pack.items) ? pack.items : [];
+      const created = pack.created_at ? new Date(pack.created_at) : null;
+
+      const ownerLabel = String(pack.watermark?.owner_label || '').trim();
+      const ownerName  = String(pack.watermark?.owner_name || '').trim();
+      const ownerEmail = String(pack.watermark?.owner_email_mask || '').trim();
+
+      const topicsArr = Array.isArray(pack.topics) ? pack.topics : [];
+      const diffsArr  = Array.isArray(pack.difficulties) ? pack.difficulties : [];
+
+      // ===== Cover block =====
+      const coverEl = $('qaCover');
+      coverEl.innerHTML = `
+        <div class="coverRow">
+          <div class="logoBox">
+            <img src="${esc(QA.LOGO_URL)}" alt="${esc(QA.BRAND)} logo" />
+          </div>
+
+          <div class="coverMain">
+            <p class="coverTitle">${esc(pack.pack_name || 'Offline Pack')}</p>
+
+            <div class="coverSub">
+              <span class="tag"><b style="color:var(--brand)">Course</b>&nbsp;${esc(pack.course_id || '—')}</span>
+              <span class="tag"><b style="color:var(--brand)">Questions</b>&nbsp;${esc(items.length || pack.question_count || '—')}</span>
+              <span class="tag"><b style="color:var(--brand)">Pack</b>&nbsp;${esc(pack.pack_id || '—')}</span>
+              ${created ? `<span class="tag"><b style="color:var(--brand)">Generated</b>&nbsp;${esc(created.toLocaleString())}</span>` : ``}
+            </div>
+
+            <!-- Prepared for (ONLY ONCE) -->
+            <div class="coverOwner">
+              <b>Prepared for:</b>
+              ${esc(ownerName || 'QAcademy Student')}
+              ${ownerEmail ? ` <span class="muted">(${esc(ownerEmail)})</span>` : ``}
+            </div>
+          </div>
+        </div>
+      `;
+      coverEl.style.display = 'block';
+
+      // ===== Overview block =====
+      const overviewEl = $('qaOverview');
+
+      const topicsText = topicsArr.length ? topicsArr.map(x => String(x)).join(', ') : 'All topics';
+      const diffsText  = diffsArr.length  ? diffsArr.map(x => String(x)).join(', ')  : 'All';
+
+      overviewEl.innerHTML = `
+        <div class="sectionTitle">Pack Overview</div>
+        <div class="divider"></div>
+
+        <div class="kvList">
+          <div class="kvBox">
+            <div class="k">Course</div>
+            <div><b>${esc(pack.course_id || '—')}</b></div>
+          </div>
+          <div class="kvBox">
+            <div class="k">Questions</div>
+            <div><b>${esc(items.length || pack.question_count || '—')}</b></div>
+          </div>
+          <div class="kvBox">
+            <div class="k">Pack ID</div>
+            <div><b>${esc(pack.pack_id || '—')}</b></div>
+          </div>
+          <div class="kvBox">
+            <div class="k">Generated</div>
+            <div><b>${created ? esc(created.toLocaleString()) : '—'}</b></div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <div class="compactLine">
+            <span class="label">Topics selected:</span>
+            <span class="value">${esc(topicsText)}</span>
+          </div>
+        </div>
+
+        <div style="margin-top:10px;">
+          <div class="compactLine">
+            <span class="label">Difficulty:</span>
+            <span class="value">${esc(diffsText)}</span>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;color:#374151;font-size:12px;line-height:1.45;">
+          Attempt the questions first. Use the Answer Key at the end to check your work.
+        </div>
+      `;
+      overviewEl.style.display = 'block';
+
+      // ===== Questions long scroll + owner label after every 10 =====
+      const questionsEl = $('qaQuestions');
+
+      let qHtml = `<div class="sectionTitle">Questions</div><div class="divider"></div>`;
+
+      const mkOwnerSep = (afterQn) => {
+        const wm = ownerLabel || ownerName || QA.BRAND;
+        const chip = pack.pack_id ? `Pack: ${pack.pack_id}` : '';
+        return `
+          <div class="ownerSep" data-watermark="${esc(wm)}">
+            <div class="ownerSepRow">
+              <div class="ownerSepSmall">
+                <b>${esc(wm)}</b>
+                <span class="muted">• marker after Q${afterQn}</span>
+              </div>
+              ${chip ? `<div class="ownerSepChip">${esc(chip)}</div>` : ``}
+            </div>
+          </div>
+        `;
+      };
+
+      items.forEach((it, idx) => {
+        const qn = idx + 1;
+        const stem = esc(it.stem || '');
+        const topic = esc(String(it.topic || '').trim());
+
+        const opt = (it && it.options && typeof it.options === 'object') ? it.options : null;
+        const a = esc(opt ? opt.A : (it.option_a || ''));
+        const b = esc(opt ? opt.B : (it.option_b || ''));
+        const c = esc(opt ? opt.C : (it.option_c || ''));
+        const d = esc(opt ? opt.D : (it.option_d || ''));
+
+        qHtml += `
+          <div class="q">
+            <div class="qhead">
+              <div class="qno">Q${qn}.</div>
+              <div class="qstem">${stem}</div>
+            </div>
+            <ul class="opts">
+              <li class="opt"><div class="olabel">A.</div><div class="otext">${a}</div></li>
+              <li class="opt"><div class="olabel">B.</div><div class="otext">${b}</div></li>
+              <li class="opt"><div class="olabel">C.</div><div class="otext">${c}</div></li>
+              <li class="opt"><div class="olabel">D.</div><div class="otext">${d}</div></li>
+            </ul>
+            <div class="topicLine"><b>Topic:</b> ${topic || '—'}</div>
+          </div>
+        `;
+
+        if (QA.OWNER_MARK_EVERY > 0 && (qn % QA.OWNER_MARK_EVERY === 0) && qn !== items.length) {
+          qHtml += mkOwnerSep(qn);
+        }
+      });
+
+      if (!items.length) {
+        qHtml += `<div class="muted" style="font-size:12px;">No questions found in this pack.</div>`;
+      }
+
+      questionsEl.innerHTML = qHtml;
+      questionsEl.style.display = 'block';
+
+      // ===== Answer key block =====
+      const keyEl = $('qaAnswerKey');
+      let keyHtml = `
+        <div class="sectionTitle">Answer Key</div>
+        <div class="divider"></div>
+        <div class="akeyGrid">
+      `;
+      items.forEach((it, idx) => {
+        const qn = idx + 1;
+        const letter = normalizeCorrectLetter(it.correct) || '—';
+        keyHtml += `<div class="kv"><span>Q${qn}</span><b>${esc(letter)}</b></div>`;
+      });
+      keyHtml += `</div>`;
+      if (!items.length) keyHtml += `<div class="muted" style="font-size:12px;margin-top:10px;">No answer key available.</div>`;
+      keyEl.innerHTML = keyHtml;
+      keyEl.style.display = 'block';
+    }
+
+    /* ===== PDF (UPGRADED: cover + overview + header/footer + page breaks) ===== */
+
+    // Keep your original helpers (used by some parts)
+    function pdfTextLines(doc, text, maxWidth){
+      const s = String(text || '').replace(/\s+/g,' ').trim();
+      return doc.splitTextToSize(s, maxWidth);
+    }
+    function pdfAddWrapped(doc, text, x, y, maxWidth, lineH, pageH, bottom){
+      const lines = pdfTextLines(doc, text, maxWidth);
+      for (let i=0;i<lines.length;i++){
+        if (y > pageH - bottom) { doc.addPage(); y = 14; }
+        doc.text(lines[i], x, y);
+        y += lineH;
+      }
+      return y;
+    }
+
+    // --- New PDF helpers ---
+    function pdfStyles(){
+      return { brand:'#0b7a75', muted:'#859998', ink:'#1f2a28', line:'#e5e7eb' };
+    }
+
+    function pdfLayout(doc){
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 14;
+      const headerH = 14; // reserved
+      const footerH = 16; // reserved
+      return {
+        pageW, pageH, margin,
+        headerH, footerH,
+        left: margin,
+        right: margin,
+        top: margin,
+        bottom: margin,
+        maxW: pageW - margin - margin,
+        topY: margin + headerH,
+        bottomY: pageH - margin - footerH
+      };
+    }
+
+    function pdfWrap(doc, text, maxW){
+      if (!text) return [];
+      return doc.splitTextToSize(String(text).replace(/\s+/g,' ').trim(), maxW);
+    }
+
+    function pdfEnsureSpace(doc, y, needed, L){
+      if (y + needed <= L.bottomY) return y;
+      doc.addPage();
+      return L.topY;
+    }
+
+    function pdfEstimateBlockHeight(linesCount, lineH, extra){
+      return (linesCount * lineH) + (extra || 0);
+    }
+
+    function pdfSafeText(s){ return String(s ?? '').replace(/\s+/g,' ').trim(); }
+
+async function pdfLoadImageAsDataUrl(url){
+  // 1) Try fetch -> blob -> dataURL (works if CORS is allowed)
+  try{
+    const res = await fetch(url, { method:'GET', mode:'cors', cache:'force-cache' });
+    if (res && res.ok){
+      const blob = await res.blob();
+      const dataUrl = await new Promise((resolve)=>{
+        const fr = new FileReader();
+        fr.onload = ()=> resolve(fr.result);
+        fr.onerror = ()=> resolve(null);
+        fr.readAsDataURL(blob);
+      });
+      if (dataUrl) return dataUrl;
+    }
+  }catch(_e){}
+
+  // 2) Try <img crossOrigin> + canvas (works if server sends CORS headers for images)
+  try{
+    const dataUrl = await new Promise((resolve)=>{
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = ()=>{
+        try{
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth || img.width;
+          c.height = img.naturalHeight || img.height;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          resolve(c.toDataURL('image/png'));
+        }catch(_e2){
+          resolve(null);
+        }
+      };
+      img.onerror = ()=> resolve(null);
+      img.src = url + (url.includes('?') ? '&' : '?') + 'v=' + Date.now();
+    });
+    if (dataUrl) return dataUrl;
+  }catch(_e){}
+
+  // 3) Give up (caller can use a non-image fallback)
+  return null;
+}
+
+
+    function pdfDrawHeaderFooter(doc, meta, L, opts){
+      const S = pdfStyles();
+      const W = L.pageW, H = L.pageH;
+      const M = L.margin;
+      const pageCount = doc.internal.getNumberOfPages();
+      const page = doc.internal.getCurrentPageInfo().pageNumber;
+
+      const skipHeader = !!opts?.skipHeader;
+      const skipFooter = !!opts?.skipFooter;
+
+      // Header rule + text
+      if (!skipHeader){
+        doc.setDrawColor(S.line);
+        doc.setLineWidth(0.4);
+        doc.line(M, M + 2, W - M, M + 2);
+
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(10);
+        doc.setTextColor(S.ink);
+        const title = String(meta.pack_name || 'Offline Pack').slice(0, 84);
+        doc.text(title, M, M - 2);
+
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(9);
+        doc.setTextColor(S.muted);
+        const courseTxt = String(meta.course || '').slice(0, 42);
+        if (courseTxt) doc.text(courseTxt, W - M, M - 2, { align:'right' });
+      }
+
+      // Footer rule + anti-sharing line
+      if (!skipFooter){
+        doc.setDrawColor(S.line);
+        doc.setLineWidth(0.4);
+        doc.line(M, H - M - 8, W - M, H - M - 8);
+
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(8);
+        doc.setTextColor(S.muted);
+
+const anti = `Prepared for: ${meta.owner_label || 'QAcademy Student'} • @QAcademy Nurses Hub`;
+        doc.text(anti, M, H - M - 2);
+
+        doc.setTextColor(S.ink);
+        doc.text(`Page ${page} / ${pageCount}`, W - M, H - M - 2, { align:'right' });
+      }
+    }
+
+    function pdfAddCover(doc, meta, assets){
+      const S = pdfStyles();
+      const L = pdfLayout(doc);
+      const W = L.pageW, H = L.pageH;
+
+      // Top band
+      doc.setFillColor(S.brand);
+      doc.rect(0, 0, W, 46, 'F');
+
+      // Logo (optional)
+      if (assets?.logoDataUrl){
+        try{
+          // PNG/JPEG both OK; jsPDF needs type hint, we'll attempt PNG first; if fails, ignore.
+          doc.addImage(assets.logoDataUrl, 'PNG', 14, 9, 26, 26);
+        }catch(e){
+          try{ doc.addImage(assets.logoDataUrl, 'JPEG', 14, 9, 26, 26); }catch(_e2){}
+        }
+      }
+
+      // Brand text
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(22);
+      doc.setTextColor(255,255,255);
+doc.text('QAcademy Nurses Hub', 46, 22);
+
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(11);
+      doc.text('Offline Revision Pack', 46, 36);
+
+      // Main title
+      doc.setTextColor(S.ink);
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(18);
+
+      const titleLines = pdfWrap(doc, meta.pack_name || 'Offline Pack', W - 28);
+      doc.text(titleLines, 14, 74);
+
+      let y = 74 + (titleLines.length * 7) + 6;
+
+ // ===== Compact full Overview box (ALL fields, no truncation) =====
+const boxX = 14;
+const boxW = W - 28;
+
+let oy = y; // start right where your old meta box started
+
+// Box title
+doc.setFont('helvetica','bold');
+doc.setFontSize(12);
+doc.setTextColor(S.ink);
+doc.text('Pack Overview', boxX, oy + 8);
+
+// Layout settings
+const padX = 4;
+const padY = 12;
+const colGap = 6;
+const innerX = boxX + padX;
+const innerW = boxW - (padX * 2);
+const colW = (innerW - colGap) / 2;
+const leftColX = innerX;
+const rightColX = innerX + colW + colGap;
+
+doc.setFont('helvetica','normal');
+doc.setFontSize(10);
+
+// Key/value renderer (wraps values)
+function drawKV(x, y0, key, val){
+  const keyTxt = String(key || '').trim();
+  const valTxt = String(val ?? '—').trim() || '—';
+
+  doc.setFont('helvetica','bold');
+  doc.setTextColor(S.muted);
+  doc.text(keyTxt.toUpperCase(), x, y0);
+
+  doc.setFont('helvetica','normal');
+  doc.setTextColor(S.ink);
+
+  const lines = doc.splitTextToSize(valTxt, colW);
+  let yy = y0 + 5.2;
+  for (const ln of lines){
+    doc.text(ln, x, yy);
+    yy += 4.8;
+  }
+  return yy; // returns next y after block
+}
+
+// Items (ALL fields)
+const leftItems = [
+  ['Prepared for', meta.owner_label],
+  ['Course', meta.course],
+  ['Questions', String(meta.question_count ?? '—')]
+];
+
+const rightItems = [
+  ['Pack ID', meta.pack_id],
+  ['Generated', meta.created_at_human || '—'],
+  ['Difficulty', meta.diffs_text || 'All']
+];
+
+// Draw left + right columns, track height
+let yL = oy + padY + 2;
+let yR = oy + padY + 2;
+
+for (const [k,v] of leftItems)  yL = drawKV(leftColX,  yL, k, v) + 3;
+for (const [k,v] of rightItems) yR = drawKV(rightColX, yR, k, v) + 3;
+
+// Topics row spanning full width (wraps across whole box)
+const topicsY = Math.max(yL, yR) + 2;
+
+doc.setFont('helvetica','bold');
+doc.setTextColor(S.muted);
+doc.text('TOPICS SELECTED', innerX, topicsY);
+
+doc.setFont('helvetica','normal');
+doc.setTextColor(S.ink);
+const topicsVal = meta.topics_text || 'All topics';
+const topicLines = doc.splitTextToSize(String(topicsVal), innerW);
+let ty = topicsY + 5.2;
+for (const ln of topicLines){
+  doc.text(ln, innerX, ty);
+  ty += 4.8;
+}
+
+// Footer hint in box
+ty += 2;
+doc.setFont('helvetica','normal');
+doc.setFontSize(9);
+doc.setTextColor(S.muted);
+doc.text('Attempt the questions first. Use the Answer Key at the end to check your work.', innerX, ty);
+
+// Compute box height dynamically (so it fits whatever topics length)
+const boxH = (ty - oy) + 8;
+
+// Draw the box border behind content (draw now is fine; if you want behind, move before text)
+doc.setDrawColor(210);
+doc.setLineWidth(0.3);
+doc.roundedRect(boxX, oy, boxW, boxH, 3, 3, 'S');
+
+// Update y to continue after the box
+y = oy + boxH + 8;
+
+
+      // Small disclaimer
+      doc.setFontSize(9);
+      doc.setTextColor(S.muted);
+      doc.text('For personal study use only. Do not share.', 14, H - 18);
+
+      // Next page for content
+      doc.addPage();
+    }
+
+    function pdfAddOverview(doc, meta, L){
+      const S = pdfStyles();
+      const W = L.pageW;
+
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(14);
+      doc.setTextColor(S.ink);
+      doc.text('Pack Overview', L.left, L.topY);
+
+      let y = L.topY + 10;
+
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(10);
+      doc.setTextColor(S.ink);
+
+      const maxW = L.maxW;
+
+      const blocks = [
+        ['Course', meta.course || '—'],
+        ['Questions', String(meta.question_count ?? '—')],
+        ['Pack ID', meta.pack_id || '—'],
+        ['Generated', meta.created_at_human || '—'],
+        ['Topics selected', meta.topics_text || 'All topics'],
+        ['Difficulty', meta.diffs_text || 'All']
+      ];
+
+      blocks.forEach(([k,v])=>{
+        doc.setFont('helvetica','bold');
+        doc.text(k + ':', L.left, y);
+        y += 6;
+
+        doc.setFont('helvetica','normal');
+        const lines = pdfWrap(doc, v, maxW);
+        for (const ln of lines){
+          y = pdfEnsureSpace(doc, y, 6, L);
+          doc.text(ln, L.left, y);
+          y += 5.2;
+        }
+        y += 3;
+      });
+
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(10);
+      doc.setTextColor(S.muted);
+      y = pdfEnsureSpace(doc, y, 14, L);
+      doc.text('Attempt the questions first. Use the Answer Key at the end to check your work.', L.left, y);
+
+      doc.addPage();
+    }
+
+    async function downloadPackPdf(pack){
+      if (!window.jspdf || !window.jspdf.jsPDF) throw new Error('PDF library not loaded');
+      const { jsPDF } = window.jspdf;
+
+      const items = Array.isArray(pack.items) ? pack.items : [];
+
+      // Meta (PDF-only)
+      const created = pack.created_at ? new Date(pack.created_at) : null;
+
+      const ownerLabel = String(pack.watermark?.owner_label || '').trim()
+        || String(pack.watermark?.owner_name || '').trim()
+        || 'QAcademy Student';
+
+      const topicsArr = Array.isArray(pack.topics) ? pack.topics : [];
+      const diffsArr  = Array.isArray(pack.difficulties) ? pack.difficulties : [];
+
+      const meta = {
+        pack_name: String(pack.pack_name || 'Offline Pack'),
+        course: String(pack.course_id || '—'),
+        pack_id: String(pack.pack_id || '—'),
+        owner_label: ownerLabel,
+        question_count: items.length || (pack.question_count ?? null),
+        created_at_human: created ? created.toLocaleString() : '',
+        topics_text: topicsArr.length ? topicsArr.map(x=>String(x)).join(', ') : 'All topics',
+        diffs_text: diffsArr.length ? diffsArr.map(x=>String(x)).join(', ') : 'All'
+      };
+
+      const doc = new jsPDF({ unit:'mm', format:'a4' });
+      const L = pdfLayout(doc);
+      const S = pdfStyles();
+
+      // Try embed logo on cover (PDF only). If it fails, cover still renders cleanly.
+const logoDataUrl =
+  (typeof QA_LOGO_DATA_URL === 'string' && QA_LOGO_DATA_URL.startsWith('data:image/'))
+    ? QA_LOGO_DATA_URL
+    : await pdfLoadImageAsDataUrl(QA.LOGO_URL);
+
+      // 1) Cover page
+      pdfAddCover(doc, meta, { logoDataUrl });
+
+      // 2) Overview page (optional; set false to disable)
+      const INCLUDE_OVERVIEW = false;
+      if (INCLUDE_OVERVIEW) pdfAddOverview(doc, meta, L);
+
+      // 3) Questions (print-first)
+      let y = L.topY;
+
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(14);
+      doc.setTextColor(S.ink);
+      doc.text('Questions', L.left, y);
+      y += 10;
+
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(11);
+      doc.setTextColor(S.ink);
+
+      const lh = 5.2;
+      const smallLh = 4.6;
+      const qIndent = 10;         // after Q#
+      const optLabelW = 6;        // "A."
+      const optIndent = 8;        // option text indent after label
+      const blockGap = 3.2;
+
+      const stemW = L.maxW - qIndent;
+      const optX = L.left + qIndent;
+      const optW = L.maxW - qIndent;
+
+      for (let i=0;i<items.length;i++){
+        const it = items[i];
+        const qn = i + 1;
+
+        const stem = pdfSafeText(it.stem || '');
+        const opts = (it.options && typeof it.options === 'object') ? it.options : {};
+        const A = pdfSafeText(opts.A || it.option_a || '');
+        const B = pdfSafeText(opts.B || it.option_b || '');
+        const C = pdfSafeText(opts.C || it.option_c || '');
+        const D = pdfSafeText(opts.D || it.option_d || '');
+        const topic = pdfSafeText(String(it.topic || '').trim());
+
+        // Estimate height to reduce ugly splits (still not perfect, but much better)
+        const stemLines = pdfWrap(doc, stem, stemW).length || 1;
+
+        const optLines = (txt)=>{
+          if (!txt) return 0;
+          return pdfWrap(doc, txt, optW - optIndent).length || 1;
+        };
+
+        const nOptLines = optLines(A) + optLines(B) + optLines(C) + optLines(D);
+        const topicLines = topic ? pdfWrap(doc, `Topic: ${topic}`, stemW).length : 0;
+
+        const approx = pdfEstimateBlockHeight(
+          (1 + stemLines + nOptLines + topicLines),
+          lh,
+          10
+        );
+
+        y = pdfEnsureSpace(doc, y, Math.min(approx, (L.bottomY - L.topY) - 10), L);
+
+        // Q label
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(11);
+        doc.setTextColor(S.brand);
+        doc.text(`Q${qn}.`, L.left, y);
+
+        // Stem
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(11);
+        doc.setTextColor(S.ink);
+        const stemLinesArr = pdfWrap(doc, stem, stemW);
+        for (const ln of stemLinesArr){
+          y = pdfEnsureSpace(doc, y, lh, L);
+          doc.text(ln, L.left + qIndent, y);
+          y += lh;
+        }
+        y += 1;
+
+        // Options renderer
+        const renderOpt = (label, text) => {
+          if (!text) return;
+          y = pdfEnsureSpace(doc, y, lh, L);
+
+          doc.setFont('helvetica','bold');
+          doc.setFontSize(10.5);
+          doc.setTextColor(S.ink);
+          doc.text(`${label}.`, optX, y);
+
+          doc.setFont('helvetica','normal');
+          doc.setFontSize(10.5);
+          const lines = pdfWrap(doc, text, optW - optIndent);
+          for (const ln of lines){
+            y = pdfEnsureSpace(doc, y, lh, L);
+            doc.text(ln, optX + optIndent, y);
+            y += lh;
+          }
+          y += 0.6;
+        };
+
+        renderOpt('A', A);
+        renderOpt('B', B);
+        renderOpt('C', C);
+        renderOpt('D', D);
+
+        // Topic line
+        if (topic){
+          y = pdfEnsureSpace(doc, y, smallLh + 2, L);
+          doc.setFont('helvetica','normal');
+          doc.setFontSize(9.2);
+          doc.setTextColor(S.muted);
+          const tLines = pdfWrap(doc, `Topic: ${topic}`, L.maxW - qIndent);
+          for (const ln of tLines){
+            y = pdfEnsureSpace(doc, y, smallLh, L);
+            doc.text(ln, L.left + qIndent, y);
+            y += smallLh;
+          }
+          doc.setTextColor(S.ink);
+          doc.setFontSize(11);
+          y += 1.2;
+        }
+
+        // Divider (light)
+        y = pdfEnsureSpace(doc, y, 4, L);
+        doc.setDrawColor(S.line);
+        doc.setLineWidth(0.3);
+        doc.line(L.left, y, L.left + L.maxW, y);
+        y += blockGap;
+      }
+
+      // 4) Answer Key page(s)
+      doc.addPage();
+      y = L.topY;
+
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(14);
+      doc.setTextColor(S.ink);
+      doc.text('Answer Key', L.left, y);
+      y += 10;
+
+      const cols = 4;
+      const colW = L.maxW / cols;
+      const rowH = 7;
+
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(11);
+      doc.setTextColor(S.ink);
+
+      for (let i=0;i<items.length;i++){
+        const qn = i + 1;
+        const letter = normalizeCorrectLetter(items[i].correct) || '—';
+
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+
+        const x = L.left + col * colW;
+        const yy = y + row * rowH;
+
+        // New page if overflowing
+        if (yy > L.bottomY){
+          doc.addPage();
+          y = L.topY;
+        }
+
+        const yy2 = y + (Math.floor(i / cols) % 24) * rowH; // safe-ish chunking
+        const x2 = L.left + col * colW;
+
+        doc.setFont('helvetica','bold');
+        doc.text(`Q${qn}`, x2, yy2);
+        doc.setFont('helvetica','normal');
+        doc.text(`${letter}`, x2 + 14, yy2);
+
+        // crude reset when we wrapped page
+        if (yy2 + rowH > L.bottomY){
+          doc.addPage();
+          y = L.topY;
+        }
+      }
+
+      // 5) Header/footer pass (every page; cover excluded)
+      const total = doc.internal.getNumberOfPages();
+      for (let p=1; p<=total; p++){
+        doc.setPage(p);
+        const isCover = (p === 1);
+        pdfDrawHeaderFooter(doc, meta, L, {
+          skipHeader: isCover,
+          skipFooter: isCover
+        });
+      }
+
+      // Save
+      const safeCourse = String(pack.course_id || 'COURSE').replace(/[^\w\-]+/g,'_');
+      const safeName = String(pack.pack_name || 'Offline_Pack').replace(/[^\w\-]+/g,'_').slice(0,40);
+      const fileName = `QAcademy_${safeCourse}_${safeName}_${pack.pack_id || ''}.pdf`.replace(/_+$/,'');
+      doc.save(fileName);
+    }
+
+    /**********************
+     * Boot
+     **********************/
+    (function init(){
+      $('btnBack').addEventListener('click', ()=> history.length > 1 ? history.back() : go(QA.DASHBOARD_URL));
+      $('btnPrint').addEventListener('click', ()=> window.print());
+      $('btnRefresh').addEventListener('click', ()=> location.reload());
+
+      let __lastPack = null;
+      $('btnPdf').addEventListener('click', async ()=>{
+        try{
+          if (!__lastPack) throw new Error('Pack not loaded yet');
+          showOverlay(true);
+          await downloadPackPdf(__lastPack);
+        }catch(err){
+          showError(err.message || String(err));
+        }finally{
+          showOverlay(false);
+        }
+      });
+
+      const packId = getParam('pack_id');
+      if (!packId) { showError('Missing pack_id'); return; }
+
+      const token = (localStorage.getItem(QA.TOKEN_KEY) || '').trim();
+      if (!token) { go(QA.LOGIN_URL); return; }
+
+      showOverlay(true);
+
+      apiGetPack(packId, token)
+        .then(data => {
+          const pack = data.pack ? data.pack : data;
+          if (!pack.items && Array.isArray(data.items)) pack.items = data.items;
+          __lastPack = pack;
+          renderBlocks(pack);
+        })
+        .catch(err => showError(err.message || String(err)))
+        .finally(()=> showOverlay(false));
+    })();
+  </script>
+</body>
+</html>
