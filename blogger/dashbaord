@@ -1,0 +1,1839 @@
+<!-- =================== QAcademy — Dashboard (Guard v3 + Auth v3) =================== -->
+<!--
+  CLONING NOTES (DEV ➜ PROD)
+  ✅ Goal: remove hard-coded DEV blogspot URLs so cloning is easy.
+  ✅ Rule: change ONLY config + link wiring, keep all logic intact.
+
+  What to update after cloning:
+  1) QA_CONFIG.AUTH_URL (PortalAuthv2 WebApp)
+  2) QA_CONFIG.BUILDER_API_URL / QA_CONFIG.ANNOUNCEMENTS_URL (Builder/Announcements WebApp)
+  3) QA_CONFIG.MESSAGING_URL (PortalMessaging WebApp)
+  4) QA_CONFIG.PAGES (page slugs for this Blogger instance)
+     - login, dashboard, messages, quiz_builder, fixed_quizzes, learning_history, announcements,
+       welcome, nmc_procedures, instant_runner, timed_runner
+-->
+
+<style>
+/* ===== QAcademy Announcement Rich Content (Dashboard) ===== */
+.qa-ann-body p{
+  margin:6px 0;
+  line-height:1.55;
+}
+
+.qa-ann-body img{
+  max-width:100%;
+  height:auto;
+  display:block;
+  border-radius:10px;
+  margin:6px 0;
+}
+
+.qa-ann-body a{
+  color:#0b7a75;
+  font-weight:600;
+  text-decoration:none;
+}
+.qa-ann-body a:hover{
+  text-decoration:underline;
+}
+
+/* Button-style links */
+.qa-ann-body a[data-qa="btn"]{
+  display:inline-block;
+  padding:8px 14px;
+  border-radius:999px;
+  background:#0b7a75;
+  color:#ffffff !important;
+  font-size:13px;
+  font-weight:700;
+  text-decoration:none;
+  margin:4px 0;
+}
+.qa-ann-body a[data-qa="btn"]:hover{
+  background:#096a66;
+}
+</style>
+
+<!-- 1) PAGE FLAGS FOR GUARD v3 -->
+<script>
+  window.QA_PAGE_KIND = 'dashboard';   // dashboard-level page, no course_id needed
+
+  // =========================
+  // ✅ CENTRAL CONFIG (CLONE-FRIENDLY)
+  // =========================
+  window.QA_CONFIG = window.QA_CONFIG || {};
+
+  // --- Auth (PortalAuthv2) ---
+  window.QA_CONFIG.AUTH_URL       = "https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec";
+  window.QA_CONFIG.LOGIN_SLUG     = "login_23";
+  window.QA_CONFIG.DASHBOARD_SLUG = "dashboard_23";
+
+  // --- Builder / Attempts API (same project as Quiz Builder + Runners) ---
+  window.QA_CONFIG.BUILDER_API_URL = "https://script.google.com/macros/s/AKfycbx_CDJU5juEDxybplqBlYjJP0tAS52-HIOWE6is19Ub7NqhaV_16MnFmstJpWcdorHT/exec"; // Change
+
+  // --- Announcements backend (optional, can stay empty; falls back to BUILDER_API_URL) ---
+  window.QA_CONFIG.ANNOUNCEMENTS_URL = "https://script.google.com/macros/s/AKfycbx_CDJU5juEDxybplqBlYjJP0tAS52-HIOWE6is19Ub7NqhaV_16MnFmstJpWcdorHT/exec"; // Change
+
+  // --- Messaging backend (PortalMessaging) ---
+  window.QA_CONFIG.MESSAGING_URL = "https://script.google.com/macros/s/AKfycbyyPv8GxEZ4trRpHFVG1IzctDn_1utELw62WBqbJVGmHdRH0PLI5h1jsROsRnA0VGt4/exec"; // Change
+
+  /*
+    ✅ CLONING: ALL dashboard links live here.
+    - Use slugs only (no domains).
+    - This makes DEV ➜ PROD a 2-minute edit: update slugs per site.
+
+    If you ever need an external URL later, you *can* put a full https://... here.
+    The helper will keep it as-is.
+  */
+  window.QA_CONFIG.PAGES = {
+    login: "login_23",
+    dashboard: "dashboard_23",
+
+    // core nav
+    messages: "messages",
+    quiz_builder: "quiz-builder",
+    fixed_quizzes: "fixed-quizzes",
+    learning_history: "learning-history",
+    announcements: "announcement",
+
+    // onboarding / misc
+    welcome: "welcome-page",
+    nmc_procedures: "nmc-gh-procedure-manualscomponent-task",
+
+    // runners
+    instant_runner: "instant-ruuner-for-quiz-builder",
+    timed_runner: "timed-ruuner-for-quiz-builder"
+  };
+</script>
+
+<!-- 2) GUARD v3 SNIPPET (UNIFIED) -->
+<script>
+(function(){
+  'use strict';
+
+  /* ============== CONFIG ============== */
+  var DEFAULT_AUTH_URL       = 'https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec';
+  var DEFAULT_LOGIN_SLUG     = 'login_23';
+  var DEFAULT_DASHBOARD_SLUG = 'dashboard_23';
+
+  var cfg = (window.QA_CONFIG && typeof window.QA_CONFIG === 'object') ? window.QA_CONFIG : {};
+
+  var AUTH_URL       = cfg.AUTH_URL       || DEFAULT_AUTH_URL;
+  var LOGIN_SLUG     = cfg.LOGIN_SLUG     || DEFAULT_LOGIN_SLUG;
+  var DASHBOARD_SLUG = cfg.DASHBOARD_SLUG || DEFAULT_DASHBOARD_SLUG;
+
+  var PAGE_KIND     = window.QA_PAGE_KIND || 'course';
+  var COURSE_ID     = window.QA_COURSE_ID || null;
+  var REQUIRE_ADMIN = (typeof window.QA_REQUIRE_ADMIN === 'boolean')
+    ? window.QA_REQUIRE_ADMIN
+    : (String(PAGE_KIND).toLowerCase() === 'admin');
+
+  /* ============== EXPORTED STATE ============== */
+  window.QA_GUARD_STATE      = 'pending';
+  window.QA_GUARD_BLOCK_TYPE = null;
+
+  var guardResolve, guardReject;
+  window.qaGuardReady = new Promise(function(resolve, reject){
+    guardResolve = resolve;
+    guardReject  = reject;
+  });
+
+  function persistGuardState(state, blockType){
+    window.QA_GUARD_STATE      = state;
+    window.QA_GUARD_BLOCK_TYPE = blockType || null;
+  }
+
+  /* ============== NAV HELPERS ============== */
+  function buildPageUrl(slug){
+    slug = String(slug || '').trim();
+    if(!slug) return '/';
+    return '/p/' + slug + '.html';
+  }
+  function go(url){ window.location.replace(url); }
+
+  function qaGoToLogin(reason){
+    var url = buildPageUrl(LOGIN_SLUG);
+    if(reason){
+      var sep = url.indexOf('?') === -1 ? '?' : '&';
+      url += sep + 'reason=' + encodeURIComponent(reason);
+    }
+    go(url);
+  }
+  function qaGoToDashboard(){ go(buildPageUrl(DASHBOARD_SLUG)); }
+  function qaLogout(){
+    try{
+      localStorage.removeItem('qa_token');
+      localStorage.removeItem('qa_user_id');
+    }catch(e){}
+    qaGoToLogin('logout');
+  }
+
+  window.qaGoToLogin     = qaGoToLogin;
+  window.qaGoToDashboard = qaGoToDashboard;
+  window.qaLogout        = qaLogout;
+
+  /* ============== OVERLAY (LOADER + BLOCK) ============== */
+  var overlayId = 'qa-guard-overlay';
+  function ensureOverlay(){
+    var el = document.getElementById(overlayId);
+    if(el) return el;
+    el = document.createElement('div');
+    el.id = overlayId;
+    el.style.position = 'fixed';
+    el.style.inset = '0';
+    el.style.zIndex = '99999';
+    el.style.background = 'rgba(15,23,42,0.86)';
+    el.style.display = 'flex';
+    el.style.alignItems = 'center';
+    el.style.justifyContent = 'center';
+    el.style.fontFamily = 'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+    el.style.padding = '16px';
+    el.style.boxSizing = 'border-box';
+    el.innerHTML =
+      '<div id="qa-guard-overlay-inner" style="max-width:420px;width:100%;background:#ffffff;border-radius:16px;padding:18px 20px;box-shadow:0 18px 45px rgba(15,23,42,0.45);text-align:center;">' +
+        '<div id="qa-guard-overlay-title" style="font-size:18px;font-weight:600;margin-bottom:6px;color:#0b7a75;">Checking your access...</div>' +
+        '<div id="qa-guard-overlay-body" style="font-size:14px;color:#475569;margin-bottom:14px;">Please wait a moment.</div>' +
+        '<div id="qa-guard-overlay-actions" style="font-size:13px;color:#94a3b8;"></div>' +
+      '</div>';
+    document.body.appendChild(el);
+    return el;
+  }
+  function showOverlay(title, body, actionsHtml){
+    var el = ensureOverlay();
+    var t = el.querySelector('#qa-guard-overlay-title');
+    var b = el.querySelector('#qa-guard-overlay-body');
+    var a = el.querySelector('#qa-guard-overlay-actions');
+    if(t && typeof title === 'string') t.textContent = title;
+    if(b && typeof body === 'string')  b.textContent = body;
+    if(a) a.innerHTML = actionsHtml || '';
+    el.style.display = 'flex';
+  }
+  function hideOverlay(){
+    var el = document.getElementById(overlayId);
+    if(el) el.style.display = 'none';
+  }
+  function buildBlockedActions(type){
+    var btnStyle = 'display:inline-flex;align-items:center;justify-content:center;padding:8px 14px;border-radius:999px;border:none;background:#0b7a75;color:#ffffff;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;';
+    if(type === 'no_course_access' || type === 'admin_required' || type === 'account_issue'){
+      return '<button type="button" onclick="qaGoToDashboard()" style="' + btnStyle + '">Go to Dashboard</button>';
+    }
+    if(type === 'session_expired'){
+      return '<button type="button" onclick="qaGoToLogin(\'session_expired\')" style="' + btnStyle + '">Go to Login</button>';
+    }
+    return '';
+  }
+  function handleBlocked(type, title, body){
+    persistGuardState('blocked', type);
+    var actionsHtml = buildBlockedActions(type);
+    showOverlay(title, body, actionsHtml);
+    guardResolve({ ok:false, blocked:true, type:type });
+  }
+
+  /* ============== MAIN GUARD ============== */
+  function runGuard(){
+    showOverlay('Checking your access...', 'Please wait while we verify your session.', '');
+    var token = null;
+    try{ token = localStorage.getItem('qa_token'); }catch(e){ token = null; }
+
+    if(!token){
+      handleBlocked('session_expired', 'Sign in required', 'Your session has ended. Please sign in again.');
+      qaGoToLogin('no_token');
+      return;
+    }
+    if(!AUTH_URL){
+      hideOverlay();
+      persistGuardState('error', 'missing_auth_url');
+      var err = new Error('Guard misconfigured: AUTH_URL is missing.');
+      guardReject(err);
+      console.error(err);
+      return;
+    }
+
+    fetch(AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ action: 'verify', token: token })
+    })
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+      if(!data || data.ok !== true){
+        var errCode = (data && data.error) || 'unknown_error';
+
+        if(errCode === 'missing_token' || errCode === 'not_found' || errCode === 'expired'){
+          try{
+            localStorage.removeItem('qa_token');
+            localStorage.removeItem('qa_user_id');
+          }catch(e){}
+          handleBlocked('session_expired', 'Sign in required', 'Your session has ended. Please sign in again.');
+          qaGoToLogin('session_expired');
+          return;
+        }
+        if(errCode === 'user_missing' || errCode === 'user_inactive' || errCode === 'user_expired'){
+          handleBlocked('account_issue', 'Account issue', 'There is a problem with your account. Please contact QAcademy support.');
+          return;
+        }
+
+        persistGuardState('error', errCode);
+        hideOverlay();
+        var err2 = new Error('Guard verify failed: ' + errCode);
+        guardReject(err2);
+        console.error(err2);
+        return;
+      }
+
+      var u      = data.user   || {};
+      var flags  = data.flags  || {};
+      var access = (data.access && typeof data.access === 'object') ? data.access : {};
+      var courseIds = Array.isArray(access.courses) ? access.courses.slice() : [];
+      var upperIds  = courseIds.map(function(c){ return String(c || '').trim().toUpperCase(); }).filter(Boolean);
+      var coursesMeta = Array.isArray(data.courses) ? data.courses : [];
+
+      var QA_USER = {
+        id:        u.user_id || '',
+        user_id:   u.user_id || '',
+        username:  u.username || '',
+        email:     u.email || '',
+        name:      u.name || '',
+        forename:  u.forename || '',
+        surname:   u.surname || '',
+        phone_number:     u.phone_number || '',
+        program_id:       u.program_id || '',
+        cohort:           u.cohort || '',
+        avatar_url:       u.avatar_url || '',
+        role:             u.role || '',
+        is_admin:         !!(flags && flags.is_admin),
+        must_change_password: !!u.must_change_password,
+        user_expires_utc: u.expires_utc || '',
+        signup_source:    u.signup_source || ''
+      };
+
+      var QA_ACCESS = {
+        courseIds: upperIds,
+        access_expires_utc: access.expires_utc || '',
+        coursesMeta: coursesMeta,
+        hasCourse: function(courseId){
+          var cid = String(courseId || '').trim().toUpperCase();
+          if(!cid) return false;
+          return this.courseIds.indexOf(cid) !== -1;
+        }
+      };
+
+      window.QA_USER   = QA_USER;
+      window.QA_ACCESS = QA_ACCESS;
+
+      try{
+        if(QA_USER.user_id){
+          localStorage.setItem('qa_user_id', QA_USER.user_id);
+        }
+      }catch(e){}
+
+      var kind = String(PAGE_KIND || '').toLowerCase();
+      var cid  = COURSE_ID ? String(COURSE_ID).trim().toUpperCase() : '';
+
+      if(kind === 'dashboard'){
+        persistGuardState('ready', null);
+        hideOverlay();
+        guardResolve({ ok:true, blocked:false, kind:kind });
+        return;
+      }
+
+      if(kind === 'admin' || REQUIRE_ADMIN){
+        if(!QA_USER.is_admin){
+          handleBlocked('admin_required', 'Admin access required', 'This page is only available to QAcademy admins.');
+          return;
+        }
+        persistGuardState('ready', null);
+        hideOverlay();
+        guardResolve({ ok:true, blocked:false, kind:kind });
+        return;
+      }
+
+      if(
+        kind === 'course' ||
+        kind === 'builder' ||
+        kind === 'runner_instant' ||
+        kind === 'runner_timed' ||
+        kind === 'history_course'
+      ){
+        if(!cid){
+          persistGuardState('error', 'missing_course_id');
+          hideOverlay();
+          var err3 = new Error('Guard misconfigured: QA_COURSE_ID is missing for course-tied page.');
+          guardReject(err3);
+          console.error(err3);
+          return;
+        }
+        if(!QA_ACCESS.hasCourse(cid)){
+          handleBlocked(
+            'no_course_access',
+            'No access to this course',
+            'Your current subscription does not include this course. Please go back to your dashboard to see the courses you have access to.'
+          );
+          return;
+        }
+        persistGuardState('ready', null);
+        hideOverlay();
+        guardResolve({ ok:true, blocked:false, kind:kind, course_id:cid });
+        return;
+      }
+
+      if(kind === 'history'){
+        persistGuardState('ready', null);
+        hideOverlay();
+        guardResolve({ ok:true, blocked:false, kind:kind });
+        return;
+      }
+
+      persistGuardState('ready', null);
+      hideOverlay();
+      guardResolve({ ok:true, blocked:false, kind:kind });
+    })
+    .catch(function(err){
+      persistGuardState('error', 'network');
+      console.error('Guard network/error', err);
+      showOverlay(
+        'Network problem',
+        'We could not verify your access due to a network error. Please check your connection and reload this page.',
+        ''
+      );
+      guardReject(err);
+    });
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', runGuard);
+  } else {
+    runGuard();
+  }
+})();
+</script>
+
+<!-- 3) DASHBOARD MARKUP -->
+<div id="qa-dash" style="max-width:1040px;margin:28px auto;font-family:system-ui,Segoe UI,Roboto,sans-serif;display:none;">
+
+  <!-- Header -->
+  <div style="background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:14px;padding:16px 18px;box-shadow:0 8px 18px rgba(0,0,0,.05);margin-bottom:14px;">
+    <div id="qa-fullname" style="font-weight:900;font-size:22px;letter-spacing:.2px;color:#1f2a28;margin:0 0 4px;">Loading name…</div>
+    <div id="qa-greet" style="color:#5b6a68;font-size:14.5px;">Welcome to your Licensure Portal</div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;align-items:center;">
+      <div id="qa-program" style="font-size:13.5px;color:#0b6d67;background:#e8f5f3;border:1px solid #d6ece9;display:inline-block;padding:4px 8px;border-radius:999px;">Programme: —</div>
+      <div id="qa-expiry" style="font-size:13px;color:#5b6a68;">Expires: —</div>
+
+      <!-- ✅ Messages chip (top bar)
+           CLONING: href is set by JS using QA_CONFIG.PAGES.messages -->
+      <div id="qa-msg-wrap"
+           style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+        <a id="qa-msg-chip"
+           href="#"
+           style="display:inline-flex;align-items:center;gap:8px;
+                  padding:6px 10px;border-radius:999px;
+                  border:1px solid rgba(11,122,117,.25);
+                  background:#f3faf9;color:#0b7a75;
+                  font-weight:800;font-size:12.5px;text-decoration:none;">
+          <span style="display:inline-flex;align-items:center;gap:6px;">
+            💬 <span>Messages</span>
+          </span>
+          <span id="qa-msg-badge"
+                style="min-width:22px;height:22px;padding:0 7px;
+                       display:inline-flex;align-items:center;justify-content:center;
+                       border-radius:999px;background:#94a3b8;color:#fff;
+                       font-size:12px;font-weight:900;line-height:1;">
+            0
+          </span>
+        </a>
+
+        <div id="qa-msg-help"
+             style="font-size:12px;color:#64748b;">
+          Click to view new or previous messages
+        </div>
+      </div>
+
+    </div>
+  </div>
+  
+  <!-- Announcements block -->
+  <div id="qa-ann-card" style="
+    margin-top:18px;
+    background:#ffffff;
+    border:1px solid rgba(0,0,0,.06);
+    border-radius:14px;
+    padding:16px 18px;
+    box-shadow:0 8px 18px rgba(0,0,0,.05);
+    font-family:system-ui,Segoe UI,Roboto,sans-serif;
+  ">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+      <div>
+        <h2 style="margin:0;font-size:18px;color:#0b7a75;font-weight:800;">
+          Announcements
+        </h2>
+        <p id="qa-ann-sub" style="margin:2px 0 0;font-size:13.5px;color:#5b6a68;">
+          Loading announcements…
+        </p>
+      </div>
+
+      <!-- CLONING: href is wired by JS -->
+      <a id="qa-link-announcements" href="#"
+         style="font-size:13px;color:#0b7a75;text-decoration:none;font-weight:600;">
+        View all →
+      </a>
+    </div>
+
+    <div id="qa-ann-body">
+      <p style="margin:6px 0 0;font-size:13.5px;color:#5b6a68;">
+        Please wait while we check for updates.
+      </p>
+    </div>
+  </div>
+
+  <!-- Courses heading block -->
+  <div style="margin:4px 0 8px;">
+    <h1 style="margin:0 0 2px;font-size:20px;">Your Courses</h1>
+    <p id="qa-sub" style="color:#5b6a68;margin:0;font-size:14px;">Loading...</p>
+  </div>
+
+  <!-- Tools -->
+  <div id="qa-tools" style="display:none;gap:12px;align-items:flex-end;margin:12px 0 16px;flex-wrap:wrap;">
+    <label for="qa-search" style="display:flex;flex-direction:column;gap:4px;min-width:240px;flex:1;">
+      <span style="font-size:12px;color:#5b6a68;font-weight:700;">Search courses</span>
+      <input id="qa-search" type="search" placeholder="Type to filter…" aria-label="Search courses"
+             style="padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;font-size:14px;">
+    </label>
+
+    <label for="qa-sort" style="display:flex;flex-direction:column;gap:4px;">
+      <span style="font-size:12px;color:#5b6a68;font-weight:700;">Sort</span>
+      <select id="qa-sort" aria-label="Sort"
+              style="padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;font-size:14px;min-width:160px;">
+        <option value="gp-first">GP first</option>
+        <option value="az">Title A–Z</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="qa-alert" style="display:none;padding:12px 14px;border:1px solid #ffdcdc;background:#fff6f6;border-radius:12px;margin:10px 0;font-size:14px;color:#7c2d12;"></div>
+  <div id="qa-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;"></div>
+
+  <!-- My Recent Quizzes / History panel -->
+  <div id="qa-recent-card" style="
+    margin-top:18px;
+    background:#ffffff;
+    border:1px solid rgba(0,0,0,.06);
+    border-radius:14px;
+    padding:16px 18px;
+    box-shadow:0 8px 18px rgba(0,0,0,.05);
+    font-family:system-ui,Segoe UI,Roboto,sans-serif;
+  ">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+      <div>
+        <h2 style="margin:0;font-size:18px;color:#0b7a75;font-weight:800;">
+          My Recent Quizzes
+        </h2>
+        <p id="qa-recent-sub" style="margin:2px 0 0;font-size:13.5px;color:#5b6a68;">
+          Loading your recent attempts…
+        </p>
+      </div>
+
+      <!-- CLONING: href is wired by JS -->
+      <a id="qa-link-history-top" href="#"
+         style="font-size:13px;color:#0b7a75;text-decoration:none;font-weight:600;">
+        View full history →
+      </a>
+    </div>
+    <div id="qa-recent-body">
+      <p style="margin:6px 0 0;font-size:13.5px;color:#5b6a68;">
+        Please wait while we load your quiz history.
+      </p>
+    </div>
+  </div>
+
+  <!-- Custom Quiz Builder info block -->
+  <div style="
+    margin-top:22px;
+    background:#ffffff;
+    border:1px solid rgba(0,0,0,.06);
+    border-radius:14px;
+    padding:16px 18px;
+    box-shadow:0 8px 18px rgba(0,0,0,.05);
+    font-family:system-ui,Segoe UI,Roboto,sans-serif;
+  ">
+    <h2 style="margin:0 0 6px;font-size:18px;color:#0b7a75;font-weight:800;">
+      Create a Custom Quiz
+    </h2>
+    <p style="margin:4px 0 14px;color:#4a5a56;font-size:14px;line-height:1.55;">
+      Build your own practice session by selecting topics, difficulty levels,
+      and number of questions from your enrolled courses. Ideal for targeted
+      revision, weak-area focus, or quick daily drills.
+    </p>
+
+    <!-- CLONING: href is wired by JS -->
+    <a id="qa-link-builder-cta" href="#"
+       style="
+         display:inline-block;
+         padding:10px 14px;
+         border-radius:12px;
+         background:#0b7a75;
+         color:#ffffff;
+         font-weight:600;
+         font-size:14px;
+         text-decoration:none;
+       ">
+      Launch Custom Quiz Builder →
+    </a>
+  </div>
+
+  <!-- NMC Procedures block -->
+  <div style="
+    margin-top:16px;
+    background:#ffffff;
+    border:1px solid rgba(0,0,0,.06);
+    border-radius:14px;
+    padding:16px 18px;
+    box-shadow:0 8px 18px rgba(0,0,0,.05);
+    font-family:system-ui,Segoe UI,Roboto,sans-serif;
+  ">
+    <h2 style="margin:0 0 6px;font-size:18px;color:#0b7a75;font-weight:800;">
+      NMC Procedures &amp; Component Tasks
+    </h2>
+    <p style="margin:4px 0 10px;color:#4a5a56;font-size:14px;line-height:1.55;">
+      View the official NMC Ghana procedure manuals (component tasks) for your programme
+      and other programmes. Use this page to support your practical skills and OSCE preparation.
+    </p>
+
+    <!-- CLONING: href is wired by JS -->
+    <a id="qa-link-nmc" href="#"
+       style="
+         display:inline-block;
+         padding:10px 14px;
+         border-radius:12px;
+         background:#0b7a75;
+         color:#ffffff;
+         font-weight:600;
+         font-size:14px;
+         text-decoration:none;
+       ">
+      Open NMC Procedures Page →
+    </a>
+  </div>
+</div>
+<!-- Support (Sam & Amanda) — moved to bottom, compact -->
+<div style="
+  margin-top:16px;
+  background:#ffffff;
+  border:1px solid rgba(0,0,0,.06);
+  border-radius:14px;
+  padding:14px 16px;
+  box-shadow:0 8px 18px rgba(0,0,0,.05);
+">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;">
+    <div>
+      <h2 style="margin:0 0 4px;font-size:16.5px;color:#0b7a75;font-weight:800;">
+        Support
+      </h2>
+      <p style="margin:2px 0 0;font-size:13.5px;color:#4b5563;max-width:560px;">
+        Support will be available inside this dashboard soon for questions, explanations, and study planning.
+      </p>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;">
+    <!-- Sam -->
+    <div style="flex:1;min-width:220px;display:flex;gap:10px;align-items:center;">
+      <div style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:#e2e8f0;border:2px solid #859998;">
+        <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhPgUgDTbBHOhDiG5C4cY6qiaqf759f9xSjvJ3oOHVzS51Rpde0RKBGwk9h12vCjQNCFty6EDSlfGSgRbQmYOttM1g4TeC_RmrlklmVQu9ssQuz6CuSoqP0U7-mFRuulZa4lPcNsFGA80zD2AUcFmH_pOaF4ZL7HXYLY9WKwseBK_8exhfxEeDL83B4rydL/s320/ChatGPT%20Image%20Dec%205,%202025,%2010_16_46%20PM.png"
+             alt="Tutor Sam"
+             style="width:100%;height:100%;object-fit:cover;display:block;">
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:14px;color:#0f172a;">Sam</div>
+        <div style="font-size:12.5px;color:#64748b;">
+          Critical care nurse &amp; exam mentor.
+        </div>
+      </div>
+    </div>
+
+    <!-- Amanda -->
+    <div style="flex:1;min-width:220px;display:flex;gap:10px;align-items:center;">
+      <div style="width:56px;height:56px;border-radius:50%;overflow:hidden;background:#e2e8f0;border:2px solid #859998;">
+        <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg6D6B9CdrG6adhpkx1f3Kp-48O6a5k32EFUUKNHefvxwf7LQXOMVMG0n5Bc1t_VeWKWcPjWTr2jVWrVgkRnwgipX8WivNEAPC-yJWoVHS3FwQ7DfGJLLHl0_SC2urs-4_VcUWtglGtTgCD5QxVYnM_ztWffw8ejrOUyCMRJogPGCIZEqGn2FwKO9Ard0Vl/s320/Amanda.png"
+             alt="Tutor Amanda"
+             style="width:100%;height:100%;object-fit:cover;display:block;">
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:14px;color:#0f172a;">Amanda (AI)</div>
+        <div style="font-size:12.5px;color:#64748b;">
+          24/7 explanations &amp; practice support.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3b) Floating Chat Launcher (Sam & Amanda) -->
+<div id="qa-chat-launcher"
+     style="
+       position:fixed;
+       bottom:18px;
+       right:16px;
+       z-index:9999;
+       display:flex;
+       align-items:center;
+       gap:6px;
+       padding:8px 12px;
+       background:#0b7a75;
+       color:#ffffff;
+       border-radius:999px;
+       box-shadow:0 8px 18px rgba(15,23,42,.35);
+       font-family:system-ui,Segoe UI,Roboto,sans-serif;
+       font-size:13px;
+       font-weight:600;
+       cursor:pointer;
+     ">
+  <span style="display:inline-flex;width:22px;height:22px;border-radius:999px;overflow:hidden;background:#ffffff1a;align-items:center;justify-content:center;font-size:14px;">
+    💬
+  </span>
+  <span>Chat with Sam &amp; Amanda</span>
+</div>
+
+<div id="qa-chat-panel"
+     style="
+       position:fixed;
+       bottom:76px;
+       right:16px;
+       z-index:9999;
+       max-width:320px;
+       width:100%;
+       background:#ffffff;
+       border-radius:14px;
+       border:1px solid rgba(15,23,42,.12);
+       box-shadow:0 18px 45px rgba(15,23,42,.45);
+       padding:12px 14px;
+       font-family:system-ui,Segoe UI,Roboto,sans-serif;
+       display:none;
+     ">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:4px;">
+    <div>
+      <div style="font-size:14px;font-weight:700;color:#0f172a;">Ask Sam or Amanda</div>
+      <div style="font-size:12px;color:#64748b;">
+        Coming soon: chat support for concepts, questions and study planning.
+      </div>
+    </div>
+    <button type="button"
+            id="qa-chat-close"
+            aria-label="Close chat"
+            style="border:none;background:transparent;color:#94a3b8;font-size:18px;cursor:pointer;padding:0;margin:0;line-height:1;">
+      ×
+    </button>
+  </div>
+
+  <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px;">
+    <button type="button"
+            data-chat-speaker="sam"
+            disabled
+            style="
+              width:100%;
+              padding:8px 10px;
+              border-radius:10px;
+              border:1px solid #cbd5e1;
+              background:#e2e8f0;
+              color:#475569;
+              font-size:12.5px;
+              font-weight:600;
+              text-align:left;
+              cursor:default;
+              opacity:.9;
+            ">
+      Ask Sam (exam mentor) — coming soon
+    </button>
+    <button type="button"
+            data-chat-speaker="amanda"
+            disabled
+            style="
+              width:100%;
+              padding:8px 10px;
+              border-radius:10px;
+              border:1px solid #0b7a75;
+              background:#e8f5f3;
+              color:#0b7a75;
+              font-size:12.5px;
+              font-weight:600;
+              text-align:left;
+              cursor:default;
+              opacity:.95;
+            ">
+      Ask Amanda AI — coming soon
+    </button>
+  </div>
+
+  <div style="margin-top:8px;font-size:11px;color:#94a3b8;line-height:1.4;">
+    This chat area will appear on selected pages. For now, use quizzes and notes while we prepare it.
+  </div>
+  
+</div>
+
+<!-- 4) DASHBOARD LOGIC -->
+<script>
+(function(){
+  var cfg = (window.QA_CONFIG && typeof window.QA_CONFIG === 'object') ? window.QA_CONFIG : {};
+
+  var BUILDER_API_URL    = cfg.BUILDER_API_URL    || '';
+  // If ANNOUNCEMENTS_URL is not provided, fall back to the Builder API URL
+  var ANNOUNCEMENTS_URL  = cfg.ANNOUNCEMENTS_URL  || BUILDER_API_URL || '';
+  // ✅ Messaging WebApp URL
+  var MESSAGING_URL      = cfg.MESSAGING_URL      || '';
+
+  // =========================
+  // ✅ CLONE-FRIENDLY LINK HELPERS
+  // =========================
+  function qaPageUrl(slug){
+    slug = String(slug || '').trim();
+    if(!slug) return '#';
+    // allow full URLs if ever needed
+    if(/^https?:\/\//i.test(slug)) return slug;
+    if(slug[0] === '/') return slug;
+    return '/p/' + slug + '.html';
+  }
+  function qaHref(key){
+    var pages = (cfg.PAGES && typeof cfg.PAGES === 'object') ? cfg.PAGES : {};
+    return qaPageUrl(pages[key]);
+  }
+
+  function initDashboard(){
+    var dash = document.getElementById("qa-dash");
+    if(!dash) return;
+
+    dash.style.display = "block";
+
+    var elSub      = document.getElementById("qa-sub");
+    var elGrid     = document.getElementById("qa-grid");
+    var elTools    = document.getElementById("qa-tools");
+    var elSearch   = document.getElementById("qa-search");
+    var elSort     = document.getElementById("qa-sort");
+    var elFullname = document.getElementById("qa-fullname");
+    var elProgram  = document.getElementById("qa-program");
+    var elExpiry   = document.getElementById("qa-expiry");
+    var elAlert    = document.getElementById("qa-alert");
+    var elRecentSub  = document.getElementById("qa-recent-sub");
+    var elRecentBody = document.getElementById("qa-recent-body");
+    var elAnnSub   = document.getElementById("qa-ann-sub");
+    var elAnnBody  = document.getElementById("qa-ann-body");
+
+    // ✅ Messages chip elements
+    var elMsgChip  = document.getElementById("qa-msg-chip");
+    var elMsgBadge = document.getElementById("qa-msg-badge");
+
+    // ✅ NAV LINKS (wired from config; no hard-coded URLs)
+    var elLinkAnnouncements= document.getElementById("qa-link-announcements");
+    var elLinkHistoryTop   = document.getElementById("qa-link-history-top");
+    var elLinkBuilderCta   = document.getElementById("qa-link-builder-cta");
+    var elLinkNmc          = document.getElementById("qa-link-nmc");
+
+    // Wire all links once
+    if(elMsgChip)           elMsgChip.href = qaHref('messages');
+    if(elLinkHistoryTop)    elLinkHistoryTop.href = qaHref('learning_history');
+    if(elLinkBuilderCta)    elLinkBuilderCta.href = qaHref('quiz_builder');
+    if(elLinkAnnouncements) elLinkAnnouncements.href = qaHref('announcements');
+    if(elLinkNmc)           elLinkNmc.href = qaHref('nmc_procedures');
+
+    // Keep last loaded announcements in memory so we can update UI immediately
+    var __annItems = [];
+    var __annStates = {};
+
+    var chatLauncher = document.getElementById("qa-chat-launcher");
+    var chatPanel    = document.getElementById("qa-chat-panel");
+    var chatClose    = document.getElementById("qa-chat-close");
+
+    var user   = window.QA_USER   || {};
+    var access = window.QA_ACCESS || {};
+    var rawCourses = Array.isArray(access.coursesMeta) ? access.coursesMeta : [];
+
+    var hasCourseIds = Array.isArray(access.courseIds) && access.courseIds.length > 0;
+    var signupSource = (user.signup_source || "").toLowerCase();
+
+    function formatExpiry(dateStr){
+      if(!dateStr) return "—";
+      var d = new Date(dateStr);
+      if(isNaN(d.getTime())) return "—";
+      return d.toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
+    }
+
+    function setExpiry(){
+      var subExp  = access.access_expires_utc || "";
+      var userExp = user.user_expires_utc || "";
+      var chosen  = subExp || userExp || "";
+      elExpiry.textContent = "Expires: " + formatExpiry(chosen);
+    }
+
+    /* ========== Messages unread badge (Dashboard top bar) ========== */
+    function loadUnreadThreadsCount(){
+      if(!elMsgChip || !elMsgBadge) return;
+      if(!MESSAGING_URL) return;
+
+      var token = null;
+      try{ token = localStorage.getItem("qa_token"); }catch(e){ token = null; }
+      if(!token) return;
+
+      // ✅ Always show entry point
+      elMsgChip.style.display = "inline-flex";
+
+      // Default state: 0 (muted)
+      elMsgBadge.textContent = "0";
+      elMsgBadge.style.background = "#94a3b8"; // muted when 0
+      elMsgBadge.style.color = "#ffffff";
+
+      var body = new URLSearchParams();
+      body.set("action", "message.unread.count");
+      body.set("token", token);
+
+      fetch(MESSAGING_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString()
+      })
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        if(!data || data.ok !== true) return;
+
+        var n = Number(data.new_threads || 0);
+        if(!isFinite(n) || n <= 0){
+          // keep 0 + muted
+          elMsgBadge.textContent = "0";
+          elMsgBadge.style.background = "#94a3b8";
+          return;
+        }
+
+        elMsgBadge.textContent = (n > 99) ? "99+" : String(n);
+        // ✅ active highlight when >0
+        elMsgBadge.style.background = "#0b7a75";
+      })
+      .catch(function(_err){
+        // fail silent: keep chip + 0
+      });
+    }
+
+    /* ========== My Recent Quizzes / History ========== */
+    function formatDateTime(ts){
+      if(!ts) return "—";
+      var d = new Date(ts);
+      if(isNaN(d.getTime())) return "—";
+      var date = d.toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
+      var time = d.toLocaleTimeString("en-GB", { hour:"2-digit", minute:"2-digit" });
+      return date + " · " + time;
+    }
+
+    function niceMode(mode){
+      var m = String(mode || "").toLowerCase();
+      if(m === "timed")   return "Timed";
+      if(m === "instant") return "Instant";
+      return "";
+    }
+
+    function formatScore(att){
+      var raw   = Number(att.score_raw   || 0);
+      var total = Number(att.score_total || 0);
+      var pct   = Number(att.score_pct   || 0);
+      var status= String(att.status || "").toLowerCase();
+
+      if(raw > 0 && total > 0){
+        var shownPct = pct || Math.round((raw * 100) / total);
+        return raw + "/" + total + " (" + shownPct + "%)";
+      }
+      if(status === "completed"){
+        if(pct > 0) return pct + "%";
+        return "Completed";
+      }
+      if(status === "in_progress") return "In progress";
+      return "—";
+    }
+
+    function renderRecentAttempts(attempts){
+      if(!elRecentBody || !elRecentSub) return;
+
+      if(!attempts || !attempts.length){
+        elRecentSub.textContent = "No completed quizzes yet.";
+        elRecentBody.innerHTML =
+          '<p style="margin:6px 0 0;font-size:13.5px;color:#5b6a68;">' +
+            'You haven\'t completed any quizzes yet. Start with a Custom Quiz or pick a course to begin.' +
+          '</p>' +
+          '<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;">' +
+            '<a href="' + qaHref('quiz_builder') + '" ' +
+              'style="display:inline-block;padding:8px 12px;border-radius:10px;' +
+                     'background:#0b7a75;color:#ffffff;font-weight:600;font-size:13px;text-decoration:none;">' +
+              'Create Custom Quiz' +
+            '</a>' +
+            '<a href="#qa-grid" ' +
+              'style="display:inline-block;padding:8px 12px;border-radius:10px;border:1px solid #0b7a75;' +
+                     'color:#0b7a75;font-weight:600;font-size:13px;text-decoration:none;background:#f3faf9;">' +
+              'Go to Your Courses' +
+            '</a>' +
+          '</div>';
+        return;
+      }
+
+      elRecentSub.textContent = "Here are your latest quiz attempts.";
+
+      var html = '<ul style="list-style:none;margin:0;padding:0;">';
+
+      attempts.forEach(function(att){
+        var label = (att.display_label || "").trim();
+        if(!label && att.quiz_id){
+          label = "Quiz " + att.quiz_id;
+        }
+        if(!label){
+          label = "Custom quiz";
+        }
+
+        var courseId = att.course_id || "";
+        var modeNice = niceMode(att.mode);
+        var scoreStr = formatScore(att);
+        var tsStr    = formatDateTime(att.ts_iso);
+
+        html +=
+          '<li onclick="location.href=\'' + qaHref('learning_history') + '\';" ' +
+              'style="padding:10px 0;border-bottom:1px solid rgba(148,163,184,.35);cursor:pointer;">' +
+            '<div style="font-size:14.5px;font-weight:600;color:#0f172a;margin-bottom:2px;">' +
+              label +
+            '</div>' +
+            '<div style="font-size:12.5px;color:#64748b;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">' +
+              (courseId ? ('<span>' + courseId + '</span>') : '') +
+              (modeNice ? ('<span>• ' + modeNice + '</span>') : '') +
+              (scoreStr ? ('<span>• ' + scoreStr + '</span>') : '') +
+              (tsStr ? ('<span>• ' + tsStr + '</span>') : '') +
+            '</div>' +
+          '</li>';
+      });
+
+      html += '</ul>';
+      elRecentBody.innerHTML = html;
+    }
+
+    function loadRecentAttempts(){
+      if(!elRecentBody || !BUILDER_API_URL){
+        if(elRecentSub){
+          elRecentSub.textContent = "Quiz history is not available right now.";
+        }
+        return;
+      }
+
+      var token = null;
+      try{
+        token = localStorage.getItem("qa_token");
+      }catch(e){
+        token = null;
+      }
+
+      if(!token){
+        if(elRecentSub){
+          elRecentSub.textContent = "Unable to load history (missing session).";
+        }
+        return;
+      }
+
+      if(elRecentSub){
+        elRecentSub.textContent = "Loading your recent attempts…";
+      }
+
+      var url = BUILDER_API_URL +
+        "?action=attempts.list" +
+        "&token=" + encodeURIComponent(token) +
+        "&status=completed";
+
+      fetch(url)
+        .then(function(res){ return res.json(); })
+        .then(function(data){
+          if(data && data.ok === false){
+            if(elRecentSub){
+              elRecentSub.textContent = "Could not load your quiz history.";
+            }
+            elRecentBody.innerHTML =
+              '<p style="margin:6px 0 0;font-size:13.5px;color:#b91c1c;">' +
+                'There was a problem loading your quiz history. Please reload this page and try again.' +
+              '</p>';
+            return;
+          }
+
+          var attempts = Array.isArray(data && data.attempts) ? data.attempts.slice() : [];
+
+          attempts.sort(function(a, b){
+            var ta = a.ts_iso || "";
+            var tb = b.ts_iso || "";
+            if(ta > tb) return -1;
+            if(ta < tb) return 1;
+            return 0;
+          });
+
+          renderRecentAttempts(attempts.slice(0, 5));
+        })
+        .catch(function(err){
+          console.error("Dashboard attempts.list error", err);
+          if(elRecentSub){
+            elRecentSub.textContent = "Could not load your quiz history.";
+          }
+          elRecentBody.innerHTML =
+            '<p style="margin:6px 0 0;font-size:13.5px;color:#b91c1c;">' +
+              'There was a network problem while loading your quiz history.' +
+            '</p>';
+        });
+    }
+
+    /* ===== Announcement HTML Sanitizer (Dashboard) ===== */
+    function qaIsSafeHref(href){
+      if(!href) return false;
+
+      href = String(href).trim();
+
+      // allow hash placeholder (used by fixed-quiz buttons)
+      if(href === '#') return true;
+
+      // allow same-site relative links
+      if(href.startsWith('/') || href.startsWith('?') || href.startsWith('#')) {
+        return true;
+      }
+
+      // block dangerous protocols explicitly
+      var lower = href.replace(/\s+/g,'').toLowerCase();
+      if(
+        lower.startsWith('javascript:') ||
+        lower.startsWith('data:') ||
+        lower.startsWith('vbscript:')
+      ){
+        return false;
+      }
+
+      // allow http, https, mailto, tel
+      try{
+        var u = new URL(href, window.location.origin);
+        return (
+          u.protocol === 'http:' ||
+          u.protocol === 'https:' ||
+          u.protocol === 'mailto:' ||
+          u.protocol === 'tel:'
+        );
+      }catch(e){
+        return false;
+      }
+    }
+
+    function qaIsSafeSrc(src){
+      if(!src) return false;
+      src = String(src).trim();
+
+      // allow relative
+      if(src[0] === '/' || src[0] === '?') return true;
+
+      // block javascript:/data:/vbscript:
+      var lower = src.replace(/\s+/g,'').toLowerCase();
+      if(lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) return false;
+
+      try{
+        var u = new URL(src, window.location.origin);
+        return (u.protocol === 'http:' || u.protocol === 'https:');
+      }catch(e){
+        return false;
+      }
+    }
+
+    function qaDecodeHtmlEntities(html){
+      var t = document.createElement('textarea');
+      t.innerHTML = html;
+      return t.value;
+    }
+
+    function qaSanitizeHtmlToFragment(html){
+      var template = document.createElement('template');
+      template.innerHTML = qaDecodeHtmlEntities(html);
+
+      var allowedTags = {
+        P:1, BR:1, STRONG:1, B:1, EM:1, I:1,
+        UL:1, OL:1, LI:1,
+        A:1, IMG:1,
+        CODE:1, PRE:1, DIV:1
+      };
+
+      var walker = document.createTreeWalker(template.content, NodeFilter.SHOW_ELEMENT, null);
+
+      var toRemove = [];
+      while(walker.nextNode()){
+        var el = walker.currentNode;
+        if(!allowedTags[el.tagName]){
+          toRemove.push(el);
+          continue;
+        }
+
+        // Strip unsafe attributes
+        [].slice.call(el.attributes).forEach(function(attr){
+          var n = attr.name.toLowerCase();
+          var v = attr.value;
+
+          if(el.tagName === 'A'){
+            if(n === 'href' && qaIsSafeHref(v)) return;
+
+            // keep styling marker
+            if(n === 'data-qa') return;
+
+            // ✅ allow fixed-quiz launcher markers (so interceptor can detect them)
+            if(n === 'data-qa-fixed-quiz') return;
+            if(n === 'data-qa-mode') return;
+          }
+
+          if(el.tagName === 'IMG'){
+            if(n === 'src' && qaIsSafeSrc(v)) return;
+            if(n === 'alt') return;
+          }
+
+          if(n === 'class') return;
+          el.removeAttribute(attr.name);
+        });
+      }
+
+      toRemove.forEach(function(el){
+        el.replaceWith(document.createTextNode(el.textContent || ''));
+      });
+
+      return template.content;
+    }
+
+    function qaRenderAnnouncementBody(container, a){
+      container.innerHTML = '';
+
+      var html = (a.body_html || '').trim();
+      var text = (a.body_text || '').trim();
+      var raw  = (a.body || '').trim();
+
+      if(html){
+        container.appendChild(qaSanitizeHtmlToFragment(html));
+        return;
+      }
+
+      var fallback = text || raw;
+      if(fallback){
+        var p = document.createElement('p');
+        p.textContent = fallback;
+        container.appendChild(p);
+      }
+    }
+
+    /* ========== Announcements (Dashboard – shared behaviour) ========== */
+    function renderAnnouncementsEmpty() {
+      if (!elAnnSub || !elAnnBody) return;
+
+      elAnnSub.textContent = "You have seen all the latest announcements.";
+
+      elAnnBody.innerHTML =
+        '<p style="margin:6px 0 10px;font-size:13.5px;color:#5b6a68;">' +
+          'For older updates, pinned messages, and your full announcement archive, open the announcements page.' +
+        '</p>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          '<a href="' + qaHref('announcements') + '" ' +
+            'style="display:inline-block;padding:8px 12px;border-radius:999px;' +
+                   'border:1px solid #0b7a75;background:#0b7a75;color:#ffffff;' +
+                   'font-weight:700;font-size:13px;text-decoration:none;">' +
+            'View all announcements →' +
+          '</a>' +
+        '</div>';
+    }
+
+    function parseDate(val){
+      if(!val && val !== 0) return null;
+      var d = (val instanceof Date) ? val : new Date(val);
+      if(isNaN(d.getTime())) return null;
+      return d;
+    }
+
+    function fmtDateShort(d){
+      if(!d) return '';
+      var now = new Date();
+      var opts = { day:'2-digit', month:'short' };
+      if(d.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
+      return d.toLocaleDateString('en-GB', opts);
+    }
+
+    function priorityLevel(a){
+      var n = Number(a && a.priority);
+      return Number.isFinite(n) ? n : 1;
+    }
+    function isUrgent(a){ return priorityLevel(a) >= 3; }
+
+    function stateOf(statesById, id){
+      var s = statesById && statesById[id];
+      return s && s.state ? String(s.state).toLowerCase() : '';
+    }
+
+    function buildPillsMini(a, statesById, lifecycle){
+      var pills = [];
+
+      if (a.pinned){
+        pills.push('<span style="font-size:11px;font-weight:600;color:#0b7a75;background:#e0f2f1;border-radius:999px;padding:2px 8px;white-space:nowrap;">Pinned</span>');
+      }
+      if (isUrgent(a)){
+        pills.push('<span style="font-size:11px;font-weight:600;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:999px;padding:2px 8px;white-space:nowrap;">Urgent</span>');
+      }
+
+      var id = (a._id || a.announcement_id || a.id || a.ann_id || '').trim();
+      var st = stateOf(statesById, id);
+      if (!st) pills.push('<span style="font-size:11px;font-weight:600;color:#3730a3;background:#eef2ff;border:1px solid #c7d2fe;border-radius:999px;padding:2px 8px;white-space:nowrap;">New</span>');
+      else if (st === 'seen') pills.push('<span style="font-size:11px;font-weight:600;color:#6b7280;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;white-space:nowrap;">Seen</span>');
+      else if (st === 'dismissed') pills.push('<span style="font-size:11px;font-weight:600;color:#9a3412;background:#fff7ed;border:1px solid #fed7aa;border-radius:999px;padding:2px 8px;white-space:nowrap;">Dismissed</span>');
+
+      if (lifecycle === 'UPCOMING'){
+        pills.push('<span style="font-size:11px;font-weight:600;color:#a16207;background:#fef9c3;border:1px solid #fde68a;border-radius:999px;padding:2px 8px;white-space:nowrap;">Upcoming</span>');
+      } else if (lifecycle === 'LIVE'){
+        pills.push('<span style="font-size:11px;font-weight:600;color:#166534;background:#ecfdf3;border:1px solid #bbf7d0;border-radius:999px;padding:2px 8px;white-space:nowrap;">Live</span>');
+      }
+
+      return pills.join(' ');
+    }
+
+    function classifyLifecycle(a){
+      var now = new Date();
+      var start = parseDate(a.start_at || a.created_at);
+      var end   = parseDate(a.end_at);
+      var status = String(a.status || '').toLowerCase();
+
+      if (status === 'draft') return 'HIDDEN';
+      if (start && now < start) return 'UPCOMING';
+      if (end && now > end) return 'ENDED';
+      return 'LIVE';
+    }
+
+    function renderAnnouncementsDashboard(items, statesById){
+      if (!elAnnSub || !elAnnBody) return;
+
+      if (!items || !items.length){
+        renderAnnouncementsEmpty();
+        return;
+      }
+
+      var filtered = items.filter(function(a){
+        var id = (a.announcement_id || a.id || '').trim();
+        var st = stateOf(statesById, id);
+        return st !== 'dismissed' && st !== 'seen';
+      });
+
+      if (!filtered.length){
+        renderAnnouncementsEmpty();
+        return;
+      }
+
+      filtered.sort(function(a,b){
+        if(isUrgent(a) !== isUrgent(b)) return isUrgent(a) ? -1 : 1;
+        if(!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      });
+
+      elAnnSub.textContent = "Latest updates from QAcademy.";
+      elAnnBody.innerHTML = '';
+      elAnnBody.classList.add('qa-ann-body');
+
+      var ul = document.createElement('ul');
+      ul.style.listStyle = 'none';
+      ul.style.margin = '0';
+      ul.style.padding = '0';
+
+      filtered.slice(0,5).forEach(function(a){
+        var li = document.createElement('li');
+        li.style.padding = '10px 12px';
+        li.style.borderRadius = '12px';
+        li.style.margin = '8px 0';
+        li.style.border = isUrgent(a)
+          ? '1px solid rgba(185,28,28,.18)'
+          : '1px solid rgba(148,163,184,.35)';
+        li.style.background = isUrgent(a) ? '#fff7f7' : '#ffffff';
+
+        var title = document.createElement('div');
+        title.style.fontSize = '14px';
+        title.style.fontWeight = '650';
+        title.style.marginBottom = '4px';
+        title.textContent = a.title || 'Announcement';
+
+        var body = document.createElement('div');
+        body.style.fontSize = '13px';
+        body.style.color = '#4b5563';
+        qaRenderAnnouncementBody(body, a);
+
+        var footer = document.createElement('div');
+        footer.style.display = 'flex';
+        footer.style.flexWrap = 'wrap';
+        footer.style.gap = '6px';
+        footer.style.justifyContent = 'space-between';
+        footer.style.marginTop = '6px';
+
+        var pills = document.createElement('div');
+        pills.innerHTML = buildPillsMini(a, statesById, classifyLifecycle(a));
+
+        footer.appendChild(pills);
+
+        var id = (a.announcement_id || '').trim();
+        if(id && !stateOf(statesById, id)){
+          var btn = document.createElement('button');
+          btn.textContent = 'Mark as read';
+          btn.setAttribute('data-ann-action','markread');
+          btn.setAttribute('data-ann-id', id);
+          btn.style.cssText =
+            'border:1px solid #0b7a75;background:#0b7a75;color:#fff;' +
+            'padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;';
+          footer.appendChild(btn);
+        }
+
+        li.appendChild(title);
+        li.appendChild(body);
+        li.appendChild(footer);
+        ul.appendChild(li);
+      });
+
+      elAnnBody.appendChild(ul);
+    }
+
+    function markAnnouncementSeen(announcementId, btn){
+      if(!announcementId) return;
+
+      var token = null;
+      try { token = localStorage.getItem("qa_token"); } catch(e){ token = null; }
+      if(!token) return;
+
+      if(btn){
+        btn.disabled = true;
+        btn.textContent = "Marking...";
+        btn.style.opacity = "0.85";
+      }
+
+      var body = new URLSearchParams();
+      body.set("action", "announcements.markseen");
+      body.set("token", token);
+      body.set("payload", JSON.stringify({ items: [announcementId] }));
+
+      fetch(ANNOUNCEMENTS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body
+      })
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        if(!data || data.ok !== true){
+          throw new Error((data && data.error) || "markseen_failed");
+        }
+
+        __annStates = __annStates || {};
+        __annStates[announcementId] = Object.assign({}, __annStates[announcementId] || {}, {
+          state: "seen",
+          seen_at: (new Date()).toISOString()
+        });
+
+        renderAnnouncementsDashboard(__annItems || [], __annStates);
+      })
+      .catch(function(err){
+        console.error("announcements.markseen error", err);
+        if(btn){
+          btn.disabled = false;
+          btn.textContent = "Mark as read";
+          btn.style.opacity = "1";
+        }
+      });
+    }
+
+    if(elAnnBody){
+      elAnnBody.addEventListener("click", function(ev){
+        var t = ev.target;
+        if(!t) return;
+
+        var btn = (t.closest) ? t.closest('button[data-ann-action]') : null;
+        if(!btn) return;
+
+        var action = btn.getAttribute("data-ann-action");
+        var id = btn.getAttribute("data-ann-id");
+
+        if(action === "markread"){
+          ev.preventDefault();
+          ev.stopPropagation();
+          markAnnouncementSeen((id || "").trim(), btn);
+        }
+      });
+    }
+
+    /* ==========================
+       ✅ Fixed-Quiz Button Interceptor (Dashboard)
+       ========================== */
+
+    // CLONING: runner URLs come from QA_CONFIG.PAGES (or optional cfg.INSTANT_RUNNER_URL override)
+    var INSTANT_RUNNER_URL = cfg.INSTANT_RUNNER_URL || qaHref('instant_runner');
+    var TIMED_RUNNER_URL   = cfg.TIMED_RUNNER_URL   || qaHref('timed_runner');
+
+    function qaGetToken(){
+      try { return localStorage.getItem('qa_token') || ''; } catch(e){ return ''; }
+    }
+
+    function qaGoToAttemptId(attemptId, mode){
+      var m = String(mode || '').toLowerCase();
+      var base = (m === 'timed') ? TIMED_RUNNER_URL : INSTANT_RUNNER_URL;
+      var sep = base.indexOf('?') === -1 ? '?' : '&';
+      window.location.href = base + sep + 'quiz_id=' + encodeURIComponent(attemptId);
+    }
+
+    function qaOpenFixedQuizFromAnnouncementSmart_DASH(quizId, preferredMode){
+      quizId = String(quizId || '').trim();
+      if(!quizId) return;
+
+      if(!BUILDER_API_URL){
+        console.warn('Missing BUILDER_API_URL');
+        return;
+      }
+
+      var token = qaGetToken();
+      if(!token){
+        if(elAnnSub) elAnnSub.textContent = "Session expired — please sign in again.";
+        return;
+      }
+
+      if(elAnnSub) elAnnSub.textContent = "Opening quiz…";
+
+      var urlList = BUILDER_API_URL +
+        '?action=attempts.list' +
+        '&token=' + encodeURIComponent(token);
+
+      fetch(urlList)
+        .then(function(r){ return r.json(); })
+        .then(function(res){
+          var attempts = Array.isArray(res && res.attempts) ? res.attempts : [];
+
+          var mine = attempts.filter(function(a){
+            return String(a.quiz_id || '').trim() === quizId;
+          });
+
+          mine.sort(function(a,b){
+            var da = new Date(a.ts_iso || a.timestamp || 0).getTime();
+            var db = new Date(b.ts_iso || b.timestamp || 0).getTime();
+            return (db||0) - (da||0);
+          });
+
+          var inProg = mine.find(function(a){
+            return String(a.status || '').toLowerCase() === 'in_progress';
+          });
+
+          if(inProg && inProg.attempt_id){
+            qaGoToAttemptId(inProg.attempt_id, inProg.mode || preferredMode);
+            return;
+          }
+
+          var payload = { quiz_id: quizId, source: 'fixed' };
+
+          var body = new URLSearchParams();
+          body.set('action','fixed.spawn');
+          body.set('token', token);
+          body.set('payload', JSON.stringify(payload));
+
+          return fetch(BUILDER_API_URL, {
+            method:'POST',
+            headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+            body: body
+          })
+          .then(function(r){ return r.json(); })
+          .then(function(data){
+            if(!data || data.ok === false) throw new Error((data && data.error) || 'spawn_failed');
+            if(!data.attempt_id) throw new Error('missing_attempt_id');
+            qaGoToAttemptId(data.attempt_id, (data.mode || preferredMode));
+          });
+        })
+        .catch(function(err){
+          console.error('Dashboard fixed-quiz open error', err);
+          if(elAnnSub) elAnnSub.textContent = "Could not open quiz. Please try again.";
+        });
+    }
+
+    if(elAnnBody){
+      elAnnBody.addEventListener('click', function(ev){
+        var a = ev.target && ev.target.closest ? ev.target.closest('a[data-qa-fixed-quiz]') : null;
+        if(!a) return;
+
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        if(a.dataset.busy === '1') return;
+        a.dataset.busy = '1';
+
+        var quizId = a.getAttribute('data-qa-fixed-quiz');
+        var mode   = a.getAttribute('data-qa-mode');
+
+        qaOpenFixedQuizFromAnnouncementSmart_DASH(quizId, mode);
+
+        setTimeout(function(){ try{ a.dataset.busy = ''; }catch(_e){} }, 4000);
+      });
+    }
+
+    function loadAnnouncements() {
+      if (!elAnnBody || !elAnnSub) return;
+
+      if (!ANNOUNCEMENTS_URL) {
+        renderAnnouncementsEmpty();
+        return;
+      }
+
+      var token = null;
+      try { token = localStorage.getItem("qa_token"); } catch (e) { token = null; }
+
+      if (!token) {
+        elAnnSub.textContent = "Announcements are not available right now.";
+        elAnnBody.innerHTML =
+          '<p style="margin:6px 0 0;font-size:13.5px;color:#b91c1c;">' +
+            'We could not verify your session to load announcements. Please sign in again and reload this page.' +
+          '</p>';
+        return;
+      }
+
+      elAnnSub.textContent = "Checking for announcements...";
+      elAnnBody.innerHTML =
+        '<p style="margin:6px 0 0;font-size:13.5px;color:#5b6a68;">' +
+          'Please wait while we load the latest updates.' +
+        '</p>';
+
+      var params = new URLSearchParams();
+      params.set("action", "announcements.list");
+      params.set("token", token);
+      params.set("mode", "archive");
+      params.set("limit", "5");
+
+      fetch(ANNOUNCEMENTS_URL + "?" + params.toString())
+        .then(function(res){ return res.json(); })
+        .then(function(data){
+          if (data && data.ok === false) {
+            console.warn("Announcements backend error:", data.error || data);
+            renderAnnouncementsEmpty();
+            return;
+          }
+
+          var items  = Array.isArray(data && data.items) ? data.items : [];
+          var states = (data && data.states && typeof data.states === 'object') ? data.states : {};
+
+          __annItems = items;
+          __annStates = states || {};
+          renderAnnouncementsDashboard(__annItems, __annStates);
+        })
+        .catch(function(err){
+          console.error("Dashboard announcements error", err);
+          renderAnnouncementsEmpty();
+        });
+    }
+
+    /* ========== Header: name, role, programme ========== */
+    function setFullNameWithRole(){
+      var safeName =
+        (user.name || "").trim() ||
+        [user.forename, user.surname].filter(Boolean).join(" ").trim() ||
+        localStorage.getItem("qa_full_name") ||
+        "Welcome back";
+
+      elFullname.textContent = safeName;
+
+      var role = (user.role || "").trim();
+      if(role){
+        var span = document.createElement("span");
+        span.textContent = " (" + role + ")";
+        span.style.fontWeight = "500";
+        span.style.color = "#5b6a68";
+        span.style.fontSize = "16px";
+        elFullname.appendChild(span);
+      }
+
+      try{
+        localStorage.setItem("qa_full_name", safeName);
+      }catch(e){}
+    }
+
+    function setProgram(){
+      var direct = (user.program_id || "").trim();
+      var prog   = direct;
+
+      if(!prog && Array.isArray(access.courseIds) && access.courseIds.length){
+        var ids = access.courseIds.map(function(id){ return String(id||"").toUpperCase(); });
+
+        if(ids.some(function(id){ return id.startsWith("RN_") || id === "RN"; }))         prog = "RN";
+        else if(ids.some(function(id){ return id.startsWith("RM_") || id === "RM"; }))    prog = "RM";
+        else if(ids.some(function(id){ return id.startsWith("RPHN_"); }))                prog = "RPHN";
+        else if(ids.some(function(id){ return id.startsWith("RMHN_") || id === "MHN"; }))prog = "MHN";
+        else if(ids.some(function(id){ return id.startsWith("NAC_") || id.startsWith("NAP_"); })) prog = "NAC/NAP";
+        else if(ids.some(function(id){ return id === "GP"; }))                           prog = "GP";
+      }
+
+      if(!prog){
+        try{
+          prog = localStorage.getItem("qa_program") || "";
+        }catch(e){}
+      }
+      if(prog){
+        try{ localStorage.setItem("qa_program", prog); }catch(e){}
+      }
+
+      elProgram.textContent = "Programme: " + (prog || "—");
+    }
+
+    /* ========== Courses grid ========== */
+    function normalize(id){ return (id || "").toUpperCase().replace(/\s+/g,""); }
+
+    function sortCourses(list, mode){
+      var arr = list.slice();
+      if(mode === "az"){
+        return arr.sort(function(a,b){
+          var ta = (a.title || a.course_id || "");
+          var tb = (b.title || b.course_id || "");
+          return ta.localeCompare(tb);
+        });
+      }
+      var gp = arr.filter(function(c){ return normalize(c.course_id) === "GP"; });
+      var rest = arr.filter(function(c){ return normalize(c.course_id) !== "GP"; })
+                    .sort(function(a,b){
+                      var ta = (a.title || a.course_id || "");
+                      var tb = (b.title || b.course_id || "");
+                      return ta.localeCompare(tb);
+                    });
+      return gp.concat(rest);
+    }
+
+    function render(){
+      var q    = (elSearch && elSearch.value || "").toLowerCase().trim();
+      var mode = elSort ? elSort.value : "gp-first";
+
+      var visible = rawCourses
+        .filter(function(c){ return String(c.status || "").toLowerCase() === "active"; })
+        .filter(function(c){
+          if(!q) return true;
+          var title = (c.title || "").toLowerCase();
+          var cid   = (c.course_id || "").toLowerCase();
+          return title.indexOf(q) !== -1 || cid.indexOf(q) !== -1;
+        });
+
+      var sorted = sortCourses(visible, mode);
+      elGrid.innerHTML = "";
+
+      if(!sorted.length){
+        elTools.style.display = "none";
+        elAlert.style.display = "block";
+
+        // CLONING: welcome page URL comes from QA_CONFIG.PAGES.welcome
+        var WELCOME_URL = qaHref('welcome');
+
+        if(!hasCourseIds){
+          if(
+            signupSource === "self_onboard" ||
+            signupSource === "self-onboard" ||
+            signupSource === "self"
+          ){
+            elSub.textContent = "No active courses yet — please complete your registration.";
+            elAlert.innerHTML =
+              "Your QAcademy account is active, but no courses are linked to you yet." +
+              "<br><br><strong>Next step:</strong> complete your registration so that your subscription can be created." +
+              "<br><br>" +
+              "<a href=\"" + WELCOME_URL + "\" " +
+              "style=\"display:inline-block;margin-top:4px;padding:8px 12px;border-radius:10px;" +
+              "background:#0b7a75;color:#ffffff;font-weight:600;font-size:13px;text-decoration:none;\">" +
+              "Go to Welcome / Registration Page →</a>";
+          } else {
+            elSub.textContent = "No active courses available for your current account.";
+            elAlert.textContent =
+              "You are logged in, but we couldn't find any active courses linked to your account yet. " +
+              "If your school, class representative, or the QAcademy team registered you, they may still be activating your subscription.";
+          }
+        } else {
+          elSub.textContent = "Your courses are currently inactive or expired.";
+          elAlert.textContent =
+            "We found courses linked to your account, but none are currently active. " +
+            "This usually means your subscription has not started yet or has expired. " +
+            "Please contact QAcademy support if you think this is a mistake.";
+        }
+
+        return;
+      }
+
+      elTools.style.display = "flex";
+      elAlert.style.display = "none";
+      elSub.textContent = "You currently have " + sorted.length + " active course" + (sorted.length>1?"s":"") + ". Select a course to continue.";
+
+      sorted.forEach(function(c){
+        var slug = (c.page_slug || "").trim() || (c.course_id || "").toLowerCase();
+        var courseUrl = "/p/" + slug + ".html";
+        var courseId  = c.course_id || "";
+
+        var card = document.createElement("div");
+        card.style.cssText =
+          "display:block;text-decoration:none;color:inherit;" +
+          "border:1px solid rgba(0,0,0,.08);background:#fff;border-radius:14px;" +
+          "padding:14px;box-shadow:0 6px 16px rgba(0,0,0,.04);" +
+          "transition:transform .06s ease;cursor:default;";
+
+        card.onmouseenter = function(){ card.style.transform = "translateY(-2px)"; };
+        card.onmouseleave = function(){ card.style.transform = "translateY(0)"; };
+
+        card.innerHTML =
+          '<div style="font-weight:600;font-size:16px;margin-bottom:4px;">' +
+            (c.title || courseId) +
+          '</div>' +
+          '<div style="color:#6b7b79;font-size:13px;margin-bottom:10px;">' +
+            'Course ID: ' + courseId +
+          '</div>' +
+          '<a href="' + courseUrl + '" ' +
+            'style="display:inline-block;padding:8px 10px;border-radius:10px;' +
+                   'border:1px solid #0b7a75;background:#0b7a75;' +
+                   'color:#ffffff;font-weight:600;font-size:13px;text-decoration:none;">' +
+            'Open course page' +
+          '</a>';
+
+        elGrid.appendChild(card);
+      });
+    }
+
+    /* ========== Floating Chat (Sam & Amanda) ========== */
+    (function initChatWidget(){
+      if(!chatLauncher || !chatPanel) return;
+
+      function togglePanel(){
+        if(chatPanel.style.display === "none" || !chatPanel.style.display){
+          chatPanel.style.display = "block";
+        } else {
+          chatPanel.style.display = "none";
+        }
+      }
+
+      chatLauncher.addEventListener("click", function(){
+        togglePanel();
+      });
+
+      if(chatClose){
+        chatClose.addEventListener("click", function(ev){
+          ev.stopPropagation();
+          chatPanel.style.display = "none";
+        });
+      }
+
+      document.addEventListener("click", function(ev){
+        if(!chatPanel || chatPanel.style.display === "none") return;
+        var target = ev.target;
+        if(target === chatPanel || target === chatLauncher) return;
+        if(chatPanel.contains(target) || chatLauncher.contains(target)) return;
+        chatPanel.style.display = "none";
+      });
+    })();
+
+    /* ========== Init calls ========== */
+    setFullNameWithRole();
+    setExpiry();
+    setProgram();
+    render();
+
+    loadRecentAttempts();
+    loadAnnouncements();
+    loadUnreadThreadsCount();
+
+    if(elSearch) elSearch.addEventListener("input", render);
+    if(elSort)   elSort.addEventListener("change", render);
+  }
+
+  if(window.qaGuardReady){
+    window.qaGuardReady
+      .then(function(state){
+        if(state && state.ok && !state.blocked){
+          initDashboard();
+        }
+      })
+      .catch(function(err){
+        console.error("Dashboard guard error", err);
+      });
+  }
+})();
+</script>
