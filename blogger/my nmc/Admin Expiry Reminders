@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Admin: Subscription Expiry Reminders</title>
+<style>
+  :root{
+    --brand:#0b7a75;
+    --brand-soft:#e0f2f1;
+    --ink:#0f172a;
+    --muted:#6b7280;
+    --paper:#f9fafb;
+    --line:#e5e7eb;
+    --danger:#b91c1c;
+    --success:#15803d;
+  }
+  body{
+    margin:0;
+    padding:0 12px 24px;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+  }
+  .qa-shell{
+    max-width:760px;
+    margin:22px auto;
+  }
+  .qa-header{
+    margin-bottom:14px;
+  }
+  .qa-tag{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:999px;
+    background:var(--brand-soft);
+    color:var(--brand);
+    font-weight:600;
+  }
+  .qa-title{
+    margin:6px 0 2px;
+    font-size:20px;
+    font-weight:650;
+  }
+  .qa-sub{
+    margin:0;
+    font-size:13px;
+    color:var(--muted);
+  }
+  .qa-card{
+    background:#ffffff;
+    border:1px solid rgba(15,23,42,.06);
+    border-radius:14px;
+    padding:16px 18px 14px;
+    box-shadow:0 12px 30px rgba(15,23,42,.06);
+  }
+  .qa-card-head{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    margin-bottom:8px;
+  }
+  .qa-icon-pill{
+    width:32px;
+    height:32px;
+    border-radius:999px;
+    background:#0b7a7514;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:18px;
+  }
+  .qa-card-title{
+    margin:0 0 4px;
+    font-size:17px;
+    font-weight:650;
+  }
+  .qa-card-text{
+    margin:0;
+    font-size:13px;
+    line-height:1.5;
+    color:var(--muted);
+  }
+  .qa-actions{
+    margin-top:14px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+  }
+  .qa-btn{
+    border:none;
+    cursor:pointer;
+    background:var(--brand);
+    color:#ffffff;
+    padding:8px 16px;
+    border-radius:999px;
+    font-size:13px;
+    font-weight:600;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    transition:background .15s ease,transform .08s ease,box-shadow .08s ease;
+  }
+  .qa-btn:disabled{
+    opacity:.6;
+    cursor:default;
+    box-shadow:none;
+    transform:none;
+  }
+  .qa-btn:not(:disabled):hover{
+    background:#085c58;
+    box-shadow:0 6px 14px rgba(11,122,117,.25);
+    transform:translateY(-1px);
+  }
+  .qa-status{
+    font-size:12px;
+    color:var(--muted);
+  }
+  .qa-details{
+    margin-top:10px;
+    font-size:11px;
+    color:#4b5563;
+    display:none;
+  }
+  .qa-code-note{
+    margin-top:4px;
+    color:#9ca3af;
+  }
+  .qa-chip-warn{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:999px;
+    background:#fef3c7;
+    color:#92400e;
+    margin-top:6px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ====== PAGE CONFIG FOR GUARD v3 (set BEFORE guard snippet) ====== -->
+<script>
+  window.QA_CONFIG = window.QA_CONFIG || {};
+  // Auth v3 Web App URL
+  window.QA_CONFIG.AUTH_URL = "https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec";
+
+  // Mark this as an admin-only tool page
+  window.QA_PAGE_KIND = 'admin';
+  window.QA_REQUIRE_ADMIN = true;
+</script>
+
+<!-- =================== QAcademy — Guard v3 (Auth v3 + Products + Subscriptions) =================== -->
+<script>
+(function(){
+  'use strict';
+
+  /* ============== CONFIG (PER SITE + PER PAGE) ============== */
+
+  // 1) Default config (can be overridden by window.QA_CONFIG)
+  var DEFAULT_AUTH_URL       = 'https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec';
+  var DEFAULT_LOGIN_SLUG     = 'login_23';
+  var DEFAULT_DASHBOARD_SLUG = 'dashboard_23';
+
+  // 2) Optional global config object
+  var cfg = (window.QA_CONFIG && typeof window.QA_CONFIG === 'object') ? window.QA_CONFIG : {};
+
+  var AUTH_URL       = cfg.AUTH_URL       || DEFAULT_AUTH_URL;
+  var LOGIN_SLUG     = cfg.LOGIN_SLUG     || DEFAULT_LOGIN_SLUG;
+  var DASHBOARD_SLUG = cfg.DASHBOARD_SLUG || DEFAULT_DASHBOARD_SLUG;
+
+  // 3) Per-page flags
+  var PAGE_KIND     = window.QA_PAGE_KIND || 'course';
+  var COURSE_ID     = window.QA_COURSE_ID || null;
+  var REQUIRE_ADMIN = (typeof window.QA_REQUIRE_ADMIN === 'boolean')
+    ? window.QA_REQUIRE_ADMIN
+    : (String(PAGE_KIND).toLowerCase() === 'admin');
+
+  /* ============== EXPORTED STATE ============== */
+
+  window.QA_GUARD_STATE      = 'pending'; // 'pending' | 'ready' | 'blocked' | 'error'
+  window.QA_GUARD_BLOCK_TYPE = null;      // 'session_expired' | 'account_issue' | 'no_course_access' | 'admin_required' | ...
+
+  var guardResolve, guardReject;
+  window.qaGuardReady = new Promise(function(resolve, reject){
+    guardResolve = resolve;
+    guardReject  = reject;
+  });
+
+  function persistGuardState(state, blockType){
+    window.QA_GUARD_STATE      = state;
+    window.QA_GUARD_BLOCK_TYPE = blockType || null;
+  }
+
+  /* ============== NAVIGATION HELPERS ============== */
+
+  function buildPageUrl(slug){
+    slug = String(slug || '').replace(/^\s+|\s+$/g, '');
+    if(!slug) return '/';
+    return '/p/' + slug + '.html';
+  }
+
+  function go(url){
+    window.location.replace(url);
+  }
+
+  function qaGoToLogin(reason){
+    var url = buildPageUrl(LOGIN_SLUG);
+    if(reason){
+      var sep = url.indexOf('?') === -1 ? '?' : '&';
+      url += sep + 'reason=' + encodeURIComponent(reason);
+    }
+    go(url);
+  }
+
+  function qaGoToDashboard(){
+    go(buildPageUrl(DASHBOARD_SLUG));
+  }
+
+  function qaLogout(){
+    try{
+      localStorage.removeItem('qa_token');
+      localStorage.removeItem('qa_user_id');
+    }catch(e){}
+    qaGoToLogin('logout');
+  }
+
+  window.qaGoToLogin    = qaGoToLogin;
+  window.qaGoToDashboard = qaGoToDashboard;
+  window.qaLogout       = qaLogout;
+
+  /* ============== OVERLAY (LOADER + BLOCKED UI) ============== */
+
+  var overlayId = 'qa-guard-overlay';
+
+  function ensureOverlay(){
+    var el = document.getElementById(overlayId);
+    if(el) return el;
+
+    el = document.createElement('div');
+    el.id = overlayId;
+    el.style.position = 'fixed';
+    el.style.inset = '0';
+    el.style.zIndex = '99999';
+    el.style.background = 'rgba(15,23,42,0.86)';
+    el.style.display = 'flex';
+    el.style.alignItems = 'center';
+    el.style.justifyContent = 'center';
+    el.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    el.style.padding = '16px';
+    el.style.boxSizing = 'border-box';
+
+    el.innerHTML =
+      '<div id="qa-guard-overlay-inner" style="max-width:420px;width:100%;background:#ffffff;border-radius:16px;padding:18px 20px;box-shadow:0 18px 45px rgba(15,23,42,0.45);text-align:center;">' +
+        '<div id="qa-guard-overlay-title" style="font-size:18px;font-weight:600;margin-bottom:6px;color:#0b7a75;">Checking your access…</div>' +
+        '<div id="qa-guard-overlay-body" style="font-size:14px;color:#475569;margin-bottom:14px;">Please wait a moment.</div>' +
+        '<div id="qa-guard-overlay-actions" style="font-size:13px;color:#94a3b8;"></div>' +
+      '</div>';
+
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function showOverlay(title, body, actionsHtml){
+    var el = ensureOverlay();
+    var t = el.querySelector('#qa-guard-overlay-title');
+    var b = el.querySelector('#qa-guard-overlay-body');
+    var a = el.querySelector('#qa-guard-overlay-actions');
+
+    if(t && typeof title === 'string') t.textContent = title;
+    if(b && typeof body === 'string')  b.textContent = body;
+    if(a) a.innerHTML = actionsHtml || '';
+
+    el.style.display = 'flex';
+  }
+
+  function hideOverlay(){
+    var el = document.getElementById(overlayId);
+    if(el) el.style.display = 'none';
+  }
+
+  function buildBlockedActions(type){
+    var btnStyle = 'display:inline-flex;align-items:center;justify-content:center;padding:8px 14px;border-radius:999px;border:none;background:#0b7a75;color:#ffffff;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;';
+    if(type === 'no_course_access' || type === 'admin_required' || type === 'account_issue'){
+      return '<button type="button" onclick="qaGoToDashboard()" style="' + btnStyle + '">Go to Dashboard</button>';
+    }
+    if(type === 'session_expired'){
+      return '<button type="button" onclick="qaGoToLogin(\'session_expired\')" style="' + btnStyle + '">Go to Login</button>';
+    }
+    return '';
+  }
+
+  function handleBlocked(type, title, body){
+    persistGuardState('blocked', type);
+    var actionsHtml = buildBlockedActions(type);
+    showOverlay(title, body, actionsHtml);
+    guardResolve({ ok:false, blocked:true, type:type });
+  }
+
+  /* ============== MAIN GUARD LOGIC ============== */
+
+  function runGuard(){
+    showOverlay('Checking your access…', 'Please wait while we verify your session.', '');
+
+    var token = null;
+    try{
+      token = localStorage.getItem('qa_token');
+    }catch(e){
+      token = null;
+    }
+
+    if(!token){
+      handleBlocked('session_expired', 'Sign in required', 'Your session has ended. Please sign in again.');
+      qaGoToLogin('no_token');
+      return;
+    }
+
+    if(!AUTH_URL){
+      hideOverlay();
+      persistGuardState('error', 'missing_auth_url');
+      var err = new Error('Guard misconfigured: AUTH_URL is missing.');
+      guardReject(err);
+      console.error(err);
+      return;
+    }
+
+    fetch(AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ action: 'verify', token: token })
+    })
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+      if(!data || data.ok !== true){
+        var errCode = (data && data.error) || 'unknown_error';
+
+        if(errCode === 'missing_token' || errCode === 'not_found' || errCode === 'expired'){
+          try{
+            localStorage.removeItem('qa_token');
+            localStorage.removeItem('qa_user_id');
+          }catch(e){}
+          handleBlocked('session_expired', 'Sign in required', 'Your session has ended. Please sign in again.');
+          qaGoToLogin('session_expired');
+          return;
+        }
+
+        if(errCode === 'user_missing' || errCode === 'user_inactive' || errCode === 'user_expired'){
+          handleBlocked('account_issue', 'Account issue', 'There is a problem with your account. Please contact QAcademy support.');
+          return;
+        }
+
+        persistGuardState('error', errCode);
+        hideOverlay();
+        var err = new Error('Guard verify failed: ' + errCode);
+        guardReject(err);
+        console.error(err);
+        return;
+      }
+
+      var u      = data.user   || {};
+      var flags  = data.flags  || {};
+      var access = (data.access && typeof data.access === 'object') ? data.access : {};
+      var courseIds = Array.isArray(access.courses) ? access.courses.slice() : [];
+      var upperIds  = courseIds.map(function(c){
+        return String(c || '').trim().toUpperCase();
+      }).filter(Boolean);
+      var coursesMeta = Array.isArray(data.courses) ? data.courses : [];
+
+      var QA_USER = {
+        id:        u.user_id || '',
+        user_id:   u.user_id || '',
+        username:  u.username || '',
+        email:     u.email || '',
+        name:      u.name || '',
+        forename:  u.forename || '',
+        surname:   u.surname || '',
+        phone_number: u.phone_number || '',
+        program_id:   u.program_id || '',
+        cohort:       u.cohort || '',
+        avatar_url:   u.avatar_url || '',
+        role:         u.role || '',
+        is_admin:     !!(flags && flags.is_admin),
+        must_change_password: !!u.must_change_password,
+        user_expires_utc: u.expires_utc || ''
+      };
+
+      var QA_ACCESS = {
+        courseIds: upperIds,
+        access_expires_utc: access.expires_utc || '',
+        coursesMeta: coursesMeta,
+        hasCourse: function(courseId){
+          var cid = String(courseId || '').trim().toUpperCase();
+          if(!cid) return false;
+          return this.courseIds.indexOf(cid) !== -1;
+        }
+      };
+
+      window.QA_USER   = QA_USER;
+      window.QA_ACCESS = QA_ACCESS;
+
+      try{
+        if(QA_USER.user_id){
+          localStorage.setItem('qa_user_id', QA_USER.user_id);
+        }
+      }catch(e){}
+
+      var kind = String(PAGE_KIND || '').toLowerCase();
+      var cid  = COURSE_ID ? String(COURSE_ID).trim().toUpperCase() : '';
+
+      if(kind === 'dashboard'){
+        persistGuardState('ready', null);
+        hideOverlay();
+        guardResolve({ ok:true, blocked:false, kind:kind });
+        return;
+      }
+
+      if(kind === 'admin' || REQUIRE_ADMIN){
+        if(!QA_USER.is_admin){
+          handleBlocked('admin_required', 'Admin access required', 'This page is only available to QAcademy admins.');
+          return;
+        }
+        persistGuardState('ready', null);
+        hideOverlay();
+        guardResolve({ ok:true, blocked:false, kind:kind });
+        return;
+      }
+
+      if(
+        kind === 'course' ||
+        kind === 'runner_instant' ||
+        kind === 'runner_timed' ||
+        kind === 'history_course'
+      ){
+        if(!cid){
+          persistGuardState('error', 'missing_course_id');
+          hideOverlay();
+          var err2 = new Error('Guard misconfigured: QA_COURSE_ID is missing for course-tied page.');
+          guardReject(err2);
+          console.error(err2);
+          return;
+        }
+
+        if(!QA_ACCESS.hasCourse(cid)){
+          handleBlocked(
+            'no_course_access',
+            'No access to this course',
+            'Your current subscription does not include this course. Please go back to your dashboard to see the courses you have access to.'
+          );
+          return;
+        }
+
+        persistGuardState('ready', null);
+        hideOverlay();
+        guardResolve({ ok:true, blocked:false, kind:kind, course_id:cid });
+        return;
+      }
+
+      if(kind === 'history'){
+        persistGuardState('ready', null);
+        hideOverlay();
+        guardResolve({ ok:true, blocked:false, kind:kind });
+        return;
+      }
+
+      persistGuardState('ready', null);
+      hideOverlay();
+      guardResolve({ ok:true, blocked:false, kind:kind });
+    })
+    .catch(function(err){
+      persistGuardState('error', 'network');
+      console.error('Guard network/error', err);
+      showOverlay(
+        'Network problem',
+        'We could not verify your access due to a network error. Please check your connection and reload this page.',
+        ''
+      );
+      guardReject(err);
+    });
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', runGuard);
+  } else {
+    runGuard();
+  }
+
+})();
+</script>
+
+<div class="qa-shell" id="qa-admin-expiry-shell">
+  <header class="qa-header">
+    <div class="qa-tag">
+      <span>ADMIN TOOL</span>
+      <span style="font-size:14px;">🛡️</span>
+    </div>
+    <h1 class="qa-title">Subscription Expiry Reminders</h1>
+    <p class="qa-sub">
+      Run a manual scan to email students whose subscriptions are expiring in 
+      <b>3 days</b> or <b>1 day</b>. This uses the 
+      <code>subscription_expiring_v1</code> template from Google&nbsp;Drive.
+    </p>
+    <div class="qa-chip-warn">
+      ⚠️ Use sparingly — the system will not double-email the same subscription
+      for the same threshold, but it will process all active subscriptions.
+    </div>
+  </header>
+
+  <section class="qa-card" id="qa-expiry-reminder-card">
+    <div class="qa-card-head">
+      <div class="qa-icon-pill">⏰</div>
+      <div>
+        <h2 class="qa-card-title">Run Reminder Scan Now</h2>
+        <p class="qa-card-text">
+          This checks all <b>ACTIVE</b> subscriptions, calculates days to expiry,
+          and sends emails only where <b>days left</b> is exactly <b>3</b> or <b>1</b> 
+          and no reminder was sent yet for that threshold.
+        </p>
+      </div>
+    </div>
+
+    <div class="qa-actions">
+      <button id="qa-expiry-run-btn" type="button" class="qa-btn">
+        <span>Run Reminder Scan</span>
+        <span id="qa-expiry-spinner" style="display:none;">⋯</span>
+      </button>
+      <span id="qa-expiry-status" class="qa-status">
+        Not run yet.
+      </span>
+    </div>
+
+    <div id="qa-expiry-details" class="qa-details"></div>
+
+    <div class="qa-code-note">
+      Each run calls <code>action=send_expiry_reminders</code> on your Auth API.
+      The backend uses the <code>expiry_reminded</code> column to avoid duplicates.
+    </div>
+  </section>
+</div>
+
+<!-- =================== LOGIC: call send_expiry_reminders =================== -->
+<script>
+(function(){
+  'use strict';
+
+  var shell   = document.getElementById('qa-admin-expiry-shell');
+  var card    = document.getElementById('qa-expiry-reminder-card');
+  if (!card || !shell) return;
+
+  var btn     = document.getElementById('qa-expiry-run-btn');
+  var spinner = document.getElementById('qa-expiry-spinner');
+  var statusEl= document.getElementById('qa-expiry-status');
+  var details = document.getElementById('qa-expiry-details');
+
+  // Use central config if present, else fallback
+  var AUTH_URL = (window.QA_CONFIG && window.QA_CONFIG.AUTH_URL)
+    || 'https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec';
+
+  function setRunning(isRunning){
+    if (!btn) return;
+    btn.disabled = isRunning;
+    if (spinner) spinner.style.display = isRunning ? 'inline-block' : 'none';
+  }
+
+  function renderDetails(data){
+    if (!details) return;
+
+    if (!data || !data.ok) {
+      details.style.display = 'block';
+      details.innerHTML = '<span style="color:#b91c1c;">No details available.</span>';
+      return;
+    }
+
+    var scanned = data.scanned || 0;
+    var sent    = data.sent || 0;
+    var byDay   = data.sentByDay || {};
+    var d3      = byDay['3'] || 0;
+    var d1      = byDay['1'] || 0;
+
+    var html = ''
+      + '<div style="margin-top:2px;">'
+      + 'Scanned <b>' + scanned + '</b> subscription row'
+      + (scanned === 1 ? '' : 's') + ', '
+      + 'sent <b>' + sent + '</b> email'
+      + (sent === 1 ? '' : 's') + '.'
+      + '</div>'
+      + '<div style="margin-top:2px;">'
+      + 'Breakdown: '
+      + '3 days left → <b>' + d3 + '</b>, '
+      + '1 day left → <b>' + d1 + '</b>.'
+      + '</div>'
+      + '<div style="margin-top:4px;color:#9ca3af;">'
+      + 'Each subscription is only reminded once per threshold using '
+      + 'the <code>expiry_reminded</code> flag.'
+      + '</div>';
+
+    details.style.display = 'block';
+    details.innerHTML = html;
+  }
+
+  async function runExpiryScan(){
+    if (!statusEl) return;
+
+    var token = localStorage.getItem('qa_token') || '';
+    if (!token) {
+      statusEl.textContent = 'No admin token found. Please log in again.';
+      statusEl.style.color = '#b91c1c';
+      return;
+    }
+
+    setRunning(true);
+    statusEl.style.color = '#6b7280';
+    statusEl.textContent = 'Running reminder scan…';
+
+    try {
+      var body = new URLSearchParams();
+      body.set('action', 'send_expiry_reminders');
+      body.set('token', token);
+
+      var res  = await fetch(AUTH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString()
+      });
+
+      var data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        data = null;
+      }
+
+      if (!res.ok || !data || !data.ok) {
+        var errMsg = (data && data.error) ? data.error : (res.status + ' ' + res.statusText);
+        statusEl.textContent = 'Error running reminder scan: ' + errMsg;
+        statusEl.style.color = '#b91c1c';
+        renderDetails(null);
+        return;
+      }
+
+      statusEl.textContent = 'Reminder scan completed: sent ' + (data.sent || 0) + ' email'
+        + ((data.sent || 0) === 1 ? '' : 's') + '.';
+      statusEl.style.color = '#15803d';
+      renderDetails(data);
+
+    } catch (e) {
+      statusEl.textContent = 'Error running reminder scan: ' + e;
+      statusEl.style.color = '#b91c1c';
+      renderDetails(null);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  if (btn) {
+    btn.addEventListener('click', function(){
+      runExpiryScan();
+    });
+  }
+
+})();
+</script>
+
+</body>
+</html>
