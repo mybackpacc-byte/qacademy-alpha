@@ -1,0 +1,844 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Teacher Dashboard</title>
+
+<style>
+  :root{
+    --brand:#0b7a75;
+    --muted:#859998;
+    --ink:#1f2a28;
+    --bg:#f6f8f7;
+    --card:#ffffff;
+    --line:rgba(0,0,0,.10);
+    --soft:rgba(0,0,0,.04);
+    --danger:#b42318;
+    --warn:#b54708;
+    --ok:#067647;
+
+    --pageMax:1600px;
+    --pagePad:18px;
+    --radius:18px;
+    --shadow:0 10px 30px rgba(0,0,0,.07);
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* Full-bleed shell (escape Blogger center column) */
+  .qaApp{
+    width:100vw;
+    margin-left:calc(50% - 50vw);
+    background:var(--bg);
+    min-height:100vh;
+    overflow-x:clip;
+  }
+
+  .topbar{
+    position:sticky; top:0; z-index:20;
+    background:rgba(246,248,247,.92);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .topbar .inner{
+    max-width:var(--pageMax);
+    margin:0 auto;
+    padding:12px var(--pagePad);
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px; min-width:0;
+  }
+  .logo{
+    width:38px; height:38px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(11,122,117,.12);
+    border:1px solid rgba(11,122,117,.25);
+    color:rgba(11,122,117,.95);
+    font-weight:950;
+    letter-spacing:.2px;
+    flex:0 0 auto;
+  }
+  .brand h1{
+    margin:0; font-size:14px; line-height:1.1;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .brand .sub{
+    margin-top:2px;
+    font-size:12px; color:rgba(31,42,40,.68);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  .actions{display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end}
+  .chip{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:7px 10px; border-radius:999px;
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.8);
+    font-size:12px; color:rgba(31,42,40,.80);
+    max-width:min(52vw, 520px);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .chip b{color:rgba(31,42,40,.92)}
+  .dot{width:8px;height:8px;border-radius:99px;background:var(--brand)}
+  .btn{
+    appearance:none;
+    border:1px solid var(--line);
+    background:#fff;
+    padding:9px 12px;
+    border-radius:12px;
+    cursor:pointer;
+    font-weight:800;
+    font-size:13px;
+  }
+  .btn:hover{background:rgba(0,0,0,.02)}
+  .btn.primary{background:var(--brand);border-color:rgba(11,122,117,.35);color:#fff}
+  .btn.primary:hover{filter:brightness(.98)}
+  .btn.ghost{background:transparent}
+  .btn.danger{border-color:rgba(180,35,24,.25);color:var(--danger);background:rgba(180,35,24,.04)}
+  .btn.danger:hover{background:rgba(180,35,24,.06)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+
+  .wrap{
+    max-width:var(--pageMax);
+    margin:0 auto;
+    padding:14px var(--pagePad) 32px;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns: 1.1fr .9fr;
+    gap:14px;
+    align-items:start;
+  }
+  @media (max-width: 980px){ .grid{grid-template-columns:1fr} }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .card .hd{
+    padding:14px 14px 10px;
+    border-bottom:1px solid var(--line);
+    display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    background:linear-gradient(180deg, rgba(11,122,117,.06), rgba(255,255,255,0));
+  }
+  .card .hd h2{margin:0;font-size:14px;letter-spacing:.2px}
+  .card .hd p{margin:4px 0 0;color:rgba(31,42,40,.68);font-size:12px;line-height:1.35}
+  .card .bd{padding:14px}
+
+  .muted{color:rgba(31,42,40,.68)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;font-size:12px}
+
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+  }
+  @media (max-width: 1100px){ .stats{grid-template-columns:repeat(2,1fr)} }
+  .stat{
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:12px;
+    background:linear-gradient(180deg,#fff,rgba(246,248,247,.88));
+  }
+  .stat .k{font-size:12px;color:rgba(31,42,40,.72);font-weight:900}
+  .stat .v{margin-top:6px;font-size:18px;font-weight:950}
+  .stat .s{margin-top:4px;font-size:12px;color:rgba(31,42,40,.68)}
+
+  .tiles{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0,1fr));
+    gap:12px;
+  }
+  @media (max-width: 520px){ .tiles{grid-template-columns:1fr} }
+
+  .tile{
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:12px;
+    background:rgba(0,0,0,.01);
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    min-height:140px;
+  }
+  .tile:hover{background:rgba(0,0,0,.015); border-color:rgba(11,122,117,.25)}
+  .tile .t{font-weight:950}
+  .tile .d{font-size:12px;color:rgba(31,42,40,.72);line-height:1.4}
+  .tile .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+  .badge{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:11px; padding:4px 8px; border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:rgba(31,42,40,.78);
+    white-space:nowrap;
+  }
+  .badge.ok{border-color:rgba(6,118,71,.22); background:rgba(6,118,71,.07); color:rgba(6,118,71,.95)}
+  .badge.warn{border-color:rgba(181,71,8,.25); background:rgba(181,71,8,.07); color:rgba(181,71,8,.95)}
+  .badge.gray{background:rgba(0,0,0,.03)}
+  .badge.danger{border-color:rgba(180,35,24,.25); background:rgba(180,35,24,.06); color:rgba(180,35,24,.98)}
+
+  .list{display:grid;gap:10px}
+  .item{
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:12px;
+    background:rgba(255,255,255,.8);
+    display:flex; gap:10px; justify-content:space-between; align-items:flex-start;
+  }
+  .item:hover{border-color:rgba(11,122,117,.25)}
+  .item .left{min-width:0; flex:1}
+  .item .title{font-weight:950; font-size:13px; margin:0 0 4px 0}
+  .item .meta{font-size:12px;color:rgba(31,42,40,.72);display:flex;gap:10px;flex-wrap:wrap}
+  .item .right{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+
+  .hr{height:1px;background:var(--line);margin:12px 0}
+
+  /* Gate */
+  .center{
+    max-width:720px;
+    margin:22vh auto 0;
+    padding:0 var(--pagePad);
+  }
+  .gate{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .gate .hd{
+    padding:14px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, rgba(11,122,117,.06), rgba(255,255,255,0));
+  }
+  .gate .hd h2{margin:0;font-size:14px}
+  .gate .bd{padding:14px}
+  .hintBox{
+    border:1px dashed rgba(133,153,152,.55);
+    background:rgba(133,153,152,.12);
+    border-radius:14px;
+    padding:10px;
+    font-size:12px;
+    color:rgba(31,42,40,.80);
+    line-height:1.45;
+  }
+
+  .toast{
+    position:fixed;right:14px;bottom:14px;z-index:60;
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:10px 12px;box-shadow:0 18px 50px rgba(0,0,0,.12);
+    max-width:min(520px, calc(100vw - 28px));
+    display:none;
+  }
+  .toast.show{display:block}
+  .toast .t{font-weight:950;margin-bottom:4px}
+  .toast .m{font-size:12px;color:rgba(31,42,40,.75);line-height:1.3}
+
+  .footerNote{
+    margin-top:14px;
+    text-align:center;
+    font-size:12px;
+    color:rgba(31,42,40,.65);
+  }
+</style>
+</head>
+
+<body>
+<div class="qaApp" id="qaApp">
+
+  <div class="topbar">
+    <div class="inner">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">QA</div>
+        <div style="min-width:0">
+          <h1>QAcademy Teacher</h1>
+          <div class="sub" id="subline">Loading…</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <span class="chip" id="chipUser" style="display:none">
+          <span class="dot"></span>
+          <span><b id="userName">Teacher</b> <span id="userEmail" class="muted"></span></span>
+        </span>
+        <span class="chip" id="chipPlan" style="display:none">
+          <span class="dot"></span>
+          <span>Plan: <b id="planText">FREE</b></span>
+        </span>
+        <button class="btn" id="btnRefresh" type="button" disabled>Refresh</button>
+        <button class="btn danger" id="btnSignOut" type="button">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap" id="app" style="display:none">
+    <div class="grid">
+
+      <!-- LEFT: Overview -->
+      <section class="card">
+        <div class="hd">
+          <div>
+            <h2>Overview</h2>
+            <p class="muted">Quick stats + shortcuts to your main tools.</p>
+          </div>
+          <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end">
+            <span class="badge gray" id="apiBadge">API: —</span>
+            <span class="badge gray" id="timeBadge">—</span>
+          </div>
+        </div>
+
+        <div class="bd">
+          <div class="stats">
+            <div class="stat">
+              <div class="k">Classes</div>
+              <div class="v" id="sClasses">—</div>
+              <div class="s" id="sClassesSub">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">Members</div>
+              <div class="v" id="sMembers">—</div>
+              <div class="s" id="sMembersSub">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">Quizzes</div>
+              <div class="v" id="sQuizzes">—</div>
+              <div class="s" id="sQuizzesSub">—</div>
+            </div>
+            <div class="stat">
+              <div class="k">Open quizzes</div>
+              <div class="v" id="sOpen">—</div>
+              <div class="s" id="sOpenSub">—</div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div style="font-weight:950;margin-bottom:8px">Quick actions</div>
+          <div class="tiles">
+            <div class="tile">
+              <div class="t">Teacher Classes</div>
+              <div class="d">Create classes, manage members, and share class codes.</div>
+              <div class="row">
+                <span class="badge gray" id="bClasses">—</span>
+                <button class="btn primary" id="goClasses" type="button">Open</button>
+              </div>
+            </div>
+
+            <div class="tile">
+              <div class="t">Teacher Quizzes</div>
+              <div class="d">Create quizzes, link classes, build drafts, and publish.</div>
+              <div class="row">
+                <span class="badge gray" id="bQuizzes">—</span>
+                <button class="btn primary" id="goQuizzes" type="button">Open</button>
+              </div>
+            </div>
+
+            <div class="tile">
+              <div class="t">Teacher Bank</div>
+              <div class="d">Create and edit your question bank, and pick questions into drafts.</div>
+              <div class="row">
+                <span class="badge gray">Questions</span>
+                <button class="btn" id="goBank" type="button">Open</button>
+              </div>
+            </div>
+
+            <div class="tile">
+              <div class="t">Results & Reports</div>
+              <div class="d">Marksheet, attempts, item analysis, printing and export.</div>
+              <div class="row">
+                <span class="badge gray">Analytics</span>
+                <button class="btn" id="goResults" type="button">Open</button>
+              </div>
+            </div>
+
+            <div class="tile">
+              <div class="t">Import CSV</div>
+              <div class="d">Bulk-add questions into your bank using the template.</div>
+              <div class="row">
+                <span class="badge gray">Bulk</span>
+                <button class="btn" id="goImport" type="button">Open</button>
+              </div>
+            </div>
+
+            <div class="tile">
+              <div class="t">QAcademy Library</div>
+              <div class="d">Pick read-only Library questions into your quiz drafts.</div>
+              <div class="row">
+                <span class="badge gray">LIB refs</span>
+                <button class="btn" id="goLibrary" type="button">Open</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="hintBox">
+            Tip: open <span class="mono">Teacher Quizzes</span> first, then build a draft using your Bank or the Library.
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: Recent quizzes -->
+      <section class="card">
+        <div class="hd">
+          <div>
+            <h2>Recent quizzes</h2>
+            <p class="muted">Fast jump into the quiz editor.</p>
+          </div>
+          <div class="row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end">
+            <span class="badge gray" id="recentHint">—</span>
+          </div>
+        </div>
+
+        <div class="bd">
+          <div id="recentList" class="list">
+            <div class="hintBox">Loading…</div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="hintBox">
+            If you don’t see a quiz here, use <span class="mono">Teacher Quizzes</span> → Refresh.
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <div class="footerNote">QAcademy • Teacher Dashboard</div>
+  </div>
+
+  <!-- Gate -->
+  <div class="center" id="gate" style="display:block">
+    <div class="gate">
+      <div class="hd">
+        <h2>Teacher access</h2>
+        <div class="muted" id="gateMsg" style="margin-top:4px">Checking your token…</div>
+      </div>
+      <div class="bd">
+        <div class="hintBox">
+          This page needs your saved token in this browser (localStorage). If you’re signed out, open the portal login page first.
+        </div>
+        <div class="hr"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+          <button class="btn" id="btnRetry" type="button">Retry</button>
+          <button class="btn danger" id="btnClearToken" type="button">Clear token</button>
+          <button class="btn primary" id="btnGoLogin" type="button">Go to login</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite">
+    <div class="t" id="toastTitle">Notice</div>
+    <div class="m" id="toastMsg">—</div>
+  </div>
+
+</div>
+
+<script>
+/** =========================================================
+ * CONFIG — REPLACE HERE
+ * (User asked: no absolute URLs; use placeholders and replace)
+ * ========================================================= */
+const API_URL   = 'https://script.google.com/macros/s/AKfycbz54M_jWoRq4cOC2gUQeRhd55AeEJ5vnELJ0gkBSodO58fr7WGa9jwk6JNwPptf8p8X/exec';         // <-- REPLACE HERE (your Apps Script WebApp URL)
+const LOGIN_URL = '/p/login_23.html';                // <-- REPLACE HERE if different
+
+// Teacher pages (relative only)
+const PAGES = {
+  classes: '/p/teacher-classes-manager.html',                // <-- REPLACE HERE
+  quizzes: '/p/teacher-quizzes-manager_25.html',                // <-- REPLACE HERE
+  bank:    '/p/teacher-bank.html',                   // <-- REPLACE HERE
+  import:  '/p/teacher-bank-import.html',            // <-- REPLACE HERE
+  library: '/p/teacher-library-picker.html',         // <-- REPLACE HERE
+  results: '/p/teacher-results.html'                 // <-- REPLACE HERE
+};
+
+const TOKEN_KEY = 'qa_token';
+
+/** =========================================================
+ * Helpers
+ * ========================================================= */
+const $ = (id)=>document.getElementById(id);
+
+function toast(title, msg){
+  const box = $('toast');
+  $('toastTitle').textContent = title || 'Notice';
+  $('toastMsg').textContent = msg || '';
+  box.classList.add('show');
+  clearTimeout(box.__t);
+  box.__t = setTimeout(()=> box.classList.remove('show'), 4200);
+}
+
+function esc(s){
+  return String(s ?? '')
+    .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')
+    .replaceAll('"','&quot;').replaceAll("'","&#39;");
+}
+
+function nowStamp(){
+  const d = new Date();
+  const pad = (n)=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function getParam(name){
+  try{ return (new URL(location.href)).searchParams.get(name) || ''; }catch(_){ return ''; }
+}
+
+function saveToken(tok){
+  const t = String(tok||'').trim();
+  if (!t) return;
+  try{ localStorage.setItem(TOKEN_KEY, t); }catch(_){}
+}
+function getToken(){
+  const fromUrl = String(getParam('token') || '').trim();
+  const fromLs = (()=>{ try{ return String(localStorage.getItem(TOKEN_KEY) || '').trim(); }catch(_){ return ''; } })();
+  if (fromUrl){
+    saveToken(fromUrl);
+    // Clean URL (optional)
+    try{
+      const u = new URL(location.href);
+      u.searchParams.delete('token');
+      history.replaceState(null,'',u.toString());
+    }catch(_){}
+    return fromUrl;
+  }
+  return fromLs;
+}
+function clearToken(){
+  try{ localStorage.removeItem(TOKEN_KEY); }catch(_){}
+}
+
+function signOut(){
+  clearToken();
+  location.href = LOGIN_URL || '/';
+}
+
+function apiHost(){
+  try{ return (new URL(API_URL)).host; }catch(_){ return 'not_set'; }
+}
+
+async function apiPost(action, payload){
+  if (!API_URL || API_URL.includes('REPLACE_WEBAPP_URL_HERE')){
+    return { ok:false, error:'API_URL_not_configured' };
+  }
+  const token = getToken();
+  const bodyObj = Object.assign({}, payload || {}, { action, token });
+
+  let res, txt, obj;
+  try{
+    res = await fetch(API_URL, { method:'POST', mode:'cors', body: JSON.stringify(bodyObj) });
+    txt = await res.text();
+  }catch(e){
+    return { ok:false, error:'network_error', detail:String(e && (e.message||e) || e) };
+  }
+
+  try{ obj = JSON.parse(txt); }catch(_){ obj = null; }
+  if (!obj || obj.ok !== true){
+    return { ok:false, error:(obj && (obj.error || obj.detail)) || 'request_failed', raw:obj, text:txt };
+  }
+  return { ok:true, data: obj };
+}
+
+function chipText(elId, txt){
+  const el = $(elId);
+  if (el) el.textContent = String(txt ?? '—');
+}
+
+/** =========================================================
+ * Dashboard logic
+ * ========================================================= */
+const S = {
+  user: null,
+  teacher: null,
+  plan: 'FREE',
+  counts: {
+    classes_total: 0,
+    members_total: 0,
+    quizzes_total: 0,
+    quizzes_open: 0,
+    quizzes_draft: 0,
+    quizzes_upcoming: 0,
+    quizzes_closed: 0
+  },
+  recentQuizzes: []
+};
+
+function wireNav(){
+  $('goClasses').onclick = ()=> location.href = PAGES.classes;
+  $('goQuizzes').onclick = ()=> location.href = PAGES.quizzes;
+  $('goBank').onclick    = ()=> location.href = PAGES.bank;
+  $('goImport').onclick  = ()=> location.href = PAGES.import;
+  $('goLibrary').onclick = ()=> location.href = PAGES.library;
+  $('goResults').onclick = ()=> location.href = PAGES.results;
+}
+
+function renderTop(){
+  const u = S.user || {};
+  const t = S.teacher || {};
+
+  $('subline').textContent = S.user ? 'Teacher dashboard' : 'Checking access…';
+
+  if (S.user){
+    $('chipUser').style.display = '';
+    $('userName').textContent = (u.name || u.email || 'Teacher');
+    $('userEmail').textContent = u.email ? (' • ' + u.email) : '';
+  }else{
+    $('chipUser').style.display = 'none';
+  }
+
+  $('chipPlan').style.display = '';
+  $('planText').textContent = S.plan || (t.plan_type || 'FREE');
+
+  $('btnRefresh').disabled = false;
+  $('apiBadge').textContent = `API: ${apiHost()}`;
+  $('timeBadge').textContent = nowStamp();
+}
+
+function renderStats(){
+  const c = S.counts;
+
+  chipText('sClasses', c.classes_total);
+  chipText('sClassesSub', c.classes_total === 1 ? '1 active class' : 'Active classes');
+
+  chipText('sMembers', c.members_total);
+  chipText('sMembersSub', 'Total members (active)');
+
+  chipText('sQuizzes', c.quizzes_total);
+  chipText('sQuizzesSub', `Draft ${c.quizzes_draft} • Published ${Math.max(0, c.quizzes_total - c.quizzes_draft)}`);
+
+  chipText('sOpen', c.quizzes_open);
+  chipText('sOpenSub', `Upcoming ${c.quizzes_upcoming} • Closed ${c.quizzes_closed}`);
+
+  chipText('bClasses', `${c.classes_total} class(es)`);
+  chipText('bQuizzes', `Draft ${c.quizzes_draft}`);
+}
+
+function statusBadge(status){
+  const s = String(status||'').toUpperCase();
+  if (s === 'PUBLISHED') return `<span class="badge ok">PUBLISHED</span>`;
+  if (s === 'DRAFT') return `<span class="badge warn">DRAFT</span>`;
+  if (s === 'ARCHIVED') return `<span class="badge danger">ARCHIVED</span>`;
+  return `<span class="badge gray">${esc(s||'—')}</span>`;
+}
+
+function openStateBadge(os){
+  const s = String(os||'').toUpperCase();
+  if (s === 'OPEN') return `<span class="badge ok">OPEN</span>`;
+  if (s === 'UPCOMING') return `<span class="badge warn">UPCOMING</span>`;
+  if (s === 'CLOSED') return `<span class="badge gray">CLOSED</span>`;
+  return `<span class="badge gray">${esc(s||'—')}</span>`;
+}
+
+function renderRecent(){
+  const wrap = $('recentList');
+  const items = S.recentQuizzes || [];
+
+  if (!items.length){
+    wrap.innerHTML = `<div class="hintBox">No quizzes found yet. Open <span class="mono">Teacher Quizzes</span> to create one.</div>`;
+    $('recentHint').textContent = '0 shown';
+    return;
+  }
+
+  const max = 8;
+  const slice = items.slice(0, max);
+
+  wrap.innerHTML = slice.map(q=>{
+    const id = String(q.teacher_quiz_id||'').trim();
+    const title = String(q.title||'').trim() || '(Untitled)';
+    const subject = String(q.subject||'').trim() || '—';
+    const st = String(q.status||'').toUpperCase();
+    const os = String(q.open_state||'').toUpperCase();
+    const preset = String(q.preset||'').trim().toUpperCase() || 'CUSTOM';
+
+    const goUrl = `${PAGES.quizzes}?teacher_quiz_id=${encodeURIComponent(id)}`;
+
+    return `
+      <div class="item">
+        <div class="left">
+          <div class="title">${esc(title)}</div>
+          <div class="meta">
+            <span>${esc(subject)}</span>
+            <span>•</span>
+            <span class="mono">${esc(id)}</span>
+          </div>
+          <div class="meta" style="margin-top:6px">
+            <span>Preset: <span class="mono">${esc(preset)}</span></span>
+          </div>
+        </div>
+        <div class="right">
+          ${statusBadge(st)}
+          ${openStateBadge(os)}
+          <button class="btn primary" type="button" data-open="${esc(goUrl)}">Open</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  wrap.querySelectorAll('button[data-open]').forEach(b=>{
+    b.onclick = ()=> location.href = b.getAttribute('data-open');
+  });
+
+  $('recentHint').textContent = `${Math.min(max, items.length)} shown`;
+}
+
+async function loadCounts(){
+  // Classes
+  const cls = await apiPost('teacher.classes.list', { status:'ACTIVE', include_counts:true, limit:200 });
+  if (cls.ok){
+    const list = (cls.data && cls.data.items) ? cls.data.items : (cls.data.items || cls.data?.items || cls.data || []);
+    const items = Array.isArray(cls.data.items) ? cls.data.items : (Array.isArray(cls.data.items) ? cls.data.items : (Array.isArray(cls.data.items) ? cls.data.items : []));
+    // fall back: treat unknown structures safely
+    const classes = Array.isArray(cls.data.items) ? cls.data.items : (Array.isArray(cls.data.items) ? cls.data.items : (Array.isArray(cls.data.items) ? cls.data.items : []));
+    const use = classes.length ? classes : (Array.isArray(cls.data.items) ? cls.data.items : (Array.isArray(cls.data.items) ? cls.data.items : (Array.isArray(cls.data.items) ? cls.data.items : [])));
+
+    // Realistically: your backend returns { ok:true, items:[...] } or { ok:true, data:{items:[...]}}.
+    const cItems =
+      Array.isArray(cls.data.items) ? cls.data.items :
+      Array.isArray(cls.data?.items) ? cls.data.items :
+      Array.isArray(cls.data?.data?.items) ? cls.data.data.items :
+      Array.isArray(cls.data?.items) ? cls.data.items :
+      Array.isArray(cls.data?.items) ? cls.data.items :
+      Array.isArray(cls.data?.items) ? cls.data.items :
+      Array.isArray(cls.data?.items) ? cls.data.items : [];
+
+    const finalClasses =
+      cItems.length ? cItems :
+      Array.isArray(cls.data.items) ? cls.data.items :
+      Array.isArray(cls.data.items) ? cls.data.items : [];
+
+    S.counts.classes_total = finalClasses.length || 0;
+
+    // Sum members if member_count present
+    let mTotal = 0;
+    finalClasses.forEach(c=>{
+      const n = Number(c.member_count ?? c.members_count ?? 0);
+      if (isFinite(n)) mTotal += n;
+    });
+    S.counts.members_total = mTotal;
+  }
+
+  // Quizzes + counts
+  const qz = await apiPost('teacher.quizzes.list', { q:'', status:'ANY', limit:30, include_counts:true });
+  if (qz.ok){
+    const counts = qz.data.counts || qz.data?.counts || null;
+    if (counts){
+      S.counts.quizzes_draft    = Number(counts.draft || 0);
+      S.counts.quizzes_open     = Number(counts.open || 0);
+      S.counts.quizzes_upcoming = Number(counts.upcoming || 0);
+      S.counts.quizzes_closed   = Number(counts.closed || 0);
+      // total here: draft + open + upcoming + closed + archived (but archived not part of active totals)
+      const archived = Number(counts.archived || 0);
+      S.counts.quizzes_total = S.counts.quizzes_draft + S.counts.quizzes_open + S.counts.quizzes_upcoming + S.counts.quizzes_closed + archived;
+    }else{
+      // fallback if counts not present
+      const items = Array.isArray(qz.data.items) ? qz.data.items : [];
+      S.counts.quizzes_total = items.length;
+    }
+  }
+
+  renderStats();
+}
+
+async function loadRecent(){
+  const r = await apiPost('teacher.quizzes.list', { q:'', status:'ANY', limit:10, include_counts:false });
+  if (!r.ok){
+    S.recentQuizzes = [];
+    renderRecent();
+    return;
+  }
+  S.recentQuizzes = Array.isArray(r.data.items) ? r.data.items : [];
+  renderRecent();
+}
+
+async function verifyGate(){
+  const tok = getToken();
+  if (!tok){
+    $('gateMsg').textContent = 'No token found in this browser. Please sign in first.';
+    $('btnRefresh').disabled = true;
+    return false;
+  }
+
+  $('gateMsg').textContent = 'Verifying teacher access…';
+
+  const v = await apiPost('teacher.verify', {});
+  if (!v.ok){
+    $('gateMsg').textContent = 'Access denied: ' + String(v.error || 'verify_failed');
+    return false;
+  }
+
+  S.user = v.data.user || null;
+  S.teacher = v.data.teacher || null;
+  S.plan = (S.teacher && S.teacher.plan_type) ? String(S.teacher.plan_type).toUpperCase() : 'FREE';
+
+  $('gate').style.display = 'none';
+  $('app').style.display = 'block';
+
+  renderTop();
+  return true;
+}
+
+async function refreshAll(){
+  $('btnRefresh').disabled = true;
+  $('timeBadge').textContent = nowStamp();
+
+  await loadCounts();
+  await loadRecent();
+
+  $('btnRefresh').disabled = false;
+  toast('Refreshed', 'Dashboard updated.');
+}
+
+function wireGateButtons(){
+  $('btnRetry').onclick = async ()=> {
+    const ok = await verifyGate();
+    if (ok) await refreshAll();
+  };
+  $('btnClearToken').onclick = ()=> {
+    clearToken();
+    $('gateMsg').textContent = 'Token cleared. Please sign in again.';
+    toast('Token cleared', 'Sign in again to continue.');
+  };
+  $('btnGoLogin').onclick = ()=> location.href = LOGIN_URL || '/';
+}
+
+/** =========================================================
+ * Boot
+ * ========================================================= */
+(function boot(){
+  wireNav();
+  wireGateButtons();
+
+  $('btnSignOut').onclick = signOut;
+  $('btnRefresh').onclick = refreshAll;
+
+  // Keep buttons disabled until verified
+  $('btnRefresh').disabled = true;
+
+  // Gate auto-run
+  verifyGate().then(async ok=>{
+    if (!ok) return;
+    await refreshAll();
+  });
+})();
+</script>
+</body>
+</html>
