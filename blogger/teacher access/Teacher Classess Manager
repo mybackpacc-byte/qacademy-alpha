@@ -1,0 +1,2088 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Teacher Classes</title>
+
+<style>
+  :root{
+    --brand:#0b7a75;
+    --muted:#859998;
+    --ink:#1f2a28;
+    --bg:#f6f8f7;
+    --card:#ffffff;
+    --line:rgba(0,0,0,.08);
+    --soft:rgba(0,0,0,.04);
+    --danger:#b42318;
+    --ok:#027a48;
+
+    --radius:16px;
+    --shadow:0 10px 30px rgba(0,0,0,.08);
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  }
+
+  /* Try to visually override Blogger container */
+  .qa-app{
+    min-height:100vh;
+    width:100vw;
+    position:relative;
+    left:50%;
+    right:50%;
+    margin-left:-50vw;
+    margin-right:-50vw;
+  }
+
+  .topbar{
+    position:sticky;
+    top:0;
+    z-index:30;
+    background:rgba(246,248,247,.92);
+    backdrop-filter:saturate(1.2) blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+
+  .topbar-inner{
+    max-width:1200px;
+    margin:0 auto;
+    padding:14px 14px;
+    display:flex;
+    gap:12px;
+    align-items:center;
+    justify-content:space-between;
+  }
+
+  .brand{
+    display:flex; align-items:center; gap:10px;
+    min-width:240px;
+  }
+  .logo{
+    width:38px; height:38px; border-radius:12px;
+    background:linear-gradient(135deg, rgba(11,122,117,.18), rgba(133,153,152,.10));
+    border:1px solid rgba(11,122,117,.25);
+    display:grid; place-items:center;
+    box-shadow:0 10px 20px rgba(11,122,117,.10);
+    color:var(--brand);
+    font-weight:800;
+  }
+  .brand h1{font-size:16px; margin:0; line-height:1.1}
+  .brand .sub{font-size:12px; color:rgba(31,42,40,.7)}
+
+  .actions{
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  }
+  
+.btn.icon{
+  width:40px;
+  padding:10px 0;
+  justify-content:center;
+  font-weight:900;
+  line-height:1;
+}
+  .btn{
+    border:1px solid var(--line);
+    background:var(--card);
+    color:var(--ink);
+    padding:10px 12px;
+    border-radius:12px;
+    cursor:pointer;
+    font-weight:650;
+    font-size:13px;
+    display:inline-flex;
+    gap:8px;
+    align-items:center;
+  }
+  .btn:hover{background:rgba(255,255,255,.92)}
+  .btn.primary{
+    background:var(--brand);
+    border-color:rgba(11,122,117,.35);
+    color:#fff;
+  }
+  .btn.primary:hover{filter:brightness(.98)}
+  .btn.danger{
+    border-color:rgba(180,35,24,.25);
+    color:var(--danger);
+    background:rgba(180,35,24,.04);
+  }
+  .btn.danger:hover{background:rgba(180,35,24,.06)}
+  .btn.ghost{
+    background:transparent;
+    border-color:transparent;
+  }
+  .btn.ghost:hover{background:rgba(0,0,0,.04); border-color:var(--line)}
+  .btn[disabled]{opacity:.55; cursor:not-allowed}
+
+  .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:6px 10px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:var(--card);
+    font-size:12px;
+    color:rgba(31,42,40,.75);
+    white-space:nowrap;
+  }
+  .chip strong{color:var(--ink)}
+  .chip.ok{border-color:rgba(2,122,72,.22); background:rgba(2,122,72,.06); color:rgba(2,122,72,.95)}
+  .chip.warn{border-color:rgba(245,158,11,.25); background:rgba(245,158,11,.07); color:rgba(146,64,14,.95)}
+  .chip.bad{border-color:rgba(180,35,24,.25); background:rgba(180,35,24,.06); color:rgba(180,35,24,.95)}
+  .chip.mini{padding:4px 8px; font-size:11px}
+
+  .container{
+    max-width:1200px;
+    margin:0 auto;
+    padding:14px;
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns: 380px 1fr;
+    gap:14px;
+    align-items:start;
+  }
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+
+  .panel-header{
+    padding:12px 12px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    gap:10px;
+    align-items:center;
+    justify-content:space-between;
+    background:linear-gradient(180deg, rgba(11,122,117,.05), rgba(255,255,255,0));
+  }
+
+  .panel-header h2{
+    margin:0;
+    font-size:14px;
+  }
+
+  .panel-body{padding:12px}
+
+  .row{display:flex; gap:10px; align-items:center}
+  .row.wrap{flex-wrap:wrap}
+  .row.between{justify-content:space-between}
+  .muted{color:rgba(31,42,40,.68); font-size:12px}
+
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    margin-bottom:10px;
+  }
+  .label{font-size:12px; color:rgba(31,42,40,.78); font-weight:650}
+  .input, .select, .textarea{
+    width:100%;
+    padding:10px 10px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    outline:none;
+    background:#fff;
+    color:var(--ink);
+    font-size:13px;
+  }
+  .textarea{min-height:90px; resize:vertical}
+  .input:focus, .select:focus, .textarea:focus{
+    border-color:rgba(11,122,117,.35);
+    box-shadow:0 0 0 3px rgba(11,122,117,.10);
+  }
+
+  .hr{height:1px; background:var(--line); margin:12px 0}
+
+  .list{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+
+  .class-card{
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:10px;
+    background:rgba(0,0,0,.01);
+    cursor:pointer;
+  }
+  .class-card:hover{background:rgba(0,0,0,.02)}
+  .class-card.active{
+    border-color:rgba(11,122,117,.35);
+    box-shadow:0 0 0 3px rgba(11,122,117,.10);
+    background:rgba(11,122,117,.04);
+  }
+  .class-title{
+    font-weight:800;
+    margin:0;
+    font-size:13px;
+  }
+  .class-meta{
+    margin-top:6px;
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .kpi{
+    display:inline-flex;
+    gap:6px;
+    align-items:center;
+    padding:6px 9px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    font-size:12px;
+    color:rgba(31,42,40,.75);
+  }
+
+  .codebox{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    padding:10px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:rgba(0,0,0,.015);
+  }
+  .code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+    font-size:16px;
+    letter-spacing:1.5px;
+    font-weight:900;
+    color:var(--ink);
+  }
+
+  .table-wrap{
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:auto;
+    background:#fff;
+  }
+  table{
+    width:100%;
+    border-collapse:separate;
+    border-spacing:0;
+    min-width:760px;
+  }
+  th, td{
+    padding:10px 10px;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+    font-size:13px;
+  }
+  th{
+    position:sticky;
+    top:0;
+    background:#fff;
+    z-index:1;
+    text-align:left;
+    font-size:12px;
+    color:rgba(31,42,40,.72);
+    font-weight:800;
+  }
+  tr:hover td{background:rgba(0,0,0,.01)}
+  td .small{font-size:12px; color:rgba(31,42,40,.72)}
+
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:5px 9px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    font-size:12px;
+    white-space:nowrap;
+  }
+
+  .toast-wrap{
+    position:fixed;
+    right:14px;
+    bottom:14px;
+    z-index:99;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    pointer-events:none;
+  }
+  .toast{
+    pointer-events:auto;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    box-shadow:var(--shadow);
+    padding:10px 12px;
+    min-width:260px;
+  }
+  .toast .t1{font-weight:900; font-size:13px; margin:0 0 3px 0}
+  .toast .t2{font-size:12px; color:rgba(31,42,40,.72); margin:0}
+  .toast.ok{border-color:rgba(2,122,72,.25); background:rgba(2,122,72,.04)}
+  .toast.bad{border-color:rgba(180,35,24,.25); background:rgba(180,35,24,.04)}
+
+  /* Modal */
+  .modal-backdrop{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,.35);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:120;
+    padding:14px;
+  }
+  .modal{
+    width:min(760px, 100%);
+    background:var(--card);
+    border-radius:18px;
+    border:1px solid var(--line);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .modal-head{
+    padding:12px 12px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    background:linear-gradient(180deg, rgba(11,122,117,.06), rgba(255,255,255,0));
+  }
+  .modal-head h3{margin:0; font-size:14px}
+  .modal-body{padding:12px}
+  .modal-foot{
+    padding:12px;
+    border-top:1px solid var(--line);
+    display:flex;
+    gap:10px;
+    justify-content:flex-end;
+    flex-wrap:wrap;
+  }
+
+  .field-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:10px;
+  }
+
+  .cf-card{
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:10px;
+    background:rgba(0,0,0,.01);
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+    justify-content:space-between;
+  }
+  .cf-left{flex:1}
+  .cf-actions{display:flex; gap:6px; align-items:center; flex-wrap:wrap}
+  .cf-title{margin:0; font-weight:900; font-size:13px}
+  .cf-sub{margin:4px 0 0 0; font-size:12px; color:rgba(31,42,40,.72)}
+  .toggle{
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:12px; color:rgba(31,42,40,.75);
+    user-select:none;
+  }
+  .toggle input{transform:translateY(1px)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+
+  /* ✅ Gate overlay (Auth required / access denied) */
+  .qa-gate{
+    position:fixed; inset:0;
+    z-index:2147483647;
+    background:rgba(246,248,247,.92);
+    backdrop-filter:saturate(1.1) blur(10px);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+    overflow:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .qa-gate-card{
+    width:min(520px, 100%);
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:18px;
+    box-shadow:0 20px 60px rgba(0,0,0,.12);
+    overflow:hidden;
+  }
+  .qa-gate-head{
+    padding:14px 14px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    gap:12px;
+    align-items:center;
+    background:linear-gradient(180deg, rgba(11,122,117,.07), rgba(255,255,255,0));
+  }
+  .qa-gate-logo{
+    width:42px; height:42px; border-radius:14px;
+    background:linear-gradient(135deg, rgba(11,122,117,.18), rgba(133,153,152,.10));
+    border:1px solid rgba(11,122,117,.25);
+    display:grid; place-items:center;
+    color:var(--brand);
+    font-weight:900;
+    box-shadow:0 10px 20px rgba(11,122,117,.10);
+    flex:0 0 auto;
+  }
+  .qa-gate-title{margin:0; font-size:15px; font-weight:950}
+  .qa-gate-sub{margin:2px 0 0 0; font-size:12px; color:rgba(31,42,40,.72)}
+  .qa-gate-body{padding:14px}
+  .qa-gate-body p{margin:0; font-size:13px; color:rgba(31,42,40,.82); line-height:1.45}
+  .qa-gate-details{
+    margin-top:10px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:rgba(0,0,0,.015);
+    padding:10px;
+    display:none;
+  }
+  .qa-gate-details summary{
+    cursor:pointer;
+    font-weight:850;
+    font-size:12px;
+    color:rgba(31,42,40,.72);
+    user-select:none;
+  }
+  .qa-gate-details pre{
+    margin:8px 0 0 0;
+    white-space:pre-wrap;
+    word-break:break-word;
+    font-size:12px;
+    color:rgba(31,42,40,.72);
+  }
+  .qa-gate-foot{
+    padding:14px;
+    border-top:1px solid var(--line);
+    display:flex;
+    gap:10px;
+    justify-content:flex-end;
+    flex-wrap:wrap;
+  }
+/* ================================
+ * Spinners + Global Busy Overlay
+ * ================================ */
+@keyframes qaSpin { to { transform: rotate(360deg); } }
+
+.spinner{
+  width:16px; height:16px;
+  border-radius:999px;
+  border:2px solid rgba(31,42,40,.18);
+  border-top-color: rgba(11,122,117,.78);
+  animation: qaSpin .8s linear infinite;
+  flex:0 0 auto;
+}
+.spinner.sm{ width:14px; height:14px; border-width:2px; }
+.spinner.lg{ width:18px; height:18px; border-width:2px; }
+
+/* Global blur state (verify + load classes) */
+body.qa-busy{
+  overflow:hidden;
+}
+body.qa-busy .qa-app{
+  filter: blur(3px);
+  transform: translateZ(0);
+  pointer-events:none;
+  user-select:none;
+}
+
+/* Busy overlay card */
+.qa-busy-overlay{
+  position:fixed; inset:0;
+  z-index:100; /* below qaGate (qaGate uses 2147483647) */
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+  background:rgba(246,248,247,.78);
+  backdrop-filter:saturate(1.1) blur(8px);
+}
+.qa-busy-card{
+  width:min(420px, 100%);
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:18px;
+  box-shadow:0 20px 60px rgba(0,0,0,.12);
+  padding:14px;
+  display:flex;
+  gap:12px;
+  align-items:center;
+}
+.qa-busy-text{ display:flex; flex-direction:column; gap:2px; }
+.qa-busy-title{ margin:0; font-weight:950; font-size:14px; }
+.qa-busy-sub{ margin:0; font-size:12px; color:rgba(31,42,40,.72); }
+
+/* Modal status box (save success/fail) */
+.modal-status{
+  margin-top:12px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:10px;
+  background:rgba(0,0,0,.015);
+  font-size:13px;
+  color:rgba(31,42,40,.85);
+  display:none;
+}
+.modal-status.ok{ border-color:rgba(2,122,72,.25); background:rgba(2,122,72,.05); }
+.modal-status.bad{ border-color:rgba(180,35,24,.25); background:rgba(180,35,24,.05); }
+.modal-status.info{ border-color:rgba(11,122,117,.25); background:rgba(11,122,117,.04); }
+  /* Mobile */
+  @media (max-width: 980px){
+    .grid{grid-template-columns: 1fr}
+    table{min-width:640px}
+    .brand{min-width:auto}
+  }
+</style>
+</head>
+
+<body>
+
+<!-- ✅ Gate Overlay -->
+<div class="qa-gate" id="qaGate">
+  <div class="qa-gate-card">
+    <div class="qa-gate-head">
+      <div class="qa-gate-logo">QA</div>
+      <div>
+        <p class="qa-gate-title" id="gateTitle">Sign in required</p>
+        <p class="qa-gate-sub" id="gateSub">Teacher Assess</p>
+      </div>
+    </div>
+    <div class="qa-gate-body">
+      <p id="gateMsg">You need to sign in to continue.</p>
+
+      <details class="qa-gate-details" id="gateDetailsWrap">
+        <summary>Details</summary>
+        <pre id="gateDetails"></pre>
+      </details>
+    </div>
+    <div class="qa-gate-foot">
+      <button class="btn" id="gateRetry" style="display:none">Try again</button>
+      <button class="btn primary" id="gateLogin">Return to login</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ Global Busy Overlay (verify/loading classes) -->
+<div class="qa-busy-overlay" id="qaBusy" aria-live="polite" aria-busy="true">
+  <div class="qa-busy-card" role="status">
+    <span class="spinner lg" aria-hidden="true"></span>
+    <div class="qa-busy-text">
+      <p class="qa-busy-title" id="busyTitle">Working...</p>
+      <p class="qa-busy-sub" id="busySub">Please wait.</p>
+    </div>
+  </div>
+</div>  
+  
+<div class="qa-app">
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo">QA</div>
+        <div>
+          <h1>Teacher Classes</h1>
+          <div class="sub" id="subline">Checking access..</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <span class="chip" id="chipPlan" style="display:none"><strong>Plan</strong> <span id="planText"></span></span>
+        <span class="chip" id="chipUser" style="display:none"><strong id="userName">Teacher</strong> <span id="userEmail" class="muted"></span></span>
+
+        <!-- ✅ Added -->
+        <button class="btn" id="btnDashboard">🏠 Dashboard</button>
+
+        <button class="btn" id="btnRefresh">↻ Refresh classes</button>
+        <button class="btn primary" id="btnNew">＋ New Class</button>
+        <button class="btn ghost" id="btnSignOut" title="Sign out">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="grid">
+
+      <!-- Left: classes list -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Your Classes</h2>
+          <span class="chip mini" id="clsCount">0</span>
+        </div>
+
+        <div class="panel-body">
+          <div class="row wrap" style="gap:10px">
+            <div style="flex:1; min-width:160px">
+              <input class="input" id="clsSearch" placeholder="Search class title..." />
+            </div>
+            <div style="width:150px">
+              <select class="select" id="clsStatus">
+                <option value="ANY">All</option>
+                <option value="ACTIVE">Active</option>
+                <option value="ARCHIVED">Archived</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div id="clsLoading" class="muted">Loading classes...</div>
+          <div id="clsEmpty" class="muted" style="display:none">No classes found.</div>
+
+          <div class="list" id="clsList" style="margin-top:10px"></div>
+        </div>
+      </div>
+
+      <!-- Right: details + members -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Class Details</h2>
+          <div class="row" style="gap:8px">
+            <button class="btn" id="btnEdit" disabled>✎ Edit</button>
+            <button class="btn" id="btnInvite" disabled>⤴ Invite</button>
+          </div>
+        </div>
+
+        <div class="panel-body">
+          <div id="noSelection" class="muted">
+            Select a class to view members and manage settings.
+          </div>
+
+          <div id="details" style="display:none">
+            <div class="row between wrap">
+              <div>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+                  <div style="font-weight:950; font-size:16px" id="dTitle"></div>
+                  <span class="chip mini" id="dStatusChip"></span>
+                </div>
+                <div class="muted" style="margin-top:4px">
+                  <span class="mono" id="dClassId"></span>
+                  <span style="opacity:.55">•</span>
+                  Updated: <span id="dUpdated"></span>
+                </div>
+              </div>
+              <div class="row" style="gap:8px; flex-wrap:wrap">
+                <span class="kpi" title="Members">
+                  👥 <span id="dMembers">0</span>
+                </span>
+                <span class="kpi" title="Linked quizzes">
+                  🧩 <span id="dQuizzes">0</span>
+                </span>
+              </div>
+            </div>
+
+            <div class="hr"></div>
+
+            <div class="row between wrap" style="align-items:flex-start">
+              <div style="flex:1; min-width:260px">
+                <div class="label">Join code</div>
+                <div class="codebox" style="margin-top:6px">
+                  <div class="code" id="dJoinCode">—</div>
+                  <div style="flex:1"></div>
+                  <button class="btn" id="btnCopyCode">Copy</button>
+                  <button class="btn danger" id="btnRegenCode">Regenerate</button>
+                </div>
+                <div class="muted" style="margin-top:8px">
+                  Share this code with students. If you regenerate, the old code stops working.
+                </div>
+              </div>
+
+              <div style="flex:1; min-width:260px">
+                <div class="label">Student identifiers (teacher-defined)</div>
+                <div class="muted" style="margin-top:6px">
+                  These are the fields students will fill when joining this class.
+                </div>
+                <div id="dCustomFields" style="margin-top:10px"></div>
+              </div>
+            </div>
+
+            <div class="hr"></div>
+
+            <div class="row between wrap">
+              <div>
+                <div style="font-weight:900">Members</div>
+                <div class="muted">Search, review, and remove members.</div>
+              </div>
+
+              <div class="row wrap" style="gap:10px">
+                <div style="width:220px">
+                  <input class="input" id="memSearch" placeholder="Search name/email/user_id..." />
+                </div>
+                <div style="width:150px">
+                  <select class="select" id="memStatus">
+                    <option value="ACTIVE">Active</option>
+                    <option value="ALL">All</option>
+                    <option value="REMOVED">Removed</option>
+                  </select>
+                </div>
+                <button class="btn" id="btnMemRefresh">↻ Refresh members</button>
+              </div>
+            </div>
+
+            <div style="margin-top:12px" class="table-wrap">
+              <table>
+                <thead>
+                  <tr id="memHeadRow"></tr>
+                </thead>
+                <tbody id="memBody"></tbody>
+              </table>
+            </div>
+
+            <div class="muted" id="memHint" style="margin-top:10px"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal: class create/edit -->
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modalTitle">New Class</h3>
+      <button class="btn ghost" id="modalClose">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="field">
+        <div class="label">Class title</div>
+        <input class="input" id="mTitle" placeholder="e.g. ICU Revision Group A" />
+      </div>
+
+      <div class="field-grid">
+        <div class="field">
+          <div class="label">Status</div>
+          <select class="select" id="mStatus">
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="ARCHIVED">ARCHIVED</option>
+          </select>
+        </div>
+        <div class="field">
+          <div class="label">Preview</div>
+          <div class="chip" style="height:40px; align-items:center; justify-content:center">
+            Students join using your class join code
+          </div>
+        </div>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="row between wrap">
+        <div>
+          <div style="font-weight:900">Student identifiers</div>
+          <div class="muted">Teacher-defined fields (max 4). Example: Index Number, School Email, Cohort.</div>
+        </div>
+        <button class="btn" id="btnAddField">＋ Add field</button>
+      </div>
+
+      <div id="mFields" style="margin-top:10px"></div>
+
+      <div class="hr"></div>
+
+      <div class="muted">
+        Stored to <span class="mono">teacher_classes.custom_fields_json</span> and used to render member columns from <span class="mono">teacher_class_members.member_fields_json</span>.
+      </div>
+      <div class="modal-status" id="modalStatus" role="status" aria-live="polite"></div>
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn" id="modalCancel">Cancel</button>
+      <button class="btn primary" id="modalSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: invite -->
+<div class="modal-backdrop" id="inviteBackdrop">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Invite message</h3>
+      <button class="btn ghost" id="inviteClose">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <div class="label">Copy and share</div>
+        <textarea class="textarea" id="inviteText"></textarea>
+      </div>
+      <div class="row wrap" style="gap:10px">
+        <button class="btn" id="btnCopyInvite">Copy invite</button>
+        <span class="muted">You can paste into WhatsApp / Telegram or email to your students.</span>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" id="inviteDone">Done</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+/** =============================
+ * CONFIG
+ * ============================= */
+const API_URL = 'https://script.google.com/macros/s/AKfycbz54M_jWoRq4cOC2gUQeRhd55AeEJ5vnELJ0gkBSodO58fr7WGa9jwk6JNwPptf8p8X/exec'; // <-- set this
+const LOGIN_URL = '/p/login_23.html';
+const DASHBOARD_URL = '/p/teacher-dashboard.html';
+
+/** =============================
+ * State
+ * ============================= */
+const S = {
+  token: '',
+  teacher: null,
+  classes: [],
+  selectedClassId: '',
+  selectedClass: null,
+  selectedFields: [],
+  members: [],
+  modalMode: 'create', // create | edit
+  modalClassId: '',
+  modalFields: [],     // [{label,key,required}]
+};
+
+const el = (id) => document.getElementById(id);
+function busyShow(title, sub){
+  document.body.classList.add('qa-busy');
+  el('qaBusy').style.display = 'flex';
+  el('busyTitle').textContent = title || 'Working...';
+  el('busySub').textContent = sub || 'Please wait.';
+  el('qaBusy').setAttribute('aria-busy','true');
+}
+function busyUpdate(title, sub){
+  if (el('qaBusy').style.display !== 'flex') busyShow(title, sub);
+  else {
+    el('busyTitle').textContent = title || el('busyTitle').textContent || 'Working...';
+    el('busySub').textContent = sub || el('busySub').textContent || 'Please wait.';
+  }
+}
+function busyHide(){
+  el('qaBusy').style.display = 'none';
+  document.body.classList.remove('qa-busy');
+  el('qaBusy').setAttribute('aria-busy','false');
+}
+
+function setBtnBusy(btn, busy, label){
+  if (!btn) return;
+  if (!btn.dataset.label) btn.dataset.label = btn.textContent.trim();
+  if (busy){
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner sm" aria-hidden="true"></span><span>${escapeHtml(label || 'Working...')}</span>`;
+  } else {
+    btn.disabled = false;
+    btn.textContent = btn.dataset.label;
+  }
+}
+function setBtnDone(btn, label){
+  if (!btn) return;
+  if (!btn.dataset.label) btn.dataset.label = btn.textContent.trim();
+  btn.disabled = true;
+  btn.textContent = label || 'Done ✓';
+}
+
+function setModalStatus(type, msg){
+  const box = el('modalStatus');
+  if (!box) return;
+  if (!msg){
+    box.style.display = 'none';
+    box.className = 'modal-status';
+    box.textContent = '';
+    return;
+  }
+  box.className = 'modal-status ' + (type || 'info');
+  box.textContent = msg;
+  box.style.display = '';
+}
+  
+function toast(title, msg, type){
+  const wrap = el('toasts');
+  const t = document.createElement('div');
+  t.className = 'toast' + (type === 'ok' ? ' ok' : type === 'bad' ? ' bad' : '');
+  t.innerHTML = '<p class="t1"></p><p class="t2"></p>';
+  t.querySelector('.t1').textContent = title || 'Info';
+  t.querySelector('.t2').textContent = msg || '';
+  wrap.appendChild(t);
+  setTimeout(()=>{ t.style.opacity = '0'; t.style.transform='translateY(6px)'; }, 3200);
+  setTimeout(()=>{ try{wrap.removeChild(t);}catch(_){ } }, 3800);
+}
+
+function qsParam(name){
+  const u = new URL(location.href);
+  return (u.searchParams.get(name) || '').trim();
+}
+
+function getToken(){
+  // token priority: url ?token=, then localStorage
+  const tUrl = qsParam('token');
+  if (tUrl) return tUrl;
+  try{
+    return (localStorage.getItem('qa_token') || '').trim();
+  }catch(_){ return ''; }
+}
+
+function setToken(t){
+  S.token = String(t||'').trim();
+  try{
+    if (S.token) localStorage.setItem('qa_token', S.token);
+    else localStorage.removeItem('qa_token');
+  }catch(_){}
+}
+
+function fmtIso(iso){
+  const s = String(iso||'').trim();
+  if (!s) return '—';
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  return d.toLocaleString(undefined, {year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+
+/** =============================
+ * Gate overlay helpers
+ * ============================= */
+function currentRelativeUrl(){
+  try{
+    return (location.pathname || "/") + (location.search || "") + (location.hash || "");
+  }catch(_){
+    return "/";
+  }
+}
+
+function buildLoginUrl(){
+  const rt = encodeURIComponent(currentRelativeUrl());
+  const sep = (String(LOGIN_URL || "").includes("?")) ? "&" : "?";
+  return String(LOGIN_URL || "/p/login_23.html") + sep + "return_to=" + rt;
+}
+
+function stripTokenFromUrl(){
+  try{
+    const u = new URL(location.href);
+    if (!u.searchParams.has("token")) return;
+
+    u.searchParams.delete("token");
+
+    const qs = u.searchParams.toString();
+    const next = u.pathname + (qs ? ("?" + qs) : "") + (u.hash || "");
+    history.replaceState({}, "", next);
+  }catch(_){}
+}
+
+function gotoLogin(){
+  location.href = buildLoginUrl();
+}
+
+function showGate({ title, msg, details, canRetry }){
+   busyHide(); // ✅ ensure busy overlay is never left on behind gate
+  el('gateTitle').textContent = title || 'Sign in required';
+  el('gateMsg').textContent = msg || 'Please sign in to continue.';
+  el('gateRetry').style.display = canRetry ? '' : 'none';
+
+  const wrap = el('gateDetailsWrap');
+  const pre = el('gateDetails');
+
+  if (details){
+    pre.textContent = String(details);
+    wrap.style.display = '';
+  } else {
+    pre.textContent = '';
+    wrap.style.display = 'none';
+  }
+
+  el('qaGate').style.display = 'flex';
+}
+
+function hideGate(){
+  el('qaGate').style.display = 'none';
+}
+
+function safePayloadSnippet(payload){
+  try{
+    if (!payload) return '';
+    return JSON.stringify(payload, null, 2);
+  }catch(_){ return ''; }
+}
+
+function explainVerifyError(err){
+  const msg = String((err && err.message) || err || '').toLowerCase();
+  const p = err && err.payload ? err.payload : null;
+  const pErr = String((p && (p.error || p.detail || p.reason)) || '').toLowerCase();
+
+  // Common fetch/network issue
+  if (msg.includes('failed to fetch') || msg.includes('network') || msg.includes('cors')){
+    return 'Network error — please check your connection and try again.';
+  }
+
+  // Auth/session-ish errors
+  if (pErr.includes('auth') || msg.includes('auth') || pErr.includes('token') || msg.includes('token')){
+    return 'Your session looks expired or invalid. Please sign in again.';
+  }
+  if (pErr.includes('access') || msg.includes('access') || pErr.includes('forbidden') || msg.includes('forbidden')){
+    return 'Access denied. Your teacher account may be pending approval or inactive.';
+  }
+
+  return 'Could not verify access. Please try again or return to login.';
+}
+
+/** =============================
+ * API (form-urlencoded to avoid CORS preflight)
+ * ============================= */
+async function apiPost(params){
+  if (!API_URL || API_URL.indexOf('REPLACE_WITH') !== -1) {
+    throw new Error('API_URL_not_configured');
+  }
+
+  const p = new URLSearchParams();
+  Object.keys(params || {}).forEach(k=>{
+    const v = params[k];
+    if (v === undefined || v === null) return;
+    if (typeof v === 'object') p.append(k, JSON.stringify(v));
+    else p.append(k, String(v));
+  });
+
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    body: p,
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      'Accept': 'application/json'
+    },
+    credentials: 'omit'
+  });
+
+  const text = await res.text();
+  let obj = null;
+  try { obj = JSON.parse(text); } catch(_) { obj = null; }
+
+  if (!obj || obj.ok !== true) {
+    const xStatus = res.headers.get('X-Status-Code');
+    const status = xStatus ? parseInt(xStatus,10) : res.status;
+    const err = (obj && (obj.error || obj.detail || obj.reason)) || ('http_' + status);
+    const e = new Error(err);
+    e.status = status;
+    e.payload = obj;
+    throw e;
+  }
+  return obj;
+}
+
+/** =============================
+ * Auth / bootstrap
+ * ============================= */
+async function verifyTeacher(){
+  const sub = el('subline');
+  sub.textContent = 'Verifying access...';
+
+  const t = getToken();
+  if (!t) {
+    busyHide(); // ✅ stop blur if we’re showing the gate
+    sub.textContent = 'Sign in required.';
+    toast('Sign in required', 'No active session found. Please sign in again.', 'bad');
+
+    showGate({
+      title: 'Sign in required',
+      msg: 'Your session has ended. Please sign in again to continue.',
+      details: 'token_missing',
+      canRetry: false
+    });
+
+    return false;
+  }
+  setToken(t);
+  stripTokenFromUrl();
+
+
+  try{
+    const v = await apiPost({ action:'teacher.verify', token:S.token });
+    S.teacher = v.teacher || null;
+
+    el('chipUser').style.display = '';
+    el('userName').textContent = (v.user && v.user.name) ? v.user.name : 'Teacher';
+    el('userEmail').textContent = (v.user && v.user.email) ? (' | ' + v.user.email) : '';
+
+    el('chipPlan').style.display = '';
+    el('planText').textContent = (v.teacher && v.teacher.plan_type) ? v.teacher.plan_type : 'FREE';
+
+    sub.textContent = 'Ready';
+    hideGate();
+    return true;
+  }catch(err){
+    busyHide(); // ✅ stop blur if access denied gate will display
+    sub.textContent = 'Access denied.';
+    toast('Access denied', explainVerifyError(err), 'bad');
+
+    const details =
+      'message: ' + String((err && err.message) || err) +
+      '\nstatus: ' + String(err && err.status ? err.status : '') +
+      (err && err.payload ? '\n\npayload:\n' + safePayloadSnippet(err.payload) : '');
+
+    showGate({
+      title: 'Access denied',
+      msg: explainVerifyError(err),
+      details,
+      canRetry: true
+    });
+
+    return false;
+  }
+}
+
+/** =============================
+ * Custom fields JSON helpers
+ * ============================= */
+function safeJsonParse(s, fallback){
+  try{
+    if (typeof s === 'object') return s;
+    const t = String(s||'').trim();
+    if (!t) return fallback;
+    return JSON.parse(t);
+  }catch(_){ return fallback; }
+}
+
+function normalizeFieldKey(label, used){
+  const base = String(label||'').trim().toLowerCase()
+    .replace(/[^a-z0-9]+/g,'_')
+    .replace(/^_+|_+$/g,'')
+    .slice(0,20);
+
+  let key = base || '';
+  if (!key) key = 'f' + (Object.keys(used).length + 1);
+
+  if (used[key]) {
+    let n = 2;
+    while (used[key + '_' + n]) n++;
+    key = key + '_' + n;
+  }
+  return key;
+}
+
+function buildCustomFieldsJson(fields){
+  const cleaned = [];
+  const used = {};
+  (fields || []).forEach((f)=>{
+    const label = String((f && f.label) || '').trim();
+    if (!label) return;
+    const required = !!f.required;
+
+    let key = String((f && f.key) || '').trim();
+    if (!key || used[key]) {
+      key = normalizeFieldKey(label, used);
+    }
+    used[key] = true;
+
+    cleaned.push({ key, label, required });
+  });
+
+  // cap to 4
+  const cap = cleaned.slice(0,4);
+  return JSON.stringify({ fields: cap });
+}
+
+function readFieldsFromCustomFieldsJson(custom_fields_json){
+  const obj = safeJsonParse(custom_fields_json, {fields:[]});
+  const arr = Array.isArray(obj.fields) ? obj.fields : [];
+  const out = [];
+  for (let i=0;i<arr.length && out.length<4;i++){
+    const f = arr[i] || {};
+    const label = String(f.label||'').trim();
+    if (!label) continue;
+    out.push({
+      key: String(f.key||'').trim() || ('f' + (out.length+1)),
+      label,
+      required: (String(f.required||'').trim().toLowerCase() === 'true') || (f.required === true)
+    });
+  }
+  return out;
+}
+
+function renderCustomFieldsPreview(container, fields){
+  container.innerHTML = '';
+  if (!fields || !fields.length) {
+    container.innerHTML = '<div class="muted">No custom fields (students join with basic profile only).</div>';
+    return;
+  }
+  fields.forEach(f=>{
+    const div = document.createElement('div');
+    div.className = 'badge';
+    div.title = 'key: ' + f.key;
+    div.innerHTML = '<span style="font-weight:850">'+escapeHtml(f.label)+'</span>' +
+      (f.required ? ' <span class="chip mini ok">Required</span>' : ' <span class="chip mini">Optional</span>');
+    container.appendChild(div);
+  });
+}
+
+/** =============================
+ * Classes
+ * ============================= */
+async function fetchClassGet(class_id){
+  const res = await apiPost({
+    action: 'teacher.class.get',
+    token: S.token,
+    class_id
+  });
+
+  // be tolerant to backend shape
+  const cls = res.class || res.item || res.data || res || null;
+  const fields = Array.isArray(res.fields)
+    ? res.fields
+    : readFieldsFromCustomFieldsJson((cls && cls.custom_fields_json) || '');
+
+  return { cls, fields };
+}
+
+async function hydrateSelectedClass(class_id){
+  const id = String(class_id || '').trim();
+  if (!id) return false;
+
+  const { cls, fields } = await fetchClassGet(id);
+  if (!cls) throw new Error('class_get_failed');
+
+  // update selected
+  S.selectedClass = cls;
+  S.selectedFields = Array.isArray(fields) ? fields : [];
+
+  // also merge into list cache so renderClassesList() stays consistent
+  const idx = S.classes.findIndex(x => x.class_id === id);
+  if (idx >= 0){
+    S.classes[idx] = Object.assign({}, S.classes[idx], cls);
+  }
+
+  return true;
+}
+
+function renderSelectedClassDetails(){
+  if (!S.selectedClass){
+    el('noSelection').style.display = '';
+    el('details').style.display = 'none';
+    el('btnEdit').disabled = true;
+    el('btnInvite').disabled = true;
+    return;
+  }
+
+  el('noSelection').style.display = 'none';
+  el('details').style.display = '';
+
+  el('dTitle').textContent = S.selectedClass.title || 'Untitled';
+  el('dClassId').textContent = S.selectedClass.class_id || '';
+  el('dUpdated').textContent = fmtIso(S.selectedClass.updated_at);
+  el('dJoinCode').textContent = S.selectedClass.join_code || '';
+
+  const st = String(S.selectedClass.status||'').toUpperCase() || 'ACTIVE';
+  const chip = el('dStatusChip');
+  chip.textContent = st;
+  chip.className = 'chip mini ' + (st==='ACTIVE' ? 'ok' : st==='ARCHIVED' ? 'bad' : '');
+
+  el('dMembers').textContent = String(S.selectedClass.member_count ?? '—');
+  el('dQuizzes').textContent = String(S.selectedClass.quiz_count ?? '—');
+
+  // custom fields preview (use authoritative)
+  renderCustomFieldsPreview(el('dCustomFields'), S.selectedFields || []);
+}
+
+async function loadClasses({preserveSelection=true}={}){
+  el('clsLoading').style.display = '';
+  el('clsEmpty').style.display = 'none';
+  el('clsList').innerHTML = '';
+
+  const q = el('clsSearch').value.trim();
+  const status = el('clsStatus').value;
+
+  try{
+    const res = await apiPost({
+      action: 'teacher.classes.list',
+      token: S.token,
+      status: status,
+      q: q,
+      include_counts: 'true'
+    });
+
+    S.classes = Array.isArray(res.items) ? res.items : [];
+    el('clsCount').textContent = String(S.classes.length);
+
+    renderClassesList();
+
+    el('clsLoading').style.display = 'none';
+    if (!S.classes.length) el('clsEmpty').style.display = '';
+
+    // restore selection
+    if (preserveSelection){
+      const saved = S.selectedClassId || (localStorage.getItem('qa_teacher_class_id')||'');
+      if (saved) {
+        const hit = S.classes.find(c => c.class_id === saved);
+      if (hit) selectClass(saved, {shouldLoadMembers:true});
+      }
+    }
+  }catch(err){
+    el('clsLoading').style.display = 'none';
+    el('clsEmpty').style.display = '';
+    toast('Load failed', String(err.message||err), 'bad');
+  }
+}
+
+function renderClassesList(){
+  const list = el('clsList');
+  list.innerHTML = '';
+
+  S.classes.forEach(c=>{
+    const card = document.createElement('div');
+    card.className = 'class-card' + (c.class_id === S.selectedClassId ? ' active' : '');
+    card.onclick = ()=>selectClass(c.class_id, {shouldLoadMembers:true});
+    
+    const st = String(c.status||'').toUpperCase() || 'ACTIVE';
+    const stChip = (st === 'ACTIVE') ? 'ok' : (st === 'ARCHIVED') ? 'bad' : '';
+
+    card.innerHTML = `
+      <div class="row between">
+        <p class="class-title">${escapeHtml(c.title||'Untitled')}</p>
+        <span class="chip mini ${stChip}">${escapeHtml(st)}</span>
+      </div>
+      <div class="class-meta">
+        <span class="kpi" title="Join code">🔑 <span class="mono">${escapeHtml(c.join_code||'')}</span></span>
+        <span class="kpi" title="Members">👥 ${escapeHtml(String(c.member_count ?? '—'))}</span>
+        <span class="kpi" title="Quizzes linked">🧩 ${escapeHtml(String(c.quiz_count ?? '—'))}</span>
+      </div>
+      <div class="muted" style="margin-top:8px">Updated: ${escapeHtml(fmtIso(c.updated_at))}</div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+/** ✅ Clear members table immediately to prevent “stale members” confusion */
+function clearMembersUI(loadingText){
+  S.members = [];
+  const fields = Array.isArray(S.selectedFields) ? S.selectedFields : [];
+
+  if (loadingText){
+    setMembersLoading(fields, loadingText);
+    return;
+  }
+
+  try{ el('memBody').innerHTML = ''; }catch(_){}
+  try{ el('memHeadRow').innerHTML = ''; }catch(_){}
+  el('memHint').textContent = '';
+}
+
+async function selectClass(classId, { shouldLoadMembers=false } = {}) {
+  S.selectedClassId = String(classId||'').trim();
+  try{ localStorage.setItem('qa_teacher_class_id', S.selectedClassId); }catch(_){}
+
+  // highlight list immediately
+  renderClassesList();
+
+  // disable actions until hydration finishes (prevents “edit too fast” bug)
+  el('btnEdit').disabled = true;
+  el('btnInvite').disabled = true;
+
+  // ✅ clear old members immediately when switching classes
+  clearMembersUI(shouldLoadMembers ? 'Loading members...' : '');
+
+  // show skeleton selection using summary row (optional)
+  const summary = S.classes.find(x => x.class_id === S.selectedClassId) || null;
+  S.selectedClass = summary;
+  S.selectedFields = readFieldsFromCustomFieldsJson((summary && summary.custom_fields_json) || '');
+  renderSelectedClassDetails();
+
+  if (!S.selectedClassId){
+    S.selectedClass = null;
+    S.selectedFields = [];
+    renderSelectedClassDetails();
+    return;
+  }
+
+  // hydrate from backend (authoritative class + fields)
+  try{
+    await hydrateSelectedClass(S.selectedClassId);
+    renderSelectedClassDetails();
+  }catch(err){
+    // keep summary if hydrate fails, but warn
+    toast('Class load warning', 'Could not load full class details. Editing fields may be limited.', 'bad');
+  }
+
+  // enable actions after hydrate attempt
+  el('btnEdit').disabled = !S.selectedClass;
+  el('btnInvite').disabled = !S.selectedClass;
+
+  // members (only after hydration attempt, so columns are correct)
+  if (shouldLoadMembers) await loadMembers();
+}
+
+async function createClass({title, status, custom_fields_json}){
+  const res = await apiPost({
+    action: 'teacher.class.create',
+    token: S.token,
+    title,
+    status,
+    custom_fields_json
+  });
+  toast('Created', 'Class created successfully.', 'ok');
+  await loadClasses({preserveSelection:false});
+  if (res.class_id){
+await selectClass(res.class_id, {shouldLoadMembers:true});
+  }
+}
+
+async function updateClass({class_id, title, status, custom_fields_json}){
+  await apiPost({
+    action: 'teacher.class.update',
+    token: S.token,
+    class_id,
+    title,
+    status,
+    custom_fields_json
+  });
+
+  toast('Saved', 'Class updated.', 'ok');
+
+  // reload list without auto-reselect to avoid summary-only selection glitches
+  await loadClasses({preserveSelection:false});
+
+  // reselect (this will hydrate and refresh details)
+await selectClass(class_id, {shouldLoadMembers:false});
+}
+
+async function regenerateJoinCode(class_id){
+  const res = await apiPost({
+    action: 'teacher.class.join_code.regenerate',
+    token: S.token,
+    class_id
+  });
+  toast('Updated', 'New join code generated.', 'ok');
+
+  // update locally
+  const idx = S.classes.findIndex(x=>x.class_id===class_id);
+  if (idx>=0){
+    S.classes[idx].join_code = res.join_code || S.classes[idx].join_code;
+    S.classes[idx].updated_at = new Date().toISOString();
+  }
+  if (S.selectedClass && S.selectedClass.class_id === class_id){
+    S.selectedClass.join_code = res.join_code || S.selectedClass.join_code;
+    el('dJoinCode').textContent = S.selectedClass.join_code || '';
+  }
+  renderClassesList();
+}
+
+/** =============================
+ * Members
+ * ============================= */
+function memberFieldValue(member, key){
+  const k = String(key||'').trim();
+  if (!k) return '';
+
+  // Fast path: backend already provides parsed map
+  if (member && member.member_fields && typeof member.member_fields === 'object') {
+    const v = member.member_fields[k];
+    return (v == null) ? '' : String(v).trim();
+  }
+
+  // Fallback: parse JSON and accept either {"fields":{...}} or flat {...}
+  const obj = safeJsonParse(member && member.member_fields_json, null);
+  if (!obj || typeof obj !== 'object') return '';
+
+  if (obj.fields && typeof obj.fields === 'object') {
+    const v2 = obj.fields[k];
+    return (v2 == null) ? '' : String(v2).trim();
+  }
+
+  const v3 = obj[k];
+  return (v3 == null) ? '' : String(v3).trim();
+}
+
+function buildMembersHead(fields){
+  const tr = el('memHeadRow');
+  tr.innerHTML = '';
+
+  const cols = [
+    {k:'display_name', label:'Name'},
+    {k:'email', label:'Email'},
+    {k:'user_id', label:'User ID'}
+  ];
+
+  // custom fields columns
+  (fields || []).forEach(f=>{
+    cols.push({k:'cf_' + f.key, label:f.label, cfKey:f.key});
+  });
+
+  cols.push({k:'status', label:'Status'});
+  cols.push({k:'joined_at', label:'Joined'});
+  cols.push({k:'actions', label:''});
+
+  cols.forEach(c=>{
+    const th = document.createElement('th');
+    th.textContent = c.label;
+    tr.appendChild(th);
+  });
+
+  return cols;
+}
+
+function setMembersLoading(fields, msg){
+  const cols = buildMembersHead(fields || []);
+  const body = el('memBody');
+  body.innerHTML = '';
+
+  const tr = document.createElement('tr');
+  const td = document.createElement('td');
+  td.colSpan = cols.length;
+
+  td.innerHTML = `
+    <div class="row" style="gap:10px; padding:6px 0">
+      <span class="spinner" aria-hidden="true"></span>
+      <span>${escapeHtml(msg || 'Loading...')}</span>
+    </div>
+  `;
+  tr.appendChild(td);
+  body.appendChild(tr);
+
+  el('memHint').textContent = msg || 'Loading...';
+}  
+  
+function renderMembersTable(fields){
+  const cols = buildMembersHead(fields);
+  const body = el('memBody');
+  body.innerHTML = '';
+
+  const q = el('memSearch').value.trim().toLowerCase();
+  const rows = (S.members || []).filter(m=>{
+    if (!q) return true;
+    const hay = [
+      m.display_name, m.email, m.user_id, m.status
+    ].concat((fields||[]).map(f=>memberFieldValue(m, f.key)))
+     .map(x=>String(x||'').toLowerCase()).join(' ');
+    return hay.includes(q);
+  });
+
+  rows.forEach(m=>{
+    const tr = document.createElement('tr');
+
+    cols.forEach(c=>{
+      const td = document.createElement('td');
+
+      if (c.k === 'actions'){
+        const btn = document.createElement('button');
+        btn.className = 'btn danger';
+        btn.textContent = 'Remove';
+btn.onclick = async (ev)=>{
+  ev.stopPropagation();
+  const ok = confirm('Remove this member from the class?');
+  if (!ok) return;
+
+  setBtnBusy(btn, true, 'Removing...');
+
+  const did = await removeMember(S.selectedClassId, m.user_id);
+
+  // If it failed, restore button. If it succeeded, loadMembers() will re-render the table anyway.
+  if (!did){
+    setBtnBusy(btn, false);
+  }
+};
+        // disable remove if already removed
+        if (String(m.status||'').toUpperCase() === 'REMOVED') btn.disabled = true;
+        td.appendChild(btn);
+      } else if (c.cfKey){
+        td.innerHTML = '<div class="small"></div>';
+        td.firstChild.textContent = memberFieldValue(m, c.cfKey) || '—';
+      } else if (c.k === 'joined_at'){
+        td.textContent = fmtIso(m.joined_at);
+      } else if (c.k === 'status'){
+        const st = String(m.status||'').toUpperCase() || 'ACTIVE';
+        const span = document.createElement('span');
+        span.className = 'chip mini ' + (st==='ACTIVE' ? 'ok' : st==='REMOVED' ? 'bad' : '');
+        span.textContent = st;
+        td.appendChild(span);
+      } else {
+        const v = (m[c.k] == null) ? '' : String(m[c.k]).trim();
+        td.textContent = v || '—';
+      }
+
+      tr.appendChild(td);
+    });
+
+    body.appendChild(tr);
+  });
+
+  el('memHint').textContent = rows.length
+    ? `${rows.length} member(s) shown.`
+    : 'No members match your filters.';
+}
+
+async function loadMembers(opts={}){
+  if (!S.selectedClassId) return;
+  const btn = opts && opts.btn ? opts.btn : null;
+if (btn) setBtnBusy(btn, true, 'Refreshing...');
+
+  // ✅ Clear immediately so old class members never linger
+  clearMembersUI('Loading members...');
+
+  const status = el('memStatus').value;
+
+  try{
+    const res = await apiPost({
+      action: 'teacher.class.members.list',
+      token: S.token,
+      class_id: S.selectedClassId,
+      status: status,
+      limit: '500'
+    });
+
+    S.members = Array.isArray(res.items) ? res.items : [];
+
+    // use class custom fields for columns
+    const fields = Array.isArray(S.selectedFields) ? S.selectedFields : [];
+    renderMembersTable(fields);
+
+  }catch(err){
+    toast('Members failed', String(err.message||err), 'bad');
+    el('memHint').textContent = 'Failed to load members.';
+  }
+  finally{
+  if (btn) setBtnBusy(btn, false);
+}
+}
+
+async function removeMember(class_id, user_id){
+  try{
+    await apiPost({
+      action: 'teacher.class.member.remove',
+      token: S.token,
+      class_id,
+      user_id
+    });
+
+    toast('Removed', 'Member removed.', 'ok');
+    await loadMembers();
+    await loadClasses({preserveSelection:true});
+    return true;
+
+  }catch(err){
+    toast('Remove failed', String(err.message||err), 'bad');
+    return false;
+  }
+}
+
+/** =============================
+ * Modal (create/edit)
+ * ============================= */
+function openModal(mode){
+  S.modalMode = mode;
+  // Reset modal UX each time it opens
+setModalStatus(null, null);
+setBtnBusy(el('modalSave'), false);
+el('modalSave').disabled = false;
+  const isEdit = mode === 'edit';
+  el('modalTitle').textContent = isEdit ? 'Edit Class' : 'New Class';
+
+  el('mTitle').value = isEdit ? (S.selectedClass.title || '') : '';
+  el('mStatus').value = isEdit ? (String(S.selectedClass.status||'ACTIVE').toUpperCase()) : 'ACTIVE';
+
+  const fields = isEdit ? (Array.isArray(S.selectedFields) ? S.selectedFields : []) : [];
+  S.modalFields = fields.slice(0,4);
+
+  renderModalFields();
+  setModalStatus(null, null);
+setBtnBusy(el('modalSave'), false);
+el('modalSave').disabled = false;
+  el('modalBackdrop').style.display = 'flex';
+}
+
+function closeModal(){
+  el('modalBackdrop').style.display = 'none';
+  setModalStatus(null, null);
+  setBtnBusy(el('modalSave'), false);
+  el('modalSave').disabled = false;
+}
+
+function renderModalFields(){
+  const wrap = el('mFields');
+  wrap.innerHTML = '';
+
+  if (!S.modalFields.length){
+    wrap.innerHTML = '<div class="muted">No custom fields yet. You can add up to 4.</div>';
+    return;
+  }
+
+  S.modalFields.forEach((f, idx)=>{
+    const card = document.createElement('div');
+    card.className = 'cf-card';
+
+    const left = document.createElement('div');
+    left.className = 'cf-left';
+
+    left.innerHTML = `
+      <div class="field" style="margin:0 0 8px 0">
+        <div class="label">Label</div>
+        <input class="input" data-idx="${idx}" data-k="label" value="${escapeAttr(f.label||'')}" placeholder="e.g. Index Number" />
+      </div>
+      <div class="row wrap" style="gap:10px">
+        <div class="toggle">
+          <input type="checkbox" data-idx="${idx}" data-k="required" ${f.required ? 'checked' : ''} />
+          <span>Required</span>
+        </div>
+        <span class="chip mini" title="Stored key"><span class="mono">${escapeHtml(f.key||'')}</span></span>
+      </div>
+    `;
+
+    const actions = document.createElement('div');
+    actions.className = 'cf-actions';
+
+    const up = document.createElement('button');
+    up.className = 'btn';
+   up.innerHTML = '&uarr;';
+    up.disabled = (idx === 0);
+    up.onclick = ()=>{
+      const tmp = S.modalFields[idx-1];
+      S.modalFields[idx-1] = S.modalFields[idx];
+      S.modalFields[idx] = tmp;
+      renderModalFields();
+    };
+
+    const down = document.createElement('button');
+    down.className = 'btn';
+down.innerHTML = '&darr;';
+    down.disabled = (idx === S.modalFields.length-1);
+    down.onclick = ()=>{
+      const tmp = S.modalFields[idx+1];
+      S.modalFields[idx+1] = S.modalFields[idx];
+      S.modalFields[idx] = tmp;
+      renderModalFields();
+    };
+
+    const del = document.createElement('button');
+    del.className = 'btn danger';
+    del.textContent = 'Delete';
+    del.onclick = ()=>{
+      S.modalFields.splice(idx,1);
+      renderModalFields();
+    };
+
+    actions.appendChild(up);
+    actions.appendChild(down);
+    actions.appendChild(del);
+
+    card.appendChild(left);
+    card.appendChild(actions);
+    wrap.appendChild(card);
+  });
+
+  // bind changes
+  wrap.querySelectorAll('input[data-idx]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      const i = parseInt(inp.getAttribute('data-idx'),10);
+      const k = inp.getAttribute('data-k');
+      if (isNaN(i) || !S.modalFields[i]) return;
+
+      if (k === 'label'){
+        S.modalFields[i].label = inp.value;
+      }
+    });
+  });
+  wrap.querySelectorAll('input[type="checkbox"][data-idx]').forEach(chk=>{
+    chk.addEventListener('change', ()=>{
+      const i = parseInt(chk.getAttribute('data-idx'),10);
+      if (isNaN(i) || !S.modalFields[i]) return;
+      S.modalFields[i].required = chk.checked;
+    });
+  });
+}
+
+function addModalField(){
+  if (S.modalFields.length >= 4){
+    toast('Limit reached', 'Max 4 custom fields.', 'bad');
+    return;
+  }
+  const used = {};
+  S.modalFields.forEach(f=>{ used[String(f.key||'').trim()] = true; });
+
+  const key = 'f' + (S.modalFields.length + 1);
+  const k2 = used[key] ? ('f' + (Math.floor(Math.random()*9000)+1000)) : key;
+
+  S.modalFields.push({ label:'', key:k2, required:false });
+  renderModalFields();
+}
+
+/** =============================
+ * Invite message
+ * ============================= */
+function openInvite(){
+  if (!S.selectedClass) return;
+
+  const code = String(S.selectedClass.join_code||'').trim();
+  const title = String(S.selectedClass.title||'').trim();
+  const fields = Array.isArray(S.selectedFields) ? S.selectedFields : [];
+
+  const lines = [];
+  lines.push(`Hello! You've been invited to join: ${title}`);
+  lines.push(`Class join code: ${code}`);
+  lines.push('');
+  lines.push('How to join:');
+  lines.push('1) Log into QAcademy');
+  lines.push('2) Open "My Classes" and choose "Join Class"');
+  lines.push(`3) Enter this code: ${code}`);
+  if (fields.length){
+    lines.push('');
+    lines.push('When joining, you will be asked for:');
+    fields.forEach(f=>{
+      lines.push(`- ${f.label}${f.required ? ' (required)' : ''}`);
+    });
+  }
+  lines.push('');
+  lines.push('If you have any issue, message your teacher.');
+
+  el('inviteText').value = lines.join('\n');
+  el('inviteBackdrop').style.display = 'flex';
+}
+
+function closeInvite(){
+  el('inviteBackdrop').style.display = 'none';
+}
+
+async function copyText(text){
+  const t = String(text||'');
+  try{
+    await navigator.clipboard.writeText(t);
+    return true;
+  }catch(_){
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = t;
+    ta.style.position='fixed';
+    ta.style.left='-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try{
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      return true;
+    }catch(err){
+      document.body.removeChild(ta);
+      return false;
+    }
+  }
+}
+
+/** =============================
+ * Utilities
+ * ============================= */
+function escapeHtml(s){
+  return String(s||'')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+function escapeAttr(s){ return escapeHtml(s).replace(/"/g,'&quot;'); }
+
+/** =============================
+ * Wire UI
+ * ============================= */
+function bindUI(){
+  // Gate overlay actions
+  el('gateLogin').onclick = gotoLogin;
+el('gateRetry').onclick = async ()=>{
+  hideGate();
+
+  busyShow('Verifying access...','Checking your teacher account');
+  const ok = await verifyTeacher();
+  if (!ok) return;
+
+  busyUpdate('Loading classes...','Preparing your class list');
+  try{
+    await loadClasses({preserveSelection:true});
+  } finally {
+    busyHide();
+  }
+};
+
+  // ✅ Dashboard
+  el('btnDashboard').onclick = ()=>{ location.href = DASHBOARD_URL; };
+
+ el('btnRefresh').onclick = async ()=>{
+  busyShow('Loading classes...','Refreshing your class list');
+  try{
+    await loadClasses({preserveSelection:true});
+  } finally {
+    busyHide();
+  }
+};
+  el('clsSearch').addEventListener('input', debounce(()=>loadClasses({preserveSelection:true}), 350));
+  el('clsStatus').addEventListener('change', ()=>loadClasses({preserveSelection:true}));
+
+  el('btnNew').onclick = ()=>openModal('create');
+  el('btnEdit').onclick = ()=>openModal('edit');
+
+  el('modalClose').onclick = closeModal;
+  el('modalCancel').onclick = closeModal;
+  el('btnAddField').onclick = addModalField;
+
+el('modalSave').onclick = async ()=>{
+  const title = el('mTitle').value.trim();
+  const status = el('mStatus').value;
+
+  if (!title){
+    toast('Missing title', 'Please enter a class title.', 'bad');
+    setModalStatus('bad', 'Please enter a class title.');
+    return;
+  }
+
+  // normalize keys after label edits
+  const used = {};
+  const finalFields = [];
+  (S.modalFields||[]).forEach((f)=>{
+    const label = String((f&&f.label)||'').trim();
+    if (!label) return;
+    const required = !!f.required;
+
+    let key = String((f&&f.key)||'').trim();
+    if (!key || used[key]){
+      key = normalizeFieldKey(label, used);
+    }
+    used[key] = true;
+    finalFields.push({ key, label, required });
+  });
+
+  const custom_fields_json = buildCustomFieldsJson(finalFields);
+
+  const btnSave   = el('modalSave');
+  const btnCloseX = el('modalClose');
+  const btnCancel = el('modalCancel');
+  const btnAdd    = el('btnAddField');
+
+  // lock modal controls during save
+  setModalStatus('info', 'Saving...');
+  setBtnBusy(btnSave, true, 'Saving...');
+  btnCloseX.disabled = true;
+  btnCancel.disabled = true;
+  if (btnAdd) btnAdd.disabled = true;
+
+  try{
+    if (S.modalMode === 'create'){
+      // Create mode: prevent double-create by leaving Save disabled after success
+      await createClass({ title, status, custom_fields_json });
+
+      setModalStatus('ok', 'Class created. You can close this window.');
+      btnSave.innerHTML = 'Created ✓';
+      btnSave.disabled = true;
+
+    } else {
+      // Edit mode: show “Saved ✓” briefly, then allow further edits/saves
+      await updateClass({ class_id: S.selectedClassId, title, status, custom_fields_json });
+
+      setModalStatus('ok', 'Saved. You can close this window, or keep editing and save again.');
+      btnSave.innerHTML = 'Saved ✓';
+      btnSave.disabled = true;
+
+      setTimeout(()=>{
+        // restore Save button for further edits
+        try{
+          setBtnBusy(btnSave, false);
+          btnSave.disabled = false;
+        }catch(_){}
+      }, 900);
+    }
+
+  }catch(err){
+    const msg = 'Save failed: ' + String(err.message || err);
+    toast('Save failed', String(err.message||err), 'bad');
+    setModalStatus('bad', msg);
+
+    // restore Save button
+    setBtnBusy(btnSave, false);
+    btnSave.disabled = false;
+
+  }finally{
+    // unlock modal controls
+    btnCloseX.disabled = false;
+    btnCancel.disabled = false;
+    if (btnAdd) btnAdd.disabled = false;
+  }
+};
+
+  el('btnCopyCode').onclick = async ()=>{
+    const code = el('dJoinCode').textContent.trim();
+    const ok = await copyText(code);
+    toast(ok?'Copied':'Copy failed', ok?'Join code copied.':'Could not copy join code.', ok?'ok':'bad');
+  };
+
+el('btnRegenCode').onclick = async ()=>{
+  if (!S.selectedClassId) return;
+  const ok = confirm('Regenerate join code? The old code will stop working.');
+  if (!ok) return;
+
+  setBtnBusy(el('btnRegenCode'), true, 'Regenerating...');
+
+  try{
+    await regenerateJoinCode(S.selectedClassId);
+  }catch(err){
+    toast('Failed', String(err.message||err), 'bad');
+  }finally{
+    setBtnBusy(el('btnRegenCode'), false);
+  }
+};
+
+  el('btnInvite').onclick = openInvite;
+  el('inviteClose').onclick = closeInvite;
+  el('inviteDone').onclick = closeInvite;
+
+  el('btnCopyInvite').onclick = async ()=>{
+    const ok = await copyText(el('inviteText').value);
+    toast(ok?'Copied':'Copy failed', ok?'Invite message copied.':'Could not copy invite.', ok?'ok':'bad');
+  };
+
+el('btnMemRefresh').onclick = ()=>loadMembers({ btn: el('btnMemRefresh') });
+  el('memStatus').addEventListener('change', ()=>loadMembers());
+  el('memSearch').addEventListener('input', debounce(()=>{
+    const fields = Array.isArray(S.selectedFields) ? S.selectedFields : [];
+    renderMembersTable(fields);
+  }, 250));
+
+  el('btnSignOut').onclick = ()=>{
+    setToken('');
+    try{ localStorage.removeItem('qa_teacher_class_id'); }catch(_){}
+    toast('Signed out', 'Redirecting to login...', 'ok');
+    setTimeout(()=>gotoLogin(), 250);
+  };
+}
+
+function debounce(fn, ms){
+  let t = null;
+  return function(){
+    clearTimeout(t);
+    const args = arguments;
+    t = setTimeout(()=>fn.apply(null, args), ms);
+  }
+}
+
+/** =============================
+ * Start
+ * ============================= */
+(async function init(){
+  bindUI();
+
+  busyShow('Verifying access...','Checking your teacher account');
+  const ok = await verifyTeacher();
+  if (!ok) return; // verifyTeacher + gate handles messaging
+
+  busyUpdate('Loading classes...','Preparing your class list');
+  try{
+    await loadClasses({preserveSelection:true});
+  } finally {
+    busyHide();
+  }
+})();
+</script>
+
+</body>
+</html>
