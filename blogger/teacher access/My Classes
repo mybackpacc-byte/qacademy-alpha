@@ -1,0 +1,1069 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Student</title>
+<style>
+  :root {
+    --brand: #0b7a75;
+    --muted: #859998;
+    --ink: #1f2a28;
+    --bg: #f6f8f7;
+    --card: #ffffff;
+    --line: rgba(0,0,0,.10);
+    --soft: rgba(0,0,0,.04);
+    --danger: #b42318;
+    --warn: #b54708;
+  }
+
+  :root { --pageMax: 1600px; --pagePad: 18px; }
+
+  .qaApp { width: 100vw; margin-left: calc(50% - 50vw); background: var(--bg); min-height: 100vh; overflow-x: clip; }
+  body { overflow-x: hidden; }
+  .qaApp .topbar .inner, .qaApp .wrap { max-width: var(--pageMax); margin: 0 auto; }
+  .qaApp .topbar .inner { padding: 12px var(--pagePad); }
+  .qaApp .wrap { padding: 14px var(--pagePad) 32px; }
+  @media (min-width: 1200px) { .grid { grid-template-columns: minmax(380px, 480px) 1fr; } }
+  @media (max-width: 980px) { .qaApp { width: 100%; margin-left: 0; } }
+
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+  a { color:var(--brand); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+
+  .wrap { max-width:1150px; margin:0 auto; padding:18px; }
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:14px; box-shadow:0 6px 18px rgba(0,0,0,.04);
+  }
+  .brand { display:flex; align-items:center; gap:10px; min-width:0; }
+  .logo {
+    width:38px; height:38px; border-radius:12px; background:rgba(11,122,117,.12);
+    display:flex; align-items:center; justify-content:center; border:1px solid rgba(11,122,117,.25);
+    font-weight:900; color:rgba(11,122,117,.95);
+  }
+  .brand h1 { font-size:14px; margin:0; line-height:1.1; }
+  .brand .sub { font-size:12px; color:rgba(31,42,40,.68); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  .right { display:flex; align-items:center; gap:10px; }
+  .chip {
+    font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid var(--line);
+    background:rgba(0,0,0,.02); color:rgba(31,42,40,.78); max-width:320px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .btn {
+    appearance:none; border:1px solid var(--line); background:var(--card); color:var(--ink);
+    padding:9px 12px; border-radius:12px; cursor:pointer; font-weight:700; font-size:13px;
+  }
+  .btn:hover { background:rgba(0,0,0,.02); }
+  .btn.primary { background:var(--brand); border-color:rgba(11,122,117,.35); color:#fff; }
+  .btn.primary:hover { filter:brightness(.97); }
+  .btn.danger { background:#fff; border-color:rgba(180,35,24,.25); color:var(--danger); }
+  .btn.danger:hover { background:rgba(180,35,24,.06); }
+  .btn.ghost { background:rgba(0,0,0,.02); }
+  .btn:disabled { opacity:.55; cursor:not-allowed; }
+
+  .grid { display:grid; grid-template-columns:1.25fr .85fr; gap:14px; margin-top:14px; }
+  @media (max-width: 980px) { .grid { grid-template-columns:1fr; } }
+
+  .card {
+    background:var(--card); border:1px solid var(--line); border-radius:16px;
+    padding:14px; box-shadow:0 6px 18px rgba(0,0,0,.04);
+  }
+  .card h2 { margin:0 0 10px 0; font-size:14px; }
+  .muted { color:rgba(31,42,40,.68); font-size:12px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .spacer { height:10px; }
+  .input {
+    width:100%; padding:11px 12px; border-radius:12px; border:1px solid var(--line);
+    background:#fff; color:var(--ink); outline:none; font-size:14px;
+  }
+  .input:focus { border-color:rgba(11,122,117,.45); box-shadow:0 0 0 4px rgba(11,122,117,.10); }
+  .field { margin-top:10px; }
+  label { display:block; font-size:12px; margin:0 0 6px 2px; color:rgba(31,42,40,.78); }
+  .req { color:var(--danger); font-weight:800; margin-left:4px; }
+
+  .list { display:grid; gap:10px; }
+  .classCard {
+    border:1px solid var(--line); border-radius:14px; padding:12px; background:rgba(0,0,0,.01);
+    display:flex; justify-content:space-between; gap:10px; align-items:flex-start;
+  }
+  .classCard:hover { background:rgba(0,0,0,.018); }
+  .classTitle { font-weight:900; font-size:13px; margin:0 0 4px 0; }
+  .classMeta { font-size:12px; color:rgba(31,42,40,.70); display:flex; gap:10px; flex-wrap:wrap; }
+  .classActions { display:flex; gap:8px; flex:0 0 auto; align-items:center; }
+
+  .badge {
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:11px; padding:4px 8px; border-radius:999px; border:1px solid var(--line);
+    background:#fff; color:rgba(31,42,40,.78);
+  }
+  .badge.ok    { border-color:rgba(11,122,117,.25); background:rgba(11,122,117,.08); color:rgba(11,122,117,.95); }
+  .badge.warn  { border-color:rgba(181,71,8,.25);   background:rgba(181,71,8,.08);   color:rgba(181,71,8,.95); }
+  .badge.gray  { background:rgba(0,0,0,.03); }
+  .badge.danger { border-color:rgba(180,35,24,.25); background:rgba(180,35,24,.06); color:rgba(180,35,24,.98); }
+
+  .divider { height:1px; background:var(--line); margin:12px 0; }
+  .hintBox {
+    border:1px dashed rgba(133,153,152,.55); background:rgba(133,153,152,.12);
+    border-radius:14px; padding:10px; font-size:12px; color:rgba(31,42,40,.78);
+  }
+
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; }
+  .tabBtn {
+    border:1px solid var(--line); background:rgba(0,0,0,.02);
+    padding:7px 10px; border-radius:999px; cursor:pointer;
+    font-weight:800; font-size:12px; color:rgba(31,42,40,.82);
+  }
+  .tabBtn.active {
+    background:rgba(11,122,117,.10); border-color:rgba(11,122,117,.30); color:rgba(11,122,117,.98);
+  }
+
+  .panelTitle { font-weight:950; font-size:13px; margin:0; }
+
+  .toastWrap {
+    position:fixed; left:50%; transform:translateX(-50%); bottom:18px; z-index:9999;
+    display:grid; gap:10px; max-width:min(560px, calc(100% - 24px)); width:100%;
+  }
+  .toast {
+    background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px;
+    box-shadow:0 12px 28px rgba(0,0,0,.14); display:flex; justify-content:space-between; gap:10px; align-items:flex-start;
+  }
+  .toast strong { display:block; font-size:13px; margin-bottom:2px; }
+  .toast .msg { font-size:12px; color:rgba(31,42,40,.78); }
+  .toast .x { border:none; background:transparent; cursor:pointer; color:rgba(31,42,40,.55); font-size:16px; line-height:1; }
+  .toast.danger { border-color:rgba(180,35,24,.28); }
+  .toast.warn   { border-color:rgba(181,71,8,.28); }
+  .toast.ok     { border-color:rgba(11,122,117,.30); }
+</style>
+</head>
+<body>
+  <div id="qaApp" class="qaApp">
+    <div class="wrap">
+      <div class="topbar">
+        <div class="brand">
+          <div class="logo" aria-hidden="true">QA</div>
+          <div style="min-width:0">
+            <h1>QAcademy Student</h1>
+            <div class="sub" id="subline">Loading…</div>
+          </div>
+        </div>
+        <div class="right">
+          <div class="chip" id="userChip">Not signed in</div>
+          <button class="btn danger" id="btnSignOut" type="button">Sign out</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <!-- LEFT: My Classes -->
+        <div class="card">
+          <div class="row" style="justify-content:space-between">
+            <div>
+              <h2>My Classes</h2>
+              <div class="muted">These are the classes you’ve joined.</div>
+            </div>
+            <div class="row">
+              <button class="btn" id="btnRefresh" type="button">Refresh</button>
+            </div>
+          </div>
+          <div class="spacer"></div>
+          <input class="input" id="classSearch" placeholder="Search classes…" autocomplete="off" />
+          <div class="divider"></div>
+          <div id="classesEmpty" class="hintBox" style="display:none">
+            No classes yet. Use the <b>Join Class</b> panel to enter your class code.
+          </div>
+          <div id="classesList" class="list" aria-live="polite"></div>
+          <div class="spacer"></div>
+          <div class="hintBox">
+            Quick tip: keep your access token private.
+          </div>
+        </div>
+
+        <!-- RIGHT: Join + Class Details -->
+        <div class="card">
+          <!-- JOIN VIEW -->
+          <div id="joinView">
+            <h2>Join Class</h2>
+            <div class="muted">Enter the class code your lecturer shared with you.</div>
+            <div class="field">
+              <label for="joinCode">Class code</label>
+              <input class="input" id="joinCode" placeholder="e.g., A2BC3D4E" autocomplete="off" />
+            </div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn primary" id="btnJoinContinue" type="button">Continue</button>
+              <button class="btn" id="btnJoinReset" type="button">Reset</button>
+            </div>
+            <div class="divider"></div>
+            <div id="customFieldsWrap" style="display:none">
+              <div class="muted" id="customFieldsIntro" style="margin-bottom:8px"></div>
+              <div id="customFieldsForm"></div>
+              <div class="row" style="margin-top:10px">
+                <button class="btn primary" id="btnJoinSubmit" type="button">Join now</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- DETAILS VIEW -->
+          <div id="detailsView" style="display:none">
+            <div class="row" style="justify-content:space-between">
+              <div style="min-width:0">
+                <div class="panelTitle" id="detailTitle">Class</div>
+                <div class="muted" id="detailSub">Details</div>
+              </div>
+              <div class="row">
+                <button class="btn ghost" id="btnBackToJoin" type="button">Back</button>
+              </div>
+            </div>
+            <div class="pillRow" id="detailBadges"></div>
+            <div class="divider"></div>
+            <div class="tabs">
+              <button class="tabBtn active" id="tabQuizzes" type="button">Quizzes</button>
+              <button class="tabBtn" id="tabProfile" type="button">My Class Profile</button>
+            </div>
+            <div class="spacer"></div>
+
+            <!-- Quizzes tab -->
+            <div id="tabQuizzesView">
+              <div class="muted" style="margin-bottom:8px">Published quizzes linked to this class.</div>
+              <div id="quizzesList" class="list"></div>
+            </div>
+
+            <!-- Profile tab -->
+            <div id="tabProfileView" style="display:none">
+              <div class="muted" style="margin-bottom:8px" id="profileIntro">Your details for this class.</div>
+              <div id="profileForm"></div>
+              <div class="row" style="margin-top:10px">
+                <button class="btn primary" id="btnSaveProfile" type="button">Save profile</button>
+              </div>
+              <div class="spacer"></div>
+              <div class="hintBox">
+                Only the fields required by your lecturer are stored for this class.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="muted" style="margin-top:14px; text-align:center">
+        QAcademy • Student Access
+      </div>
+    </div>
+
+    <div class="toastWrap" id="toastWrap" aria-live="polite"></div>
+
+    <div id="attemptsModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:9999; padding:18px; align-items:flex-end; justify-content:center;">
+      <div style="width:min(760px, 96vw); max-height:78vh; overflow:auto; background:#fff; border:1px solid var(--line); border-radius:16px; padding:14px;">
+        <div class="row" style="justify-content:space-between; align-items:center;">
+          <div style="font-weight:950" id="attemptsModalTitle">Attempts</div>
+          <button class="btn" id="btnCloseAttempts" type="button">Close</button>
+        </div>
+        <div class="divider"></div>
+        <div id="attemptsModalBody" class="list"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const TA_URL    = 'https://script.google.com/macros/s/AKfycbz54M_jWoRq4cOC2gUQeRhd55AeEJ5vnELJ0gkBSodO58fr7WGa9jwk6JNwPptf8p8X/exec';
+const AUTH_URL  = 'https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec';
+const LOGIN_URL = '';
+const TOKEN_KEY = 'qa_token';
+
+// === 3-page flow slugs (relative only) ===
+const RUNNER_PAGE  = '/p/teacher-quiz-runner.html';
+const RESULTS_PAGE = '/p/teacher-quiz-results.html';
+const REVIEW_PAGE  = '/p/teacher-quiz-review.html'; // not used on dashboard (Option A), kept for completeness
+
+const $ = id => document.getElementById(id);
+
+function toast(type, title, msg, ms = 4200) {
+  const wrap = $('toastWrap');
+  const el = document.createElement('div');
+  el.className = `toast ${type || ''}`;
+  el.innerHTML = `
+    <div style="min-width:0">
+      <strong>${escapeHtml(title || '')}</strong>
+      <div class="msg">${escapeHtml(msg || '')}</div>
+    </div>
+    <button class="x" aria-label="Dismiss" title="Dismiss">×</button>
+  `;
+  el.querySelector('.x').onclick = () => el.remove();
+  wrap.appendChild(el);
+  if (ms > 0) setTimeout(() => el.remove(), ms);
+}
+
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function safeJsonParse(s, fallback = {}) {
+  try {
+    if (!s) return fallback;
+    if (typeof s === 'object') return s;
+    const t = String(s).trim();
+    if (!t) return fallback;
+    return JSON.parse(t);
+  } catch {
+    return fallback;
+  }
+}
+
+function getToken() {
+  const u = new URL(location.href);
+  const qs = u.searchParams.get('token')?.trim();
+  if (qs) {
+    localStorage.setItem(TOKEN_KEY, qs);
+    history.replaceState(null, '', location.pathname);
+    return qs;
+  }
+  return localStorage.getItem(TOKEN_KEY)?.trim() || '';
+}
+
+function clearToken() { localStorage.removeItem(TOKEN_KEY); }
+
+async function postForm(url, data) {
+  const body = new URLSearchParams();
+  Object.entries(data || {}).forEach(([k, v]) => { if (v != null) body.append(k, String(v)); });
+  const res = await fetch(url, {
+    method: 'POST',
+    mode: 'cors',
+    credentials: 'omit',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+    body
+  });
+  const txt = await res.text();
+  try { return JSON.parse(txt); }
+  catch { return { ok: false, error: 'bad_json', raw: txt }; }
+}
+
+async function taCall(action, token, extra = {}) { return postForm(TA_URL, { action, token, ...extra }); }
+async function authVerify(token) { return postForm(AUTH_URL, { action: 'verify', token }); }
+
+async function candidateClassesList(token) { return taCall('candidate.classes.list', token); }
+async function candidateClassJoin(token, join_code, member_fields_json = '') { return taCall('candidate.class.join', token, { join_code, member_fields_json }); }
+async function candidateQuizzesList(token, class_id) { return taCall('candidate.quizzes.list', token, { class_id }); }
+async function candidateClassGet(token, class_id) { return taCall('candidate.class.get', token, { class_id }); }
+async function candidateClassProfileUpdate(token, class_id, member_fields_json) { return taCall('candidate.class.profile.update', token, { class_id, member_fields_json }); }
+async function candidateQuizAttemptsList(token, class_id, teacher_quiz_id, limit = 80) {
+  return taCall('candidate.quiz.attempts.list', token, { class_id, teacher_quiz_id, limit });
+}
+
+const state = {
+  token: '',
+  user: null,
+  classes: [],
+  filter: '',
+  selected: {
+    class_id: '',
+    classObj: null,
+    quizzes: [],
+    profile: { schema: null, fieldsObj: null, status: '' }
+  },
+  pendingJoin: { join_code: '', classInfo: null, fields: [], missing_keys: [] }
+};
+
+function normalizeClassTitle(cls) { return String(cls?.title || cls?.class_title || cls?.name || '(Untitled class)').trim(); }
+function normalizeClassId(cls) { return String(cls?.class_id || cls?.id || '').trim(); }
+function getTeacherName(cls) { return String(cls?.teacher_name || cls?.teacher_display_name || cls?.teacher || '').trim(); }
+function getQuizCount(cls) { return cls?.quiz_counts ? (cls.quiz_counts.published_total ?? cls.quiz_counts.total ?? 0) : 0; }
+
+function showJoinView() {
+  $('detailsView').style.display = 'none';
+  $('joinView').style.display = 'block';
+  state.selected = { class_id:'', classObj:null, quizzes:[], profile:{ schema:null, fieldsObj:null, status:'' } };
+}
+
+function showDetailsView() {
+  $('joinView').style.display = 'none';
+  $('detailsView').style.display = 'block';
+}
+
+function renderHeader() {
+  const u = state.user || {};
+  const name = (u.name || u.display_name || '').trim();
+  const email = (u.email || '').trim();
+  $('userChip').textContent = (name || email) ? [name, email].filter(Boolean).join(' • ') : (state.token ? 'Signed in' : 'Not signed in');
+  $('subline').textContent = state.token ? 'Student dashboard' : 'Please sign in';
+}
+
+function renderClasses() {
+  const list = $('classesList');
+  list.innerHTML = '';
+  const q = state.filter.toLowerCase().trim();
+  const filtered = !q ? state.classes : state.classes.filter(cls => {
+    const t = normalizeClassTitle(cls).toLowerCase();
+    const teach = getTeacherName(cls).toLowerCase();
+    const cid = normalizeClassId(cls).toLowerCase();
+    return t.includes(q) || teach.includes(q) || cid.includes(q);
+  });
+
+  $('classesEmpty').style.display = filtered.length ? 'none' : 'block';
+  if (!filtered.length) return;
+
+  filtered.forEach(cls => {
+    const card = document.createElement('div');
+    card.className = 'classCard';
+    const title = normalizeClassTitle(cls);
+    const teacher = getTeacherName(cls);
+    const cid = normalizeClassId(cls);
+    const st = String(cls.status || 'ACTIVE').toUpperCase();
+    const quizCount = getQuizCount(cls);
+    const pstat = state.selected.class_id === cid
+      ? state.selected.profile.status
+      : (cls.member_profile?.profile_complete ? 'COMPLETE' : 'REQUIRED');
+
+    card.innerHTML = `
+      <div style="min-width:0">
+        <div class="classTitle">${escapeHtml(title)}</div>
+        <div class="classMeta">
+          <span>${teacher ? `Lecturer: ${escapeHtml(teacher)}` : 'Lecturer: —'}</span>
+          <span>•</span>
+          <span>Code: ${escapeHtml(cid)}</span>
+        </div>
+        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap">
+          <span class="badge ${st === 'ACTIVE' ? 'ok' : 'gray'}">${escapeHtml(st)}</span>
+          <span class="badge gray">Quizzes: ${quizCount}</span>
+          <span class="badge ${pstat === 'COMPLETE' ? 'ok' : 'warn'}">Profile: ${pstat || '—'}</span>
+        </div>
+      </div>
+      <div class="classActions">
+        <button class="btn" type="button">Open</button>
+      </div>
+    `;
+    card.querySelector('button').onclick = () => openClassDetails(cls);
+    list.appendChild(card);
+  });
+}
+
+function renderDetailsHeader() {
+  const cls = state.selected.classObj || {};
+  const title = normalizeClassTitle(cls);
+  const teacher = getTeacherName(cls);
+  const cid = normalizeClassId(cls);
+  const quizCount = getQuizCount(cls);
+  const pstat = state.selected.profile.status || '—';
+  const pBadge = pstat === 'COMPLETE' ? 'ok' : (pstat === 'REQUIRED' ? 'warn' : 'gray');
+
+  $('detailTitle').textContent = title;
+  $('detailSub').textContent = teacher ? `Lecturer: ${teacher}` : `Code: ${cid}`;
+
+  $('detailBadges').innerHTML = `
+    <span class="badge ok">ACTIVE</span>
+    <span class="badge gray">Code: ${escapeHtml(cid)}</span>
+    <span class="badge gray">Quizzes: ${quizCount}</span>
+    <span class="badge ${pBadge}">Profile: ${pstat}</span>
+  `;
+}
+
+function setActiveTab(tab) {
+  const isQuizzes = tab === 'quizzes';
+  $('tabQuizzes').classList.toggle('active', isQuizzes);
+  $('tabProfile').classList.toggle('active', !isQuizzes);
+  $('tabQuizzesView').style.display = isQuizzes ? 'block' : 'none';
+  $('tabProfileView').style.display = isQuizzes ? 'none' : 'block';
+}
+
+function fmtIso(iso) {
+  const s = String(iso || '').trim();
+  if (!s) return '';
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  return d.toLocaleString();
+}
+
+// === URL builders (relative slugs only) ===
+function buildUrl(path, params) {
+  const u = new URL(path, location.origin);
+  Object.entries(params || {}).forEach(([k, v]) => {
+    if (v === undefined || v === null) return;
+    const s = String(v).trim();
+    if (!s) return;
+    u.searchParams.set(k, s);
+  });
+  return u.toString();
+}
+
+function runnerUrlFor(q, { attempt_id = '', force_new = false } = {}) {
+  const baseParams = {
+    class_id: state.selected.class_id,
+    teacher_quiz_id: q.teacher_quiz_id
+  };
+  if (attempt_id) baseParams.attempt_id = attempt_id;
+  if (!attempt_id && force_new) baseParams.force_new = '1';
+  return buildUrl(RUNNER_PAGE, baseParams);
+}
+
+function resultsUrlFor(q, { attempt_id = '' } = {}) {
+  const baseParams = {
+    class_id: state.selected.class_id,
+    teacher_quiz_id: q.teacher_quiz_id
+  };
+  if (attempt_id) baseParams.attempt_id = attempt_id;
+  return buildUrl(RESULTS_PAGE, baseParams);
+}
+
+function reviewUrlFor(q, { attempt_id = '' } = {}) {
+  const baseParams = {
+    class_id: state.selected.class_id,
+    teacher_quiz_id: q.teacher_quiz_id
+  };
+  if (attempt_id) baseParams.attempt_id = attempt_id;
+  return buildUrl(REVIEW_PAGE, baseParams);
+}
+
+// Returns null if used==0 (because you only want Results badge if used>0)
+function resultsPill(q) {
+  const used = parseInt(String(q.attempts_used || '0'), 10) || 0;
+  if (used <= 0) return null;
+
+  const st = String(q.results_status || '').toUpperCase(); // AVAILABLE | PENDING | HIDDEN
+  if (st === 'AVAILABLE') return { text: 'AVAILABLE', cls: 'ok' };
+  if (st === 'PENDING') return { text: 'PENDING', cls: 'warn' };
+  return { text: 'HIDDEN', cls: 'gray' };
+}
+
+function openAttemptsModal(q) {
+  const modal = $('attemptsModal');
+  const body = $('attemptsModalBody');
+  $('attemptsModalTitle').textContent = `Attempts — ${q.title || 'Quiz'}`;
+  body.innerHTML = `<div class="muted">Loading…</div>`;
+  modal.style.display = 'flex';
+
+  (async () => {
+    const res = await candidateQuizAttemptsList(state.token, state.selected.class_id, q.teacher_quiz_id, 80);
+    if (!res?.ok) {
+      body.innerHTML = `<div class="hintBox">Could not load attempts.</div>`;
+      return;
+    }
+
+    const items = res.items || [];
+    if (!items.length) {
+      body.innerHTML = `<div class="hintBox">No attempts yet.</div>`;
+      return;
+    }
+
+    body.innerHTML = '';
+    items.forEach(a => {
+      const st = String(a.status || '').toUpperCase();
+      const when = a.submitted_at || a.updated_at || a.started_at || '';
+      const score = (a.score_summary && a.score_summary.percent != null) ? `${a.score_summary.percent}%` : '';
+
+      const row = document.createElement('div');
+      row.className = 'classCard';
+      row.innerHTML = `
+        <div style="min-width:0;flex:1">
+          <div class="classTitle">Attempt ${escapeHtml(String(a.attempt_no || ''))} ${score ? `• ${escapeHtml(score)}` : ''}</div>
+          <div class="classMeta">
+            <span>Status: ${escapeHtml(st)}</span>
+            ${when ? `<span>• ${escapeHtml(fmtIso(when))}</span>` : ''}
+          </div>
+        </div>
+        <div class="classActions">
+          <button class="btn ${st === 'IN_PROGRESS' ? 'primary' : ''}" type="button">${st === 'IN_PROGRESS' ? 'Resume' : 'Results'}</button>
+        </div>
+      `;
+
+      row.querySelector('button').onclick = () => {
+        const url = (st === 'IN_PROGRESS')
+          ? runnerUrlFor(q, { attempt_id: a.attempt_id })
+          : resultsUrlFor(q, { attempt_id: a.attempt_id });
+        window.open(url, '_blank');
+      };
+
+      body.appendChild(row);
+    });
+  })();
+}
+
+function policyLabel(q) {
+  const pol = String(q.results_release_policy || 'IMMEDIATE').toUpperCase();
+  if (pol === 'IMMEDIATE') return 'Results: Immediate';
+  if (pol === 'AFTER_CLOSE') return 'Results: After close';
+  if (pol === 'MANUAL') return 'Results: Manual';
+  return 'Results: Immediate';
+}
+
+function gateLabel(q) {
+  const pol = String(q.results_release_policy || 'IMMEDIATE').toUpperCase();
+  const met = !!q.results_gate_now;
+  if (met) return 'Results gate: Open';
+  if (pol === 'AFTER_CLOSE') return 'Results gate: Locked (close)';
+  if (pol === 'MANUAL') return 'Results gate: Locked (release)';
+  return 'Results gate: Open';
+}
+
+function startLockText(q) {
+  const r = String(q.start_lock_reason || '').toUpperCase();
+  if (r === 'UPCOMING') return 'Not open yet';
+  if (r === 'CLOSED') return 'Closed';
+  if (r === 'MAX_ATTEMPTS') return 'No attempts left';
+  if (r === 'IN_PROGRESS') return 'Attempt in progress';
+  return 'Locked';
+}
+
+function renderQuizzes(items) {
+  const wrap = $('quizzesList');
+  wrap.innerHTML = '';
+  if (!items?.length) {
+    wrap.innerHTML = `<div class="hintBox">No published quizzes linked to this class yet.</div>`;
+    return;
+  }
+
+  items.forEach(q => {
+    const os = String(q.open_state || 'OPEN').toUpperCase();
+    const osBadge = os === 'OPEN' ? 'ok' : (os === 'UPCOMING' ? 'warn' : 'gray');
+
+    const preset = String(q.preset || '').toUpperCase();
+    const mode = String(q.mode || 'TIMED').toUpperCase();
+    const dur = q.duration_minutes ? `${q.duration_minutes} min` : '';
+
+    const max = parseInt(String(q.max_attempts || '0'), 10) || 0; // 0 = unlimited
+    const used = parseInt(String(q.attempts_used || '0'), 10) || 0;
+
+    const inProgId = String(q.in_progress_attempt_id || '').trim();
+    const latestEnded = String(q.latest_ended_attempt_id || '').trim();
+    const latestAny = String(q.latest_attempt_id || '').trim();
+
+    const canStart = !!q.can_start;
+    const startLabel = (used > 0) ? 'New Attempt' : 'Start';
+
+    const openAt = fmtIso(q.open_at);
+    const closeAt = fmtIso(q.close_at);
+
+    const attemptsBadge = (max <= 0) ? `Attempts: ${used} used` : `Attempts: ${used}/${max}`;
+
+    const rp = resultsPill(q);
+
+    const el = document.createElement('div');
+    el.className = 'classCard';
+
+    el.innerHTML = `
+      <div style="min-width:0; flex:1">
+        <div class="classTitle">${escapeHtml(q.title || 'Quiz')}</div>
+        <div class="classMeta">
+          <span>${escapeHtml(q.subject || '')}</span>
+          ${openAt ? `<span>• Opens: ${escapeHtml(openAt)}</span>` : ''}
+          ${closeAt ? `<span>• Closes: ${escapeHtml(closeAt)}</span>` : ''}
+        </div>
+
+        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap">
+          <span class="badge ${osBadge}">${os}</span>
+          ${preset ? `<span class="badge gray">${escapeHtml(preset)}</span>` : ''}
+          <span class="badge gray">${escapeHtml(mode)}${dur ? ` • ${escapeHtml(dur)}` : ''}</span>
+          <span class="badge gray">${escapeHtml(attemptsBadge)}</span>
+          ${rp ? `<span class="badge ${rp.cls}">Results: ${escapeHtml(rp.text)}</span>` : ``}
+        </div>
+
+        ${(!canStart && os === 'OPEN' && !inProgId) ? `<div class="muted" style="margin-top:6px">Start locked: ${escapeHtml(startLockText(q))}</div>` : ``}
+      </div>
+
+      <div class="classActions" style="flex-wrap:wrap; justify-content:flex-end">
+        ${used > 0 ? `
+          <button class="btn" type="button" data-action="results" title="${rp ? `Results ${rp.text}` : 'Results'}">
+            Results <span class="badge ${rp ? rp.cls : 'gray'}" style="padding:2px 7px; font-size:10px; border-radius:999px;">
+              ${rp ? rp.text : '—'}
+            </span>
+          </button>
+        ` : ``}
+
+        ${(used > 0 || max > 1) ? `
+          <button class="btn" type="button" data-action="attempts">Attempts</button>
+        ` : ``}
+
+        ${inProgId ? `
+          <button class="btn primary" type="button" data-action="resume">Resume</button>
+        ` : canStart ? `
+          <button class="btn primary" type="button" data-action="start">${escapeHtml(startLabel)}</button>
+        ` : `
+          <button class="btn" type="button" data-action="open">Open</button>
+        `}
+      </div>
+    `;
+
+    // Wire actions
+    const btnResume = el.querySelector('button[data-action="resume"]');
+    if (btnResume) btnResume.onclick = () => window.open(runnerUrlFor(q, { attempt_id: inProgId }), '_blank');
+
+    const btnStart = el.querySelector('button[data-action="start"]');
+    if (btnStart) btnStart.onclick = () => window.open(
+      runnerUrlFor(q, { force_new: (used > 0) }),
+      '_blank'
+    );
+
+    const btnOpen = el.querySelector('button[data-action="open"]');
+    if (btnOpen) btnOpen.onclick = () => {
+      // If user already has attempts, "Open" is more useful as Results. Otherwise Runner.
+      const targetAttempt = latestEnded || latestAny || '';
+      const url = (used > 0 && targetAttempt) ? resultsUrlFor(q, { attempt_id: targetAttempt }) : runnerUrlFor(q);
+      window.open(url, '_blank');
+    };
+
+    const btnResults = el.querySelector('button[data-action="results"]');
+    if (btnResults) btnResults.onclick = () => {
+      const targetAttempt = latestEnded || latestAny || '';
+      window.open(resultsUrlFor(q, { attempt_id: targetAttempt }), '_blank');
+    };
+
+    const btnAttempts = el.querySelector('button[data-action="attempts"]');
+    if (btnAttempts) btnAttempts.onclick = () => openAttemptsModal(q);
+
+    wrap.appendChild(el);
+  });
+}
+
+function renderProfileForm() {
+  const form = $('profileForm');
+  form.innerHTML = '';
+
+  const { schema, fieldsObj } = state.selected.profile;
+  const existing = fieldsObj?.fields || {};
+
+  if (!schema?.fields?.length) {
+    form.innerHTML = `<div class="hintBox">No profile fields defined for this class yet.</div>`;
+    $('btnSaveProfile').disabled = true;
+    return;
+  }
+
+  $('btnSaveProfile').disabled = false;
+
+  schema.fields.forEach(f => {
+    const key = f.key?.trim() || '';
+    if (!key) return;
+
+    const label = f.label?.trim() || key;
+    const req = !!f.required;
+    const type = (f.type || 'text').toLowerCase();
+    const val = existing[key] ?? '';
+
+    let inputEl = '';
+    if (type === 'select' && Array.isArray(f.options) && f.options.length) {
+      const opts = f.options.map(o => {
+        const ov = o.value ?? o.key ?? o.label ?? o;
+        const ol = o.label ?? o.value ?? o.key ?? o;
+        return `<option value="${escapeHtml(ov)}" ${ov === val ? 'selected' : ''}>${escapeHtml(ol)}</option>`;
+      }).join('');
+      inputEl = `<select class="input" id="pf_${key}" data-key="${key}">${opts}</select>`;
+    } else {
+      const t = type === 'number' ? 'number' : type === 'date' ? 'date' : 'text';
+      inputEl = `<input class="input" id="pf_${key}" data-key="${key}" type="${t}" value="${escapeHtml(val)}" placeholder="${escapeHtml(label)}" />`;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'field';
+    row.innerHTML = `
+      <label for="pf_${key}">${escapeHtml(label)}${req ? '<span class="req">*</span>' : ''}</label>
+      ${inputEl}
+      <div id="pf_err_${key}" class="muted" style="display:none; color:var(--danger); margin-top:4px;">This field is required</div>
+    `;
+    form.appendChild(row);
+  });
+}
+
+function renderCustomFields(fields, classInfo) {
+  const wrap = $('customFieldsWrap');
+  const form = $('customFieldsForm');
+  wrap.style.display = 'block';
+
+  const title = classInfo?.title || 'this class';
+  $('customFieldsIntro').textContent = `Your lecturer requires a few details to join “${title}”.`;
+
+  form.innerHTML = '';
+  (fields || []).forEach(f => {
+    const key = f.key?.trim() || '';
+    if (!key) return;
+    const label = f.label?.trim() || key;
+    const req = !!f.required;
+
+    const row = document.createElement('div');
+    row.className = 'field';
+    row.innerHTML = `
+      <label for="cf_${key}">${escapeHtml(label)}${req ? '<span class="req">*</span>' : ''}</label>
+      <input class="input" id="cf_${key}" data-key="${key}" placeholder="${escapeHtml(label)}" />
+      <div id="cf_err_${key}" class="muted" style="display:none; color:var(--danger); margin-top:4px;">Required</div>
+    `;
+    form.appendChild(row);
+  });
+}
+
+async function handleAuthFailure(err) {
+  const e = String(err || '').toLowerCase();
+  if (e.includes('auth_verify_failed') || e.includes('missing_token') || e.includes('forbidden')) {
+    toast('danger', 'Session expired', 'Please sign in again.');
+    clearToken();
+    renderHeader();
+    if (LOGIN_URL) setTimeout(() => location.href = LOGIN_URL, 800);
+    return true;
+  }
+  return false;
+}
+
+async function loadUserAndClasses() {
+  state.token = getToken();
+  if (!state.token) {
+    renderHeader();
+    toast('warn', 'Not signed in', 'Please sign in to continue.');
+    if (LOGIN_URL) setTimeout(() => location.href = LOGIN_URL, 800);
+    return;
+  }
+
+  const av = await authVerify(state.token);
+  state.user = av?.ok ? av.user : null;
+  renderHeader();
+
+  const res = await candidateClassesList(state.token);
+  if (!res?.ok) {
+    if (await handleAuthFailure(res?.error)) return;
+    toast('danger', 'Could not load classes', res?.error || 'unknown');
+    state.classes = [];
+  } else {
+    state.classes = res.items || [];
+  }
+  renderClasses();
+}
+
+async function openClassDetails(cls) {
+  state.selected.classObj = cls;
+  state.selected.class_id = normalizeClassId(cls);
+  state.selected.quizzes = [];
+  state.selected.profile = { schema: null, fieldsObj: null, status: '' };
+
+  showDetailsView();
+  renderDetailsHeader();
+  setActiveTab('quizzes');
+
+  $('quizzesList').innerHTML = `<div class="muted">Loading quizzes…</div>`;
+  $('profileForm').innerHTML = `<div class="muted">Loading profile…</div>`;
+  $('btnSaveProfile').disabled = true;
+
+  const qres = await candidateQuizzesList(state.token, state.selected.class_id);
+  if (qres?.ok) {
+    state.selected.quizzes = qres.items || [];
+    renderQuizzes(state.selected.quizzes);
+  } else {
+    await handleAuthFailure(qres?.error);
+    $('quizzesList').innerHTML = `<div class="hintBox">Could not load quizzes.</div>`;
+  }
+
+  const det = await candidateClassGet(state.token, state.selected.class_id);
+  if (!det?.ok) {
+    await handleAuthFailure(det?.error);
+    renderDetailsHeader();
+    renderProfileForm();
+    return;
+  }
+
+  state.selected.classObj = { ...cls, ...det.class };
+
+  const schemaFields = det.fields || [];
+  let memberFields = {};
+  if (det.member_fields_json) {
+    const parsed = safeJsonParse(det.member_fields_json, {});
+    memberFields = parsed.fields || parsed;
+  } else if (det.member_fields) {
+    memberFields = det.member_fields;
+  }
+
+  const isComplete = det.member_profile?.profile_complete === true;
+
+  state.selected.profile = {
+    schema: schemaFields.length ? { fields: schemaFields } : null,
+    fieldsObj: { fields: memberFields },
+    status: isComplete ? 'COMPLETE' : 'REQUIRED'
+  };
+
+  renderDetailsHeader();
+  renderProfileForm();
+}
+
+async function joinContinue() {
+  const code = String($('joinCode').value || '').trim().toUpperCase();
+  if (!code) return toast('warn', 'Missing code', 'Please enter the class code.');
+
+  $('btnJoinContinue').disabled = true;
+  const res = await candidateClassJoin(state.token, code);
+  $('btnJoinContinue').disabled = false;
+
+  if (res?.ok) {
+    toast('ok', 'Joined', 'Class joined successfully.');
+    resetJoinUI();
+    await loadUserAndClasses();
+    return;
+  }
+
+  if (await handleAuthFailure(res?.error)) return;
+
+  if (res?.error === 'missing_member_fields') {
+    state.pendingJoin = {
+      join_code: code,
+      classInfo: res.class || null,
+      fields: res.fields || [],
+      missing_keys: res.missing_keys || []
+    };
+    renderCustomFields(state.pendingJoin.fields, state.pendingJoin.classInfo);
+    toast('warn', 'More details needed', 'Please complete the required fields.');
+    return;
+  }
+
+  toast('danger', 'Join failed', res?.error || 'unknown error');
+}
+
+async function joinSubmit() {
+  const code = state.pendingJoin.join_code || String($('joinCode').value || '').trim().toUpperCase();
+  if (!code) return toast('warn', 'Missing code', 'Please enter the class code.');
+
+  const fields = state.pendingJoin.fields;
+  if (!fields.length) return toast('warn', 'No fields', 'Click Continue first.');
+
+  const out = {};
+  let missing = [];
+  fields.forEach(f => {
+    const key = f.key?.trim() || '';
+    if (!key) return;
+    const el = document.querySelector(`[data-key="${key}"]`);
+    const v = String(el?.value || '').trim();
+    out[key] = v;
+    if (f.required && !v) {
+      missing.push(key);
+      $(`cf_err_${key}`).style.display = 'block';
+    } else {
+      $(`cf_err_${key}`).style.display = 'none';
+    }
+  });
+
+  if (missing.length) return toast('warn', 'Required fields missing', 'Please fill all marked fields.');
+
+  const json = JSON.stringify({ fields: out });
+  $('btnJoinSubmit').disabled = true;
+  const res = await candidateClassJoin(state.token, code, json);
+  $('btnJoinSubmit').disabled = false;
+
+  if (res?.ok) {
+    toast('ok', 'Joined', 'Class joined successfully.');
+    resetJoinUI();
+    await loadUserAndClasses();
+    showJoinView();
+    return;
+  }
+
+  if (await handleAuthFailure(res?.error)) return;
+  toast('danger', 'Join failed', res?.error || 'unknown');
+}
+
+async function saveProfile() {
+  if (!state.token || !state.selected.class_id) return;
+
+  const { schema } = state.selected.profile;
+  if (!schema?.fields?.length) return toast('warn', 'Not editable', 'No profile fields for this class.');
+
+  const out = {};
+  let missing = [];
+  schema.fields.forEach(f => {
+    const key = f.key?.trim() || '';
+    if (!key) return;
+    const el = document.querySelector(`#pf_${key}`);
+    const v = String(el?.value || '').trim();
+    out[key] = v;
+    if (f.required && !v) {
+      missing.push(key);
+      $(`pf_err_${key}`).style.display = 'block';
+    } else {
+      $(`pf_err_${key}`).style.display = 'none';
+    }
+  });
+
+  if (missing.length) return toast('warn', 'Required fields missing', 'Please fill all marked fields.');
+
+  const json = JSON.stringify({ fields: out });
+  $('btnSaveProfile').disabled = true;
+  const res = await candidateClassProfileUpdate(state.token, state.selected.class_id, json);
+  $('btnSaveProfile').disabled = false;
+
+  if (res?.ok) {
+    toast('ok', 'Saved', 'Profile updated.');
+    const fresh = await candidateClassGet(state.token, state.selected.class_id);
+    if (fresh?.ok) {
+      const fields = fresh.fields || [];
+      let vals = {};
+      if (fresh.member_fields_json) {
+        const p = safeJsonParse(fresh.member_fields_json, {});
+        vals = p.fields || p;
+      }
+      state.selected.profile = {
+        schema: fields.length ? { fields } : null,
+        fieldsObj: { fields: vals },
+        status: fresh.member_profile?.profile_complete ? 'COMPLETE' : 'REQUIRED'
+      };
+      renderDetailsHeader();
+      renderProfileForm();
+    }
+    return;
+  }
+
+  await handleAuthFailure(res?.error);
+  toast('danger', 'Save failed', res?.error || 'unknown');
+}
+
+function resetJoinUI() {
+  state.pendingJoin = { join_code: '', classInfo: null, fields: [], missing_keys: [] };
+  $('joinCode').value = '';
+  $('customFieldsWrap').style.display = 'none';
+  $('customFieldsForm').innerHTML = '';
+  $('customFieldsIntro').textContent = '';
+}
+
+$('btnRefresh').onclick = loadUserAndClasses;
+
+$('classSearch').addEventListener('input', e => {
+  state.filter = e.target.value;
+  renderClasses();
+});
+
+$('btnJoinContinue').onclick = joinContinue;
+$('btnJoinSubmit').onclick = joinSubmit;
+$('btnJoinReset').onclick = resetJoinUI;
+
+$('btnBackToJoin').onclick = showJoinView;
+
+$('tabQuizzes').onclick = () => setActiveTab('quizzes');
+$('tabProfile').onclick = () => setActiveTab('profile');
+
+$('btnSaveProfile').onclick = saveProfile;
+
+$('btnSignOut').onclick = () => {
+  clearToken();
+  resetJoinUI();
+  state.user = null;
+  state.classes = [];
+  renderHeader();
+  renderClasses();
+  showJoinView();
+  toast('ok', 'Signed out', 'You have been signed out.');
+  if (LOGIN_URL) setTimeout(() => location.href = LOGIN_URL, 650);
+};
+
+$('btnCloseAttempts').onclick = () => $('attemptsModal').style.display = 'none';
+$('attemptsModal').addEventListener('click', (e) => {
+  if (e.target === $('attemptsModal')) $('attemptsModal').style.display = 'none';
+});
+
+$('joinCode').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if ($('customFieldsWrap').style.display === 'none') joinContinue();
+    else joinSubmit();
+  }
+});
+
+resetJoinUI();
+showJoinView();
+loadUserAndClasses();
+</script>
+</body>
+</html>
