@@ -1,0 +1,901 @@
+<!-- =================== QAcademy — Upgrade / Extend Access (Paystack) =================== -->
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --brand:#0b7a75; --muted:#859998; --ink:#1f2a28; --bg:#f6f8f7; --card:#ffffff; --line:#e5e7eb;
+    --danger:#b42318; --dangerSoft:#fef2f2;
+    --ok:#166534; --okSoft:#ecfdf3;
+    --shadow:0 12px 28px rgba(0,0,0,.07);
+    --r:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:820px;margin:22px auto;padding:0 14px}
+  .card{background:var(--card);border:1px solid rgba(0,0,0,.06);border-radius:var(--r);box-shadow:var(--shadow);padding:16px}
+  h1{margin:0 0 8px;font-size:20px}
+  .sub{margin:0 0 14px;color:#5b6b69;font-size:13px;line-height:1.45}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .col{flex:1;min-width:240px}
+  label{display:block;font-size:12px;color:#51615f;margin:10px 0 6px}
+  select,input{width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:14px;outline:none}
+  select:focus,input:focus{border-color:rgba(11,122,117,.5);box-shadow:0 0 0 4px rgba(11,122,117,.12)}
+  .btn{
+    width:100%; margin-top:12px; padding:12px 14px; border:0; border-radius:14px;
+    background:var(--brand); color:#fff; font-weight:700; font-size:14px; cursor:pointer;
+  }
+  .btn:disabled{opacity:.55; cursor:not-allowed}
+  .note{margin-top:10px;font-size:12px;color:#60706e}
+
+  /* ===== User pill (single line on desktop; | separators) ===== */
+  .pill{
+    display:inline-flex;
+    align-items:center;
+    justify-content:flex-end;
+    padding:8px 12px;
+    border-radius:999px;
+    font-size:12px;
+    background:#eef6f5;
+    color:#0a5f5a;
+    border:1px solid rgba(11,122,117,.18);
+    max-width:100%;
+  }
+  .pill .line{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    white-space:nowrap;         /* desktop: one line */
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:520px;
+  }
+  .pill .seg{font-weight:800}
+  .pill .seg.name{font-weight:900}
+  .pill .sep{opacity:.45; font-weight:800}
+
+  .alert{
+    margin-top:12px; padding:10px 12px; border-radius:14px; border:1px solid var(--line);
+    font-size:13px; line-height:1.45;
+  }
+  .alert.err{background:var(--dangerSoft); border-color:#fbd5d5; color:var(--danger)}
+  .alert.ok{background:var(--okSoft); border-color:#bbf7d0; color:var(--ok)}
+  .hr{height:1px;background:var(--line);margin:14px 0}
+  .small{font-size:12px;color:#5b6b69}
+
+  /* ====== Subscriptions box ====== */
+  .subbox{
+    margin-top:12px;
+    border:1px solid rgba(11,122,117,.18);
+    background:#f2fbfa;
+    border-radius:14px;
+    padding:12px;
+  }
+  .subbox h2{
+    margin:0 0 8px;
+    font-size:13px;
+    letter-spacing:.01em;
+  }
+
+  .sublist{display:flex;flex-direction:column;gap:8px}
+  .subitem{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+    padding:10px 10px;
+    border-radius:12px;
+    background:#fff;
+    border:1px solid rgba(0,0,0,.06);
+  }
+  .subleft{min-width:0; flex:1}
+  .subname{
+    font-weight:800;
+    font-size:13px;
+    line-height:1.25;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:100%;
+  }
+  .submeta{margin-top:2px;font-size:12px;color:#5b6b69;line-height:1.35}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;flex-shrink:0}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:5px 9px;border-radius:999px;font-size:12px;font-weight:800;
+    border:1px solid rgba(0,0,0,.10);
+    background:#f7f8f8;color:#2b3a38;
+    white-space:nowrap;
+  }
+  .chip.ok{background:#ecfdf3;border-color:#bbf7d0;color:#166534}
+  .chip.warn{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+  .chip.bad{background:#fef2f2;border-color:#fecaca;color:#b42318}
+
+  /* Loader overlay */
+  .qa-loader{
+    position:fixed; inset:0; background:rgba(246,248,247,.78);
+    display:none; align-items:center; justify-content:center; z-index:9999;
+    backdrop-filter: blur(4px);
+  }
+  .qa-loader.on{display:flex}
+  .spinner{
+    width:42px; height:42px; border-radius:50%;
+    border:4px solid rgba(11,122,117,.18);
+    border-top-color: var(--brand);
+    animation:spin .85s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ===== Guard overlay (matches Dashboard guard style) ===== */
+  #qa-guard-overlay{
+    position:fixed; inset:0; z-index:99999;
+    background:rgba(15,23,42,0.86);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  }
+  #qa-guard-overlay.on{display:flex}
+  #qa-guard-overlay .inner{
+    max-width:420px;width:100%;
+    background:#ffffff;
+    border-radius:16px;
+    padding:18px 20px;
+    box-shadow:0 18px 45px rgba(15,23,42,0.45);
+    text-align:center;
+  }
+  #qa-guard-overlay .title{
+    font-size:18px;font-weight:650;margin-bottom:6px;color:#0b7a75;
+  }
+  #qa-guard-overlay .body{
+    font-size:14px;color:#475569;margin-bottom:14px;line-height:1.45;
+  }
+  #qa-guard-overlay .actions{
+    display:flex;flex-wrap:wrap;gap:8px;justify-content:center;
+  }
+  .qa-guard-btn{
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:9px 14px;border-radius:999px;border:none;
+    font-size:14px;font-weight:750;cursor:pointer;text-decoration:none;
+  }
+  .qa-guard-btn.primary{background:#0b7a75;color:#ffffff}
+  .qa-guard-btn.ghost{background:#eef6f5;color:#0b7a75;border:1px solid rgba(11,122,117,.22)}
+  .qa-guard-btn.danger{background:#b42318;color:#ffffff}
+
+  /* phone: allow wrapping so we don't clip */
+  @media (max-width:520px){
+    .pill .line{white-space:normal; max-width:260px}
+    #qa-guard-overlay .inner{border-radius:14px}
+  }
+</style>
+
+<!-- =================== 1) PAGE FLAGS + CENTRAL CONFIG (CLONE-FRIENDLY) =================== -->
+<script>
+  window.QA_PAGE_KIND = 'upgrade'; // upgrade requires login; no course_id needed
+
+  window.QA_CONFIG = window.QA_CONFIG || {};
+
+  // ✅ EDIT THESE AFTER CLONING (slugs only)
+  window.QA_CONFIG.LOGIN_SLUG     = "login_23";      // TODO: your login page slug (NO .html)
+  window.QA_CONFIG.DASHBOARD_SLUG = "dashboard_23";  // TODO: your dashboard slug (NO .html)
+
+  // ✅ FIXED: slug only (NO .html) - pageUrl() will add /p/ + .html
+  window.QA_CONFIG.SUBSCRIBE_SLUG = "subscribe-to-nmc-licensure"; // TODO: your public subscribe/join page slug (NO .html)
+
+  // ✅ EDIT THIS AFTER CLONING (PortalAuthv2 WebApp)
+  window.QA_CONFIG.AUTH_URL = "https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec"; // TODO
+</script>
+
+<div class="qa-loader" id="qaLoader"><div class="spinner" aria-label="Loading"></div></div>
+
+<!-- Guard overlay -->
+<div id="qa-guard-overlay" aria-live="polite" aria-modal="true" role="dialog">
+  <div class="inner">
+    <div class="title" id="qa-guard-title">Checking your access...</div>
+    <div class="body" id="qa-guard-body">Please wait a moment.</div>
+    <div class="actions" id="qa-guard-actions"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="row" style="align-items:center;justify-content:space-between">
+      <div>
+        <h1>Upgrade / Extend Access</h1>
+        <p class="sub">Choose a package, pay securely via Paystack, and your access updates instantly.</p>
+      </div>
+      <div class="pill" id="qaUserPill" style="display:none"></div>
+    </div>
+
+    <div id="qaAlert"></div>
+
+    <!-- ✅ Current subscriptions (injected) -->
+    <div id="qaSubsBox" class="subbox" style="display:none"></div>
+
+    <div class="hr"></div>
+
+    <div class="row">
+      <div class="col">
+        <label for="program">Program (optional)</label>
+        <select id="program">
+          <option value="">All programs</option>
+        </select>
+        <div class="small">This helps you filter products. You can still pick any product.</div>
+      </div>
+
+      <div class="col">
+        <label for="product">Select Product</label>
+        <select id="product">
+          <option value="">Loading products…</option>
+        </select>
+        <div class="small" id="priceLine"></div>
+      </div>
+    </div>
+
+    <button class="btn" id="payBtn" disabled>Proceed to Payment</button>
+
+    <div class="note">
+      You must be logged in to upgrade. If you’re signed out, you’ll be asked to log in.
+    </div>
+  </div>
+</div>
+
+<!-- =================== 2) GUARD v3 (Upgrade variant: NO auto-redirect; user chooses) =================== -->
+<script>
+(function(){
+  'use strict';
+
+  var cfg = (window.QA_CONFIG && typeof window.QA_CONFIG === 'object') ? window.QA_CONFIG : {};
+
+  // ✅ Auth WebApp (PortalAuthv2)
+  var AUTH_URL = (cfg.AUTH_URL || '').trim();
+
+  // ✅ Slugs
+  var LOGIN_SLUG     = (cfg.LOGIN_SLUG || '').trim();
+  var DASHBOARD_SLUG = (cfg.DASHBOARD_SLUG || '').trim();
+  var SUBSCRIBE_SLUG = (cfg.SUBSCRIBE_SLUG || '').trim();
+
+  // ✅ Storage keys (standard)
+  var TOKEN_KEY = 'qa_token';
+  var USERID_KEY = 'qa_user_id';
+
+  // Exposed state/promise (same contract as Dashboard)
+  window.QA_GUARD_STATE = 'pending';
+  window.QA_GUARD_BLOCK_TYPE = null;
+
+  var guardResolve, guardReject;
+  window.qaGuardReady = new Promise(function(resolve, reject){
+    guardResolve = resolve;
+    guardReject  = reject;
+  });
+
+  function persistGuardState(state, blockType){
+    window.QA_GUARD_STATE = state;
+    window.QA_GUARD_BLOCK_TYPE = blockType || null;
+  }
+
+  function pageUrl(slug){
+    slug = String(slug || '').trim();
+    if(!slug) return '/';
+    if(/^https?:\/\//i.test(slug)) return slug;
+    if(slug[0] === '/') return slug;
+    return '/p/' + slug + '.html';
+  }
+
+  function currentReturn(){
+    return (location.pathname || '/') + (location.search || '') + (location.hash || '');
+  }
+
+  function goToLogin(reason){
+    var url = pageUrl(LOGIN_SLUG);
+    var params = [];
+    if(reason) params.push('reason=' + encodeURIComponent(reason));
+    params.push('return_to=' + encodeURIComponent(currentReturn()));
+    if(params.length){
+      url += (url.indexOf('?') === -1 ? '?' : '&') + params.join('&');
+    }
+    location.href = url;
+  }
+
+  function goToSubscribe(){
+    var url = pageUrl(SUBSCRIBE_SLUG);
+    var sep = url.indexOf('?') === -1 ? '?' : '&';
+    url += sep + 'return_to=' + encodeURIComponent(currentReturn());
+    location.href = url;
+  }
+
+  function goToDashboard(){
+    location.href = pageUrl(DASHBOARD_SLUG);
+  }
+
+  function exitBack(){
+    if(window.history && history.length > 1){
+      history.back();
+      return;
+    }
+    goToDashboard();
+  }
+
+  // ✅ Expose safe handlers (avoids fragile function-to-string injection)
+  window.qaGoToLogin = goToLogin;
+  window.qaGoToSubscribe = goToSubscribe;
+  window.qaExitBack = exitBack;
+  window.qaGoToDashboard = goToDashboard;
+
+  window.qaLogout = function(){
+    try{
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USERID_KEY);
+    }catch(e){}
+    goToLogin('logout');
+  };
+
+  // ---- Guard overlay UI ----
+  var ov = document.getElementById('qa-guard-overlay');
+  var ovTitle = document.getElementById('qa-guard-title');
+  var ovBody = document.getElementById('qa-guard-body');
+  var ovActions = document.getElementById('qa-guard-actions');
+
+  function showGuardOverlay(title, body, actionsHtml){
+    if(ovTitle) ovTitle.textContent = title || 'Checking your access...';
+    if(ovBody)  ovBody.textContent  = body  || 'Please wait a moment.';
+    if(ovActions) ovActions.innerHTML = actionsHtml || '';
+    if(ov) ov.classList.add('on');
+  }
+  function hideGuardOverlay(){
+    if(ov) ov.classList.remove('on');
+  }
+
+  function actionsFor(type){
+    var btnLogin =
+      '<button type="button" class="qa-guard-btn primary" onclick="qaGoToLogin(\'' + String(type||'') + '\')">Log in to continue</button>';
+    var btnSubscribe =
+      '<button type="button" class="qa-guard-btn ghost" onclick="qaGoToSubscribe()">Subscribe</button>';
+    var btnExit =
+      '<button type="button" class="qa-guard-btn ghost" onclick="qaExitBack()">Exit</button>';
+
+    if(type === 'admin_required' || type === 'no_course_access' || type === 'account_issue'){
+      return '<button type="button" class="qa-guard-btn primary" onclick="qaGoToDashboard()">Go to Dashboard</button>' +
+             '<button type="button" class="qa-guard-btn ghost" onclick="qaExitBack()">Exit</button>';
+    }
+
+    // Default for upgrade: login / subscribe / exit
+    return btnLogin + btnSubscribe + btnExit;
+  }
+
+  function block(type, title, body){
+    persistGuardState('blocked', type);
+    showGuardOverlay(title, body, actionsFor(type));
+    guardResolve({ ok:false, blocked:true, type:type });
+  }
+
+  function runGuard(){
+    if(!AUTH_URL || AUTH_URL.indexOf('PASTE_') !== -1){
+      persistGuardState('error', 'missing_auth_url');
+      showGuardOverlay(
+        'Page not configured',
+        'AUTH_URL is missing. Update QA_CONFIG.AUTH_URL in this page.',
+        '<button type="button" class="qa-guard-btn primary" onclick="qaExitBack()">Exit</button>'
+      );
+      guardReject(new Error('missing_auth_url'));
+      return;
+    }
+
+    showGuardOverlay('Checking your access...', 'Please wait while we verify your session.', '');
+
+    var token = '';
+    try{ token = localStorage.getItem(TOKEN_KEY) || ''; }catch(e){ token = ''; }
+
+    if(!token){
+      block('session_expired', 'Sign in required', 'To upgrade/extend access, please sign in. If you don’t have an account, tap Subscribe.');
+      return;
+    }
+
+    fetch(AUTH_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ action:'verify', token: token })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if(!data || data.ok !== true){
+        var errCode = (data && data.error) || 'unknown_error';
+
+        if(errCode === 'missing_token' || errCode === 'not_found' || errCode === 'expired'){
+          try{
+            localStorage.removeItem(TOKEN_KEY);
+            localStorage.removeItem(USERID_KEY);
+          }catch(e){}
+          block('session_expired', 'Session expired', 'Please sign in again to continue upgrading your account.');
+          return;
+        }
+
+        if(errCode === 'user_missing' || errCode === 'user_inactive' || errCode === 'user_expired'){
+          block('account_issue', 'Account issue', 'There is a problem with your account. Please contact QAcademy support.');
+          return;
+        }
+
+        persistGuardState('error', errCode);
+        showGuardOverlay(
+          'Could not verify access',
+          'We could not verify your session right now. Please sign in again or try later.',
+          actionsFor('session_expired')
+        );
+        guardReject(new Error('verify_failed:' + errCode));
+        return;
+      }
+
+      var u = data.user || {};
+      var flags = data.flags || {};
+      var access = (data.access && typeof data.access === 'object') ? data.access : {};
+
+      window.QA_USER = {
+        id: u.user_id || '',
+        user_id: u.user_id || '',
+        username: u.username || '',
+        email: u.email || '',
+        name: u.name || '',
+        forename: u.forename || '',
+        surname: u.surname || '',
+        phone_number: u.phone_number || '',
+        program_id: u.program_id || '',
+        cohort: u.cohort || '',
+        avatar_url: u.avatar_url || '',
+        role: u.role || '',
+        is_admin: !!(flags && flags.is_admin),
+        must_change_password: !!u.must_change_password,
+        user_expires_utc: u.expires_utc || '',
+        signup_source: u.signup_source || ''
+      };
+
+      var courseIds = Array.isArray(access.courses) ? access.courses.slice() : [];
+      var upperIds = courseIds.map(function(c){ return String(c||'').trim().toUpperCase(); }).filter(Boolean);
+
+      window.QA_ACCESS = {
+        courseIds: upperIds,
+        access_expires_utc: access.expires_utc || '',
+        coursesMeta: Array.isArray(data.courses) ? data.courses : [],
+        hasCourse: function(courseId){
+          var cid = String(courseId||'').trim().toUpperCase();
+          if(!cid) return false;
+          return this.courseIds.indexOf(cid) !== -1;
+        }
+      };
+
+      try{
+        if(window.QA_USER && window.QA_USER.user_id){
+          localStorage.setItem(USERID_KEY, window.QA_USER.user_id);
+        }
+      }catch(e){}
+
+      persistGuardState('ready', null);
+      hideGuardOverlay();
+      guardResolve({ ok:true, blocked:false, kind:'upgrade' });
+    })
+    .catch(function(err){
+      persistGuardState('error', 'network');
+      showGuardOverlay(
+        'Network problem',
+        'We could not verify your access due to a network error. Check your connection and reload.',
+        '<button type="button" class="qa-guard-btn primary" onclick="location.reload()">Reload</button>' +
+        '<button type="button" class="qa-guard-btn ghost" onclick="qaExitBack()">Exit</button>'
+      );
+      guardReject(err);
+    });
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', runGuard);
+  } else {
+    runGuard();
+  }
+})();
+</script>
+
+<!-- =================== 3) UPGRADE PAGE LOGIC (runs ONLY after qaGuardReady ok) =================== -->
+<script>
+(function(){
+  // ===================== CONFIG (EDIT THESE) =====================
+  // ✅ Payments WebApp (your Paystack payments webapp)
+  const PAYMENTS_URL = "https://script.google.com/macros/s/AKfycbyvUw_eEGzHZd0wBsuKDNckQNFXJU-Xhr3T6J8pAuMRlgQbDhVy2nqp9H_QpeUQAI5I/exec"; // TODO: update if changed
+
+  // ✅ FIXED (recommended): make success callback absolute
+  const SUCCESS_URL  = location.origin + "/p/payment-confirmation.html"; // TODO: change slug if needed
+
+  // ✅ PortalAuthv2 WebApp URL (used for subscriptions include=subscriptions)
+  const AUTH_URL = (window.QA_CONFIG && window.QA_CONFIG.AUTH_URL) ? window.QA_CONFIG.AUTH_URL : "";
+
+  // token key (standard)
+  const TOKEN_KEY = "qa_token";
+
+  // ===================== UI HELPERS =====================
+  const $ = (id)=>document.getElementById(id);
+  const loader = (on)=>{ $("qaLoader").classList.toggle("on", !!on); };
+
+  function showAlert(kind, msg){
+    const el = $("qaAlert");
+    if(!msg){ el.innerHTML=""; return; }
+    el.innerHTML = `<div class="alert ${kind==='ok'?'ok':'err'}">${msg}</div>`;
+  }
+
+  function escHtml(s){
+    return String(s||"")
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#039;");
+  }
+
+  function money(minor, currency){
+    const v = Number(minor||0);
+    if(!v) return "";
+    const major = v / 100;
+    try{
+      return new Intl.NumberFormat(undefined, { style:"currency", currency: currency || "GHS" }).format(major);
+    }catch(_){
+      return (currency||"GHS") + " " + major.toFixed(2);
+    }
+  }
+
+  // IMPORTANT: no custom headers -> avoids CORS preflight
+  function postForm(url, data){
+    const body = new URLSearchParams();
+    Object.keys(data||{}).forEach(k=>{
+      if(data[k] !== undefined && data[k] !== null) body.append(k, String(data[k]));
+    });
+    return fetch(url, { method:"POST", body });
+  }
+
+  function fmtDate(iso){
+    if(!iso) return "—";
+    const d = new Date(iso);
+    if(isNaN(d.getTime())) return String(iso);
+    return d.toLocaleString(undefined, { year:"numeric", month:"short", day:"2-digit", hour:"2-digit", minute:"2-digit" });
+  }
+
+  function daysLeftFromIso(iso){
+    if(!iso) return null;
+    const d = new Date(iso);
+    if(isNaN(d.getTime())) return null;
+    const ms = d.getTime() - Date.now();
+    return Math.floor(ms / 86400000);
+  }
+
+  function statusClassFromDays(days){
+    if(days === null) return "warn";
+    if(days <= 0) return "bad";
+    if(days <= 7) return "warn";
+    return "ok";
+  }
+
+  // ===================== SUBSCRIPTIONS RENDER =====================
+  async function loadAndRenderSubscriptions(token){
+    const box = $("qaSubsBox");
+    box.style.display = "none";
+    box.innerHTML = "";
+
+    const pill = $("qaUserPill");
+
+    if(!AUTH_URL || AUTH_URL.indexOf("PASTE_") !== -1){
+      tryRenderPillFromGuardOnly();
+      return;
+    }
+
+    try{
+      const url = `${AUTH_URL}?action=verify&token=${encodeURIComponent(token)}&include=subscriptions`;
+      const r = await fetch(url, { method:"GET" });
+      const j = await r.json();
+
+      if(!j || !j.ok){
+        pill.style.display = "none";
+        return;
+      }
+
+      const u = j.user || {};
+      const subs = Array.isArray(j.subscriptions) ? j.subscriptions : [];
+
+      const fullName =
+        (u.forename || u.surname) ? [u.forename||"", u.surname||""].join(" ").trim() :
+        (u.name || u.full_name || u.username || u.email || "Signed in");
+
+      const program = (u.program_name || u.program_id || u.program || "").toString().trim();
+      const cohort  = (u.cohort || "").toString().trim();
+      const role    = (u.role || "").toString().trim();
+
+      const accessExp = (j.access && j.access.expires_utc) ? j.access.expires_utc : "";
+      let bestExp = accessExp;
+
+      if(!bestExp && subs.length){
+        let maxT = 0;
+        subs.forEach(s=>{
+          const t = new Date(s.expires_utc||"").getTime();
+          if(!isNaN(t) && t > maxT) maxT = t;
+        });
+        if(maxT) bestExp = new Date(maxT).toISOString();
+      }
+
+      const dl = daysLeftFromIso(bestExp);
+
+      pill.style.display = "inline-flex";
+
+      const parts = [];
+      parts.push(fullName);
+      if(program) parts.push(program);
+      if(cohort)  parts.push("Cohort " + cohort);
+      if(role && role.toLowerCase() !== "student") parts.push(role);
+
+      const statusPart =
+        (dl === null) ? "Status" :
+        (dl <= 0) ? "Expired" :
+        `Active (${dl}d left)`;
+
+      parts.push(statusPart);
+
+      pill.title = parts.join(" | ");
+      pill.innerHTML = `
+        <div class="line">
+          ${parts.map((txt, i) => `
+            <span class="seg ${i===0 ? "name" : ""}">${escHtml(txt)}</span>
+            ${i < parts.length - 1 ? `<span class="sep">|</span>` : ``}
+          `).join("")}
+        </div>
+      `;
+
+      if(!subs.length){
+        box.style.display = "block";
+        box.innerHTML = `
+          <h2>Your subscriptions</h2>
+          <div class="submeta">
+            No active subscriptions found.
+            ${bestExp ? `<br><b>Latest access expiry:</b> ${fmtDate(bestExp)}` : ""}
+            <br>If you just paid, refresh this page after a few seconds.
+          </div>
+        `;
+        return;
+      }
+
+      const itemsHtml = subs.map(s=>{
+        const name = (s.product_name || s.product_id || "—");
+        const expIso = s.expires_utc || "";
+        const exp  = fmtDate(expIso);
+
+        const dlRaw = (s.days_left === "" || s.days_left === null || s.days_left === undefined) ? null : Number(s.days_left);
+        const daysLeft = (dlRaw !== null && !isNaN(dlRaw)) ? dlRaw : daysLeftFromIso(expIso);
+
+        const chipClass = statusClassFromDays(daysLeft);
+        let chipText = daysLeft === null ? "Expiry unknown" : `${daysLeft} day${daysLeft===1?"":"s"} left`;
+        if(daysLeft !== null && daysLeft <= 0) chipText = "Expired";
+
+        const idHint = (s.product_name && s.product_id) ? ` - ${s.product_id}` : "";
+
+        return `
+          <div class="subitem">
+            <div class="subleft">
+              <div class="subname" title="${escHtml(name)}">${escHtml(name)}</div>
+              <div class="submeta"><b>Ends:</b> ${escHtml(exp)}${idHint ? `<span style="opacity:.75">${escHtml(idHint)}</span>` : ""}</div>
+            </div>
+            <div class="chips">
+              <span class="chip ${chipClass}">${escHtml(chipText)}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      box.style.display = "block";
+      box.innerHTML = `
+        <h2>Your subscriptions</h2>
+        <div class="sublist">${itemsHtml}</div>
+        <div class="submeta" style="margin-top:8px">
+          Renewing the same product extends your expiry automatically.
+        </div>
+      `;
+    }catch(err){
+      console.error("subs_load_failed", err);
+      $("qaUserPill").style.display = "none";
+    }
+  }
+
+  function tryRenderPillFromGuardOnly(){
+    const pill = $("qaUserPill");
+    const u = window.QA_USER || {};
+    if(!u || (!u.user_id && !u.email && !u.username)){
+      pill.style.display = "none";
+      return;
+    }
+
+    const fullName =
+      (u.forename || u.surname) ? [u.forename||"", u.surname||""].join(" ").trim() :
+      (u.name || u.username || u.email || "Signed in");
+
+    const program = (u.program_id || "").toString().trim();
+    const cohort  = (u.cohort || "").toString().trim();
+    const role    = (u.role || "").toString().trim();
+
+    const parts = [];
+    parts.push(fullName);
+    if(program) parts.push(program);
+    if(cohort) parts.push("Cohort " + cohort);
+    if(role && role.toLowerCase() !== "student") parts.push(role);
+    parts.push("Signed in");
+
+    pill.style.display = "inline-flex";
+    pill.title = parts.join(" | ");
+    pill.innerHTML = `
+      <div class="line">
+        ${parts.map((txt, i) => `
+          <span class="seg ${i===0 ? "name" : ""}">${escHtml(txt)}</span>
+          ${i < parts.length - 1 ? `<span class="sep">|</span>` : ``}
+        `).join("")}
+      </div>
+    `;
+  }
+
+  // ===================== STATE =====================
+  let meta = { programs:[], products:[] };
+  let productsAll = [];
+
+  // ===================== APP INIT (only after guard ok) =====================
+  async function initApp(){
+    const token = localStorage.getItem(TOKEN_KEY) || "";
+    if(!token){
+      showAlert("err", "You’re not signed in. Please go to the Login page, then return here.");
+      $("product").innerHTML = `<option value="">Sign in required</option>`;
+      $("payBtn").disabled = true;
+      $("qaUserPill").style.display = "none";
+      return;
+    }
+
+    loader(true);
+
+    $("qaUserPill").style.display = "inline-flex";
+    $("qaUserPill").innerHTML = `
+      <div class="line">
+        <span class="seg name">Loading…</span>
+        <span class="sep">|</span>
+        <span class="seg">Preparing upgrade</span>
+      </div>
+    `;
+
+    loadAndRenderSubscriptions(token);
+
+    try{
+      if(!PAYMENTS_URL || PAYMENTS_URL.indexOf("PASTE_") !== -1){
+        throw new Error("missing_payments_url");
+      }
+
+      const r = await fetch(PAYMENTS_URL + "?action=meta", { method:"GET" });
+      const j = await r.json();
+      if(!j || !j.ok) throw new Error((j && j.error) || "meta_failed");
+
+      meta = j;
+      productsAll = Array.isArray(meta.products) ? meta.products : [];
+
+      const progSel = $("program");
+      (meta.programs || []).forEach(p=>{
+        const opt = document.createElement("option");
+        opt.value = p.program_id || "";
+        opt.textContent = p.program_name || p.program_id || "";
+        progSel.appendChild(opt);
+      });
+
+      renderProducts(productsAll);
+
+      $("program").addEventListener("change", onFilterChanged);
+      $("product").addEventListener("change", onProductChanged);
+      $("payBtn").addEventListener("click", onPay);
+
+      onProductChanged();
+    }catch(err){
+      console.error(err);
+      showAlert("err", "Could not load products. Please refresh. If it persists, contact support.");
+      $("product").innerHTML = `<option value="">Failed to load products</option>`;
+      $("payBtn").disabled = true;
+    } finally {
+      loader(false);
+    }
+  }
+
+  function renderProducts(list){
+    const sel = $("product");
+    sel.innerHTML = `<option value="">Select a product</option>`;
+    (list || []).forEach(p=>{
+      const opt = document.createElement("option");
+      opt.value = p.product_id;
+      opt.textContent = `${p.name} - ${money(p.price_minor, p.currency)}`;
+      opt.dataset.price_minor = p.price_minor;
+      opt.dataset.currency = p.currency || "GHS";
+      opt.dataset.name = p.name || p.product_id;
+      sel.appendChild(opt);
+    });
+    $("payBtn").disabled = true;
+    $("priceLine").textContent = "";
+  }
+
+  function onFilterChanged(){
+    renderProducts(productsAll);
+    showAlert("", "");
+  }
+
+  function onProductChanged(){
+    const sel = $("product");
+    const opt = sel.options[sel.selectedIndex];
+    const pid = sel.value || "";
+
+    if(!pid){
+      $("payBtn").disabled = true;
+      $("priceLine").textContent = "";
+      return;
+    }
+    const priceMinor = opt.dataset.price_minor;
+    const currency = opt.dataset.currency || "GHS";
+    $("priceLine").textContent = "Price: " + money(priceMinor, currency);
+    $("payBtn").disabled = false;
+    showAlert("", "");
+  }
+
+  async function onPay(){
+    const token = localStorage.getItem(TOKEN_KEY) || "";
+    const product_id = $("product").value || "";
+
+    if(!token){
+      showAlert("err","You’re signed out. Please log in again.");
+      if(window.qaGoToLogin) window.qaGoToLogin('session_expired');
+      return;
+    }
+    if(!product_id){
+      showAlert("err","Please select a product.");
+      return;
+    }
+
+    loader(true);
+    $("payBtn").disabled = true;
+
+    try{
+      const resp = await postForm(PAYMENTS_URL, {
+        action: "pay_init_upgrade",
+        token,
+        product_id,
+        callback_url: SUCCESS_URL
+      });
+
+      const j = await resp.json();
+      if(!j || !j.ok){
+        const msg = (j && (j.error || j.detail)) ? String(j.error || j.detail) : "pay_init_upgrade_failed";
+        if(msg.toLowerCase().includes("token")) {
+          showAlert("err", "Your session has expired. Please log in again, then retry.");
+          try{ localStorage.removeItem(TOKEN_KEY); }catch(e){}
+          if(window.qaGoToLogin) window.qaGoToLogin('session_expired');
+        } else {
+          showAlert("err", "Could not start payment. Please try again. If it persists, contact support.");
+        }
+        throw new Error(msg);
+      }
+
+      if(!j.authorization_url){
+        throw new Error("missing_authorization_url");
+      }
+
+      window.location.href = j.authorization_url;
+    }catch(err){
+      console.error(err);
+      $("payBtn").disabled = false;
+    } finally {
+      loader(false);
+    }
+  }
+
+  if(window.qaGuardReady){
+    window.qaGuardReady
+      .then(function(state){
+        if(state && state.ok && !state.blocked){
+          initApp();
+        }
+      })
+      .catch(function(err){
+        console.error("Upgrade guard error", err);
+      });
+  } else {
+    initApp();
+  }
+})();
+</script>
