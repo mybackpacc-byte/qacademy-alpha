@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>QAcademy — Teacher Assess Sign Up</title>
+  <style>
+    :root{
+      --brand:#0b7a75;
+      --brand-soft:#e0f2f1;
+      --muted:#6b7b7a;
+      --ink:#0f172a;
+      --paper:#ffffff;
+      --line:#e2e8f0;
+      --danger:#b42318;
+      --danger-soft:#fff5f5;
+      --warn:#b54708;
+      --warn-soft:#fff7ed;
+    }
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      background:radial-gradient(circle at top,#e0f2f1,#f8fafc);
+      color:var(--ink);
+    }
+    .qa-wrap{
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+    }
+    .qa-card{
+      width:100%;
+      max-width:500px;
+      background:var(--paper);
+      border-radius:18px;
+      border:1px solid rgba(15,23,42,.06);
+      box-shadow:0 18px 45px rgba(15,23,42,.12);
+      padding:22px 20px 20px;
+    }
+    .qa-pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:4px 10px;
+      border-radius:999px;
+      font-size:.78rem;
+      background:var(--warn-soft);
+      color:var(--warn);
+      margin-bottom:10px;
+      border:1px solid rgba(181,71,8,.18);
+    }
+    .qa-title{
+      font-size:1.25rem;
+      font-weight:800;
+      margin:0 0 4px;
+      color:var(--ink);
+      letter-spacing:.1px;
+    }
+    .qa-subtitle{
+      font-size:.92rem;
+      margin:0 0 14px;
+      color:var(--muted);
+      line-height:1.45;
+    }
+    .qa-form-group{ margin-bottom:12px; }
+    .qa-label{
+      display:block;
+      font-size:.82rem;
+      font-weight:700;
+      margin-bottom:4px;
+      color:var(--muted);
+    }
+    .qa-input,
+    .qa-select{
+      width:100%;
+      padding:9px 10px;
+      border-radius:10px;
+      border:1px solid var(--line);
+      font-size:.92rem;
+      outline:none;
+      transition:border-color .15s, box-shadow .15s, background .15s;
+      background:#f9fafb;
+    }
+    .qa-input:focus,
+    .qa-select:focus{
+      border-color:var(--brand);
+      box-shadow:0 0 0 1px rgba(11,122,117,.12);
+      background:#ffffff;
+    }
+    .qa-input-error{
+      border-color:var(--danger) !important;
+      background:var(--danger-soft) !important;
+    }
+    .qa-hint{
+      font-size:.78rem;
+      color:#94a3b8;
+      margin-top:2px;
+      line-height:1.35;
+    }
+    .qa-error{
+      display:none;
+      margin-bottom:10px;
+      padding:8px 10px;
+      border-radius:10px;
+      background:var(--danger-soft);
+      color:var(--danger);
+      font-size:.84rem;
+      border:1px solid rgba(180,35,24,.18);
+      line-height:1.35;
+    }
+    .qa-success{
+      display:none;
+      margin-bottom:10px;
+      padding:8px 10px;
+      border-radius:10px;
+      background:var(--brand-soft);
+      color:var(--brand);
+      font-size:.84rem;
+      border:1px solid rgba(11,122,117,.18);
+      line-height:1.35;
+    }
+    .qa-code{
+      display:block;
+      margin-top:6px;
+      font-size:.78rem;
+      color:rgba(180,35,24,.9);
+      opacity:.9;
+    }
+    .qa-btn{
+      width:100%;
+      border:none;
+      border-radius:999px;
+      padding:10px 14px;
+      font-size:.96rem;
+      font-weight:800;
+      background:var(--brand);
+      color:#ffffff;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      box-shadow:0 8px 18px rgba(11,122,117,.32);
+      transition:transform .08s ease, box-shadow .08s ease, opacity .15s;
+    }
+    .qa-btn:hover{
+      transform:translateY(-1px);
+      box-shadow:0 12px 30px rgba(11,122,117,.35);
+    }
+    .qa-btn:active{
+      transform:translateY(0);
+      box-shadow:0 6px 12px rgba(11,122,117,.28);
+    }
+    .qa-btn[disabled]{
+      opacity:.72;
+      cursor:default;
+      transform:none;
+      box-shadow:0 6px 14px rgba(15,23,42,.18);
+    }
+    .qa-footer{
+      margin-top:12px;
+      font-size:.82rem;
+      color:var(--muted);
+      text-align:center;
+      line-height:1.5;
+    }
+    .qa-footer a{
+      color:var(--brand);
+      text-decoration:none;
+      font-weight:800;
+    }
+    .qa-footer a:hover{ text-decoration:underline; }
+    .qa-split{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+    @media (max-width:520px){
+      .qa-split{ grid-template-columns:1fr; }
+    }
+
+    /* Debug (dev only) */
+    .qa-dev{
+      display:none;
+      margin-top:12px;
+      border:1px dashed rgba(15,23,42,.18);
+      border-radius:12px;
+      padding:10px;
+      background:rgba(255,255,255,.7);
+    }
+    .qa-dev pre{
+      margin:8px 0 0;
+      padding:10px;
+      border-radius:10px;
+      background:#0b1116;
+      color:#e6edf3;
+      overflow:auto;
+      font-size:12px;
+      line-height:1.4;
+      max-height:260px;
+    }
+    .qa-dev .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+    .qa-dev .tag{
+      display:inline-flex;gap:6px;align-items:center;
+      padding:4px 9px;border-radius:999px;
+      border:1px solid rgba(15,23,42,.12);
+      background:#fff;
+      font-size:12px;
+      color:rgba(15,23,42,.75);
+      font-weight:800;
+    }
+  </style>
+</head>
+
+<body>
+<div class="qa-wrap">
+  <div class="qa-card">
+
+    <div class="qa-pill">
+      <span>🧪</span>
+      <span>Teacher Assess account only (no licensure trial added)</span>
+    </div>
+
+    <h1 class="qa-title">Create your Teacher Assess account</h1>
+    <p class="qa-subtitle">
+      Sign up with your email, choose a username and password, then log in.
+    </p>
+
+    <div id="qa-error" class="qa-error"></div>
+    <div id="qa-success" class="qa-success"></div>
+
+    <form id="qa-ta-register-form" novalidate>
+      <div class="qa-split">
+        <div class="qa-form-group">
+          <label class="qa-label" for="qa-forename">First name *</label>
+          <input id="qa-forename" class="qa-input" type="text" autocomplete="given-name" />
+        </div>
+
+        <div class="qa-form-group">
+          <label class="qa-label" for="qa-surname">Surname *</label>
+          <input id="qa-surname" class="qa-input" type="text" autocomplete="family-name" />
+        </div>
+      </div>
+
+      <div class="qa-form-group">
+        <label class="qa-label" for="qa-username">Username *</label>
+        <input id="qa-username" class="qa-input" type="text" autocomplete="username" />
+        <div class="qa-hint">
+          Letters, numbers, underscore. Must start with a letter. Example: <b>kofi_01</b>
+        </div>
+      </div>
+
+      <div class="qa-form-group">
+        <label class="qa-label" for="qa-email">Email address *</label>
+        <input id="qa-email" class="qa-input" type="email" autocomplete="email" />
+      </div>
+
+      <div class="qa-form-group">
+        <label class="qa-label" for="qa-phone">Phone (optional)</label>
+        <input id="qa-phone" class="qa-input" type="tel" autocomplete="tel" />
+      </div>
+
+      <div class="qa-form-group">
+        <label class="qa-label" for="qa-program">Programme (optional)</label>
+        <select id="qa-program" class="qa-select">
+          <option value="">Select your main programme</option>
+          <option value="RN">Registered Nurse (RN)</option>
+          <option value="RM">Registered Midwife (RM)</option>
+          <option value="RPHN">Registered Public Health Nurse (RPHN)</option>
+          <option value="RMHN">Mental Health Nurse (RMHN)</option>
+          <option value="NACNAP">NAC / NAP</option>
+          <option value="OTHER">Other / Not sure yet</option>
+        </select>
+      </div>
+
+      <div class="qa-form-group">
+        <label class="qa-label" for="qa-password">Password *</label>
+        <input id="qa-password" class="qa-input" type="password" autocomplete="new-password" />
+        <div class="qa-hint">Minimum 8 characters.</div>
+      </div>
+
+      <div class="qa-form-group">
+        <label class="qa-label" for="qa-password2">Confirm password *</label>
+        <input id="qa-password2" class="qa-input" type="password" autocomplete="new-password" />
+      </div>
+
+      <button id="qa-submit" class="qa-btn" type="submit">
+        <span>Create Teacher Assess account</span>
+      </button>
+    </form>
+
+    <div class="qa-footer">
+      Already have an account?
+      <a id="qa-login-link" href="/p/login_23.html">Log in here</a>
+    </div>
+
+    <!-- dev-only debug panel -->
+    <div class="qa-dev" id="qa-dev">
+      <div class="row">
+        <span class="tag" id="qa-dev-tag">DEV</span>
+        <button type="button" class="qa-btn" id="qa-dev-clear" style="width:auto;padding:8px 12px;border-radius:12px;font-weight:800;">
+          Clear debug
+        </button>
+      </div>
+      <pre id="qa-dev-pre">{}</pre>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  // ===== CONFIG =====
+  var cfg = (window.QA_CONFIG && typeof window.QA_CONFIG === 'object') ? window.QA_CONFIG : {};
+  var AUTH_URL   = cfg.AUTH_URL   || 'https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec';
+  var LOGIN_SLUG = cfg.LOGIN_SLUG || 'login_23';
+
+  // ===== DEV MODE (shows raw server responses) =====
+  var DEV = false;
+  try{
+    var qs = new URLSearchParams(location.search || '');
+    DEV = (qs.get('dev') === '1') || (localStorage.getItem('qa_dev') === '1');
+  }catch(e){ DEV = false; }
+
+  var devBox = document.getElementById('qa-dev');
+  var devPre = document.getElementById('qa-dev-pre');
+  var devClear = document.getElementById('qa-dev-clear');
+  if (devBox) devBox.style.display = DEV ? 'block' : 'none';
+  if (devClear){
+    devClear.addEventListener('click', function(){
+      if (devPre) devPre.textContent = '{}';
+    });
+  }
+  function devLog(obj){
+    if (!DEV || !devPre) return;
+    try{ devPre.textContent = JSON.stringify(obj, null, 2); }
+    catch(e){ devPre.textContent = String(obj); }
+  }
+
+  // ===== Return-to support (carry through to login) =====
+  function getQS(name){
+    try{ return new URLSearchParams(location.search||'').get(name) || ''; }
+    catch(_){ return ''; }
+  }
+  function safeReturnTo(raw){
+    raw = String(raw||'').trim();
+    if(!raw) return '';
+    if(raw[0] !== '/') return '';
+    if(raw.startsWith('//')) return '';
+    if(raw.toLowerCase().includes('javascript:')) return '';
+    return raw;
+  }
+  var RETURN_TO = safeReturnTo(getQS('return_to'));
+
+  function loginUrl(paramsObj){
+    var base = '/p/' + String(LOGIN_SLUG || 'login_23').trim() + '.html';
+    var qs = new URLSearchParams();
+    if (RETURN_TO) qs.set('return_to', RETURN_TO);
+    Object.keys(paramsObj||{}).forEach(function(k){
+      var v = paramsObj[k];
+      if(v == null) return;
+      qs.set(k, String(v));
+    });
+    var s = qs.toString();
+    return s ? (base + '?' + s) : base;
+  }
+
+  var loginA = document.getElementById('qa-login-link');
+  if(loginA) loginA.href = loginUrl({});
+
+  // ===== DOM =====
+  var form   = document.getElementById('qa-ta-register-form');
+  var btn    = document.getElementById('qa-submit');
+  var errBox = document.getElementById('qa-error');
+  var okBox  = document.getElementById('qa-success');
+
+  var elForename = document.getElementById('qa-forename');
+  var elUsername = document.getElementById('qa-username');
+
+  var usernameDirty = false;
+
+  function clearFieldErrors(){
+    ['qa-forename','qa-surname','qa-username','qa-email','qa-password','qa-password2']
+      .forEach(function(id){
+        var el = document.getElementById(id);
+        if(el) el.classList.remove('qa-input-error');
+      });
+  }
+
+  function showError(userMsg, fieldId, code, detail){
+    if (!errBox) return;
+
+    errBox.innerHTML = ''; // allow small code block
+    var msg = document.createElement('div');
+    msg.textContent = userMsg || 'Something went wrong. Please try again.';
+    errBox.appendChild(msg);
+
+    // Always include code/detail if present (helps you debug quickly),
+    // but keep it short and safe.
+    if (code || detail){
+      var meta = document.createElement('span');
+      meta.className = 'qa-code';
+      var parts = [];
+      if (code) parts.push('Code: ' + code);
+      if (detail) parts.push('Detail: ' + detail);
+      meta.textContent = parts.join(' • ');
+      errBox.appendChild(meta);
+    }
+
+    errBox.style.display = 'block';
+    if(okBox) okBox.style.display = 'none';
+
+    clearFieldErrors();
+    if(fieldId){
+      var el = document.getElementById(fieldId);
+      if(el){
+        el.classList.add('qa-input-error');
+        el.focus();
+      }
+    }
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  function showSuccess(msg){
+    if (!okBox) return;
+    okBox.textContent = msg || 'Account created successfully.';
+    okBox.style.display = 'block';
+    if(errBox) errBox.style.display = 'none';
+  }
+
+  function setLoading(isLoading){
+    if(!btn) return;
+    btn.disabled = !!isLoading;
+    btn.textContent = isLoading ? 'Creating your account...' : 'Create Teacher Assess account';
+  }
+
+  // ===== Username suggestion =====
+  function makeUsernameBase(fromName){
+    var base = String(fromName || '').trim().toLowerCase();
+    base = base.replace(/[^a-z0-9]/g, '');
+    if(!base) base = 'user';
+    if(!/^[a-z]/.test(base)) base = 'u' + base;
+    if(base.length > 12) base = base.slice(0,12);
+    return base;
+  }
+  function maybeSuggestUsername(){
+    if(usernameDirty) return;
+    var f = (elForename.value || '').trim();
+    if(!f){ elUsername.value = ''; return; }
+    elUsername.value = makeUsernameBase(f) + '01';
+  }
+  elForename.addEventListener('input', maybeSuggestUsername);
+  elForename.addEventListener('blur', maybeSuggestUsername);
+  elUsername.addEventListener('input', function(){ usernameDirty = true; });
+  elUsername.addEventListener('blur', function(){
+    var v = (elUsername.value || '').trim();
+    if(!v){ usernameDirty = false; maybeSuggestUsername(); }
+  });
+
+  function looksLikeValidUsername(u){
+    return /^[a-z][a-z0-9_]{2,19}$/.test(u);
+  }
+
+  function validateClient(){
+    clearFieldErrors();
+
+    var f  = document.getElementById('qa-forename').value.trim();
+    var s  = document.getElementById('qa-surname').value.trim();
+    var u  = document.getElementById('qa-username').value.trim().toLowerCase();
+    var e  = document.getElementById('qa-email').value.trim();
+    var p1 = document.getElementById('qa-password').value;
+    var p2 = document.getElementById('qa-password2').value;
+
+    if(!f) return {ok:false, field:'qa-forename', message:'Please enter your first name.'};
+    if(!s) return {ok:false, field:'qa-surname', message:'Please enter your surname.'};
+
+    if(!u) return {ok:false, field:'qa-username', message:'Please choose a username.'};
+    if(!looksLikeValidUsername(u)){
+      return {ok:false, field:'qa-username', message:'Username must start with a letter and use only letters, numbers, underscore (3–20 chars).'};
+    }
+
+    if(!e) return {ok:false, field:'qa-email', message:'Please enter your email address.'};
+    if(!/^\S+@\S+\.\S+$/.test(e)){
+      return {ok:false, field:'qa-email', message:'Please enter a valid email address.'};
+    }
+
+    if(!p1) return {ok:false, field:'qa-password', message:'Please choose a password.'};
+    if(p1.length < 8) return {ok:false, field:'qa-password', message:'Password should be at least 8 characters.'};
+
+    if(!p2) return {ok:false, field:'qa-password2', message:'Please confirm your password.'};
+    if(p1 !== p2) return {ok:false, field:'qa-password2', message:'Passwords do not match.'};
+
+    return {ok:true};
+  }
+
+  // ===== Backend error mapping (expanded) =====
+  function mapServerError(code, detail){
+    code = String(code || '').trim();
+
+    // Common + expected
+    if(code === 'missing_fields') return { msg:'Please fill in all required fields.', field:'' };
+    if(code === 'email_exists') return { msg:'This email is already registered. Please log in instead.', field:'qa-email' };
+    if(code === 'invalid_username') return { msg:'That username format is not allowed. Use letters/numbers/underscore and start with a letter.', field:'qa-username' };
+    if(code === 'username_exists') return { msg:'That username is already taken. Try another one (e.g., add 02).', field:'qa-username' };
+    if(code === 'password_policy_failed') return { msg:'Password is too weak. Use at least 8 characters.', field:'qa-password' };
+
+    // If your backend uses any of these:
+    if(code === 'invalid_email') return { msg:'Please enter a valid email address.', field:'qa-email' };
+    if(code === 'user_create_failed') return { msg:'Could not create your account due to a server issue. Please try again.', field:'' };
+    if(code === 'forbidden' || code === 'not_allowed') return { msg:'This signup is not available right now. Please contact support.', field:'' };
+    if(code === 'rate_limited' || code === 'too_many_requests') return { msg:'Too many attempts. Please wait a moment and try again.', field:'' };
+
+    // Fallback: still show something useful
+    return {
+      msg: 'Could not create your account. Please try again.',
+      field: '',
+      // pass code/detail through to UI for debugging
+      code: code,
+      detail: detail
+    };
+  }
+
+  async function postForm(url, dataObj){
+    var body = new URLSearchParams();
+    Object.keys(dataObj || {}).forEach(function(k){
+      var v = dataObj[k];
+      if (v == null) return;
+      body.append(k, String(v));
+    });
+
+    var res, text;
+    try{
+      res = await fetch(url, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+        body: body.toString()
+      });
+      text = await res.text();
+    }catch(err){
+      return { ok:false, network:true, status:0, raw:'', error:'network_error', detail:String(err && (err.message||err) || err) };
+    }
+
+    // Try JSON parse; keep raw
+    var json = null;
+    try{ json = JSON.parse(text); }catch(e){ json = null; }
+
+    return {
+      ok: !!(json && json.ok === true),
+      status: res.status,
+      json: json,
+      raw: text
+    };
+  }
+
+  // suggest username once
+  maybeSuggestUsername();
+
+  if(form){
+    form.addEventListener('submit', async function(ev){
+      ev.preventDefault();
+      if(errBox) errBox.style.display = 'none';
+      if(okBox) okBox.style.display = 'none';
+
+      var v = validateClient();
+      if(!v.ok){
+        showError(v.message, v.field, 'client_validation', '');
+        return;
+      }
+
+      var forename = document.getElementById('qa-forename').value.trim();
+      var surname  = document.getElementById('qa-surname').value.trim();
+      var username = document.getElementById('qa-username').value.trim().toLowerCase();
+      var email    = document.getElementById('qa-email').value.trim().toLowerCase();
+      var phone    = document.getElementById('qa-phone').value.trim();
+      var program  = document.getElementById('qa-program').value || '';
+      var password = document.getElementById('qa-password').value;
+      var ua = (navigator && navigator.userAgent) ? navigator.userAgent : '';
+
+      setLoading(true);
+
+      var resp = await postForm(AUTH_URL, {
+        action: 'self_register_ta',
+        forename: forename,
+        surname: surname,
+        username: username,
+        email: email,
+        password: password,
+        phone_number: phone,
+        program_id: program,
+        cohort: '',
+        avatar_url: '',
+        ua: ua,
+        ip: ''
+      });
+
+      devLog(resp);
+
+      try{
+        // Network fail
+        if (resp.network){
+          showError(
+            'Network error. Please check your connection and try again.',
+            '',
+            resp.error,
+            resp.detail
+          );
+          return;
+        }
+
+        // Non-JSON response
+        if (!resp.json){
+          var hint = (resp.status === 502 || resp.status === 503) ? 'Server is temporarily unavailable.' : 'Unexpected server response.';
+          showError(
+            hint + ' Please try again.',
+            '',
+            'bad_json',
+            'HTTP ' + resp.status
+          );
+          return;
+        }
+
+        // Backend returned ok:false
+        if (!resp.ok){
+          var code = String(resp.json.error || resp.json.reason || resp.json.code || '').trim() || 'unknown';
+          var detail = String(resp.json.detail || resp.json.message || '').trim();
+          var mapped = mapServerError(code, detail);
+
+          showError(mapped.msg, mapped.field || '', code, detail);
+          return;
+        }
+
+        // Success
+var NEXT_AFTER_SIGNUP = '/p/teacher-access-request.html';
+
+var redirect = String(resp.json.redirect || '').trim();
+
+// Always land on teacher-access-request AFTER login (because it needs a token)
+redirect = '/p/' + String(LOGIN_SLUG || 'login_23').trim() + '.html'
+  + '?reg=1&u=' + encodeURIComponent(username)
+  + '&return_to=' + encodeURIComponent(NEXT_AFTER_SIGNUP);
+
+        showSuccess('Account created successfully. Redirecting to login…');
+        setTimeout(function(){ window.location.href = redirect; }, 650);
+
+      } finally {
+        setLoading(false);
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>
