@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Teacher Approval</title>
+<style>
+  :root{
+    --brand:#0b7a75;
+    --ink:#1f2a28;
+    --muted:#5b6a68;
+    --bg:#f6f8f7;
+    --card:#ffffff;
+    --line:rgba(0,0,0,.10);
+    --danger:#b42318;
+    --warn:#b54708;
+    --ok:#027a48;
+    --radius:16px;
+    --shadow:0 12px 30px rgba(0,0,0,.08);
+    --max:1180px;
+    --pad:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  .top{
+    position:sticky;top:0;z-index:10;
+    background:rgba(246,248,247,.90);
+    backdrop-filter:saturate(1.2) blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .bar{max-width:var(--max);margin:0 auto;padding:12px var(--pad);display:flex;gap:12px;align-items:center;justify-content:space-between}
+  .brand{display:flex;gap:10px;align-items:center;min-width:0}
+  .logo{
+    width:38px;height:38px;border-radius:12px;
+    background:linear-gradient(135deg, rgba(11,122,117,.16), rgba(133,153,152,.10));
+    border:1px solid rgba(11,122,117,.24);
+    display:grid;place-items:center;font-weight:950;color:var(--brand);
+    box-shadow:0 10px 20px rgba(11,122,117,.10);
+  }
+  .brand h1{margin:0;font-size:14px;line-height:1.1}
+  .brand .sub{margin-top:2px;font-size:12px;color:rgba(31,42,40,.68);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+  .chip{
+    display:inline-flex;gap:8px;align-items:center;
+    padding:6px 10px;border-radius:999px;border:1px solid var(--line);
+    background:#fff;font-size:12px;color:rgba(31,42,40,.78);
+    max-width:52vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .dot{width:8px;height:8px;border-radius:99px;background:var(--brand)}
+  .btn{
+    appearance:none;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:9px 12px;border-radius:12px;cursor:pointer;
+    font-weight:750;font-size:13px;box-shadow:0 8px 18px rgba(0,0,0,.05);
+  }
+  .btn.primary{background:var(--brand);border-color:rgba(11,122,117,.28);color:#fff}
+  .btn.danger{border-color:rgba(180,35,24,.25);color:var(--danger);background:rgba(180,35,24,.04)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .wrap{max-width:var(--max);margin:0 auto;padding:18px var(--pad) 30px}
+
+  .status{
+    margin-bottom:14px;
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:12px;box-shadow:0 8px 18px rgba(0,0,0,.05);
+    display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;
+  }
+  .status .t{font-weight:900}
+  .status .m{font-size:12px;color:rgba(31,42,40,.70);margin-top:2px;line-height:1.35;max-width:780px}
+  .spin{
+    width:18px;height:18px;border-radius:50%;
+    border:2px solid rgba(0,0,0,.14);
+    border-top-color: rgba(11,122,117,.85);
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .pill{
+    display:inline-flex;gap:6px;align-items:center;
+    padding:5px 9px;border-radius:999px;border:1px solid var(--line);
+    background:rgba(0,0,0,.02);font-size:12px;color:rgba(31,42,40,.76);font-weight:750;
+  }
+  .pill.ok{border-color:rgba(2,122,72,.22);background:rgba(2,122,72,.06);color:rgba(2,122,72,.92)}
+  .pill.warn{border-color:rgba(181,71,8,.22);background:rgba(181,71,8,.06);color:rgba(181,71,8,.95)}
+  .pill.bad{border-color:rgba(180,35,24,.22);background:rgba(180,35,24,.06);color:rgba(180,35,24,.95)}
+
+  .card{
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);overflow:hidden;
+  }
+  .hd{padding:14px 14px 10px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+  .hd h2{margin:0;font-size:14px;letter-spacing:.2px}
+  .hd p{margin:4px 0 0;font-size:12px;color:rgba(31,42,40,.68);line-height:1.35}
+  .bd{padding:14px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+  .field{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input, select{
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:9px 10px;
+    font-size:13px;
+    background:#fff;
+    outline:none;
+  }
+  input:focus, select:focus{border-color:rgba(11,122,117,.55); box-shadow:0 0 0 3px rgba(11,122,117,.12)}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:10px 10px;border-bottom:1px solid rgba(0,0,0,.08);vertical-align:top}
+  th{font-size:12px;color:rgba(31,42,40,.70);text-align:left}
+  td{font-size:13px}
+  .small{font-size:12px;color:rgba(31,42,40,.70);line-height:1.35}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px}
+  .right{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .toast{
+    position:fixed;right:14px;bottom:14px;z-index:9999;
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 18px 45px rgba(0,0,0,.12);
+    padding:10px 12px;min-width:260px;max-width:380px;
+    display:none;
+  }
+  .toast .tt{font-weight:900;font-size:12px}
+  .toast .tm{margin-top:2px;font-size:12px;color:rgba(31,42,40,.72);line-height:1.35}
+</style>
+</head>
+
+<body>
+  <div class="top">
+    <div class="bar">
+      <div class="brand">
+        <div class="logo">QA</div>
+        <div style="min-width:0">
+          <h1>Teacher Approval</h1>
+          <div class="sub" id="subline">Checking admin session…</div>
+        </div>
+      </div>
+      <div class="actions">
+        <span class="chip" id="userChip" style="display:none"><span class="dot"></span><span id="userChipText">Signed in</span></span>
+        <button class="btn" id="btnRefresh" type="button" disabled>Refresh</button>
+        <button class="btn danger" id="btnSignOut" type="button">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="status">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <div class="spin" id="spin"></div>
+        <div>
+          <div class="t" id="statusTitle">Loading…</div>
+          <div class="m" id="statusMsg">Please wait.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        <span class="pill" id="pillAuth">Auth: —</span>
+        <span class="pill" id="pillAdmin">Admin: —</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hd">
+        <div>
+          <h2>Pending Teacher Requests</h2>
+          <p>Approve or disable teacher access requests stored in TA DB (teachers tab).</p>
+        </div>
+        <span class="pill warn" id="pillCount">—</span>
+      </div>
+
+      <div class="bd">
+        <div class="row" style="margin-bottom:10px">
+          <div class="field">
+            <input id="q" type="text" placeholder="Search name/email/teacher_id…" style="min-width:280px" />
+            <label class="small"><input id="pendingOnly" type="checkbox" checked /> Pending only</label>
+          </div>
+          <div class="right">
+            <select id="planType" title="Default plan_type for approvals">
+              <option value="FREE">Plan: FREE</option>
+              <option value="PRO">Plan: PRO</option>
+              <option value="PREMIUM">Plan: PREMIUM</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="overflow:auto;border:1px solid rgba(0,0,0,.08);border-radius:14px">
+          <table>
+            <thead>
+              <tr>
+                <th>Teacher</th>
+                <th>Contact</th>
+                <th>Request</th>
+                <th>Notes</th>
+                <th style="width:240px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rows">
+              <tr><td colspan="5" class="small">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="small" style="margin-top:10px" id="footHint"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">
+    <div class="tt" id="toastTitle">—</div>
+    <div class="tm" id="toastMsg">—</div>
+  </div>
+
+<script>
+/** ===================== CONFIG ===================== */
+const AUTH_URL = "https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec";
+const TA_URL   = "https://script.google.com/macros/s/AKfycbz54M_jWoRq4cOC2gUQeRhd55AeEJ5vnELJ0gkBSodO58fr7WGa9jwk6JNwPptf8p8X/exec";
+const SLUG_LOGIN = "login_23";
+
+/** ===================== Helpers ===================== */
+const $ = (id)=>document.getElementById(id);
+
+function getToken(){
+  try{ return (localStorage.getItem("qa_token")||"").trim(); }catch(_){ return ""; }
+}
+function clearToken(){
+  try{ localStorage.removeItem("qa_token"); localStorage.removeItem("qa_user_id"); }catch(_){}
+}
+
+async function postForm(url, data){
+  const body = new URLSearchParams();
+  Object.entries(data||{}).forEach(([k,v])=>{ if(v!=null) body.set(k, String(v)); });
+
+  let res, txt;
+  try{
+    res = await fetch(url, {
+      method:"POST",
+      mode:"cors",
+      credentials:"omit",
+      headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
+      body
+    });
+    txt = await res.text();
+  }catch(e){
+    return { ok:false, error:"network_error", detail:String(e && (e.message||e) || e) };
+  }
+
+  try{ return JSON.parse(txt); }
+  catch(_){ return { ok:false, error:"bad_json", raw:txt }; }
+}
+
+function pill(el, text, cls){
+  el.textContent = text;
+  el.classList.remove("ok","warn","bad");
+  if(cls) el.classList.add(cls);
+}
+function toast(title, msg){
+  $("toastTitle").textContent = title || "";
+  $("toastMsg").textContent = msg || "";
+  $("toast").style.display = "block";
+  setTimeout(()=>{ $("toast").style.display = "none"; }, 3400);
+}
+function setStatus(title, msg){
+  $("statusTitle").textContent = title || "";
+  $("statusMsg").textContent = msg || "";
+}
+function esc(s){
+  s = String(s==null?"":s);
+  return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+let AUTHS = null;
+
+async function boot(){
+  $("spin").style.display = "";
+  pill($("pillAuth"), "Auth: checking…", "warn");
+  pill($("pillAdmin"), "Admin: checking…", "warn");
+  $("subline").textContent = "Checking admin session…";
+  $("btnRefresh").disabled = true;
+
+  const token = getToken();
+  if(!token){
+    $("spin").style.display = "none";
+    setStatus("Sign in required", "No token in this browser. Please log in again.");
+    pill($("pillAuth"), "Auth: missing token", "bad");
+    pill($("pillAdmin"), "Admin: —", "");
+    $("rows").innerHTML = `<tr><td colspan="5" class="small">Missing token.</td></tr>`;
+    return;
+  }
+
+  const v = await postForm(AUTH_URL, { action:"verify", token });
+  if(!v || v.ok !== true){
+    const code = (v && v.error) ? String(v.error) : "verify_failed";
+    $("spin").style.display = "none";
+    setStatus("Session problem", "Please log in again.");
+    pill($("pillAuth"), "Auth: " + code, "bad");
+    pill($("pillAdmin"), "Admin: —", "");
+    $("rows").innerHTML = `<tr><td colspan="5" class="small">Auth failed (${esc(code)}).</td></tr>`;
+    // clear token on common invalids
+    if(code === "missing_token" || code === "expired" || code === "not_found" || code === "invalid_token"){
+      clearToken();
+    }
+    return;
+  }
+
+  AUTHS = v.user || {};
+  const role = String(AUTHS.role || "").trim().toUpperCase();
+  const name = String(AUTHS.name || AUTHS.username || "Signed in").trim();
+  const email = String(AUTHS.email || "").trim();
+
+  $("userChipText").textContent = email ? (name + " • " + email) : name;
+  $("userChip").style.display = "inline-flex";
+
+  pill($("pillAuth"), "Auth: OK", "ok");
+
+  if(role !== "ADMIN"){
+    $("spin").style.display = "none";
+    setStatus("Forbidden", "This page is admin-only.");
+    pill($("pillAdmin"), "Admin: NO ("+role+")", "bad");
+    $("subline").textContent = "Access denied";
+    $("rows").innerHTML = `<tr><td colspan="5" class="small">You are signed in as <b>${esc(role||"")}</b>. Admin required.</td></tr>`;
+    return;
+  }
+
+  pill($("pillAdmin"), "Admin: OK", "ok");
+  $("subline").textContent = "Admin tools";
+  $("btnRefresh").disabled = false;
+
+  // events
+  $("btnRefresh").onclick = loadList;
+  $("q").addEventListener("input", debounce(loadList, 280));
+  $("pendingOnly").addEventListener("change", loadList);
+
+  await loadList();
+}
+
+function debounce(fn, ms){
+  let t = null;
+  return function(){
+    clearTimeout(t);
+    t = setTimeout(fn, ms);
+  };
+}
+
+async function loadList(){
+  const token = getToken();
+  if(!token) return;
+
+  $("spin").style.display = "";
+  setStatus("Loading…", "Fetching requests from Teacher Assess DB.");
+  $("rows").innerHTML = `<tr><td colspan="5" class="small">Loading…</td></tr>`;
+
+  const q = String($("q").value || "").trim();
+  const pending_only = $("pendingOnly").checked ? "true" : "false";
+
+  const res = await postForm(TA_URL, {
+    action: "teacher.admin.requests.list",
+    token,
+    pending_only,
+    q,
+    limit: "300"
+  });
+
+  $("spin").style.display = "none";
+
+  if(!res || res.ok !== true){
+    const err = String((res && (res.error||res.detail)) || "unknown_error");
+    setStatus("Failed", "Could not load requests.");
+    $("rows").innerHTML = `<tr><td colspan="5" class="small">Error: ${esc(err)}</td></tr>`;
+    pill($("pillCount"), "Error", "bad");
+    $("footHint").textContent = "If this is 'forbidden_not_admin', confirm your Auth role is ADMIN.";
+    return;
+  }
+
+  const items = Array.isArray(res.items) ? res.items : [];
+  pill($("pillCount"), items.length + " request(s)", items.length ? "warn" : "ok");
+
+  if(!items.length){
+    setStatus("Up to date", "No matching requests.");
+    $("rows").innerHTML = `<tr><td colspan="5" class="small">No requests found.</td></tr>`;
+    $("footHint").textContent = "";
+    return;
+  }
+
+  setStatus("Ready", "Approve or disable requests.");
+
+  $("rows").innerHTML = items.map(t => {
+    const teacher_id = esc(t.teacher_id || "");
+    const dn = esc(t.display_name || "");
+    const em = esc(t.email || "");
+    const active = !!t.active;
+
+    const rc = esc(t.request_count || "");
+    const reqAt = esc(t.requested_at || "");
+    const updAt = esc(t.updated_at || "");
+    const note = esc(t.request_note || "");
+    const phone = esc(t.phone_number || "");
+    const org = esc(t.organisation || "");
+
+    const badge = active ? `<span class="pill ok">ACTIVE</span>` : `<span class="pill warn">PENDING</span>`;
+
+    return `
+      <tr data-teacher="${teacher_id}">
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            ${badge}
+            <div><b>${dn || "(no name)"}</b></div>
+          </div>
+          <div class="small mono">${teacher_id}</div>
+        </td>
+        <td>
+          <div>${em || "—"}</div>
+          <div class="small">${phone ? ("📞 " + phone) : ""} ${org ? (" • " + org) : ""}</div>
+        </td>
+        <td>
+          <div class="small">count: <b>${rc || "0"}</b></div>
+          <div class="small">requested: ${reqAt || "—"}</div>
+          <div class="small">updated: ${updAt || "—"}</div>
+        </td>
+        <td>
+          <div class="small">${note || "—"}</div>
+        </td>
+        <td>
+          <div class="right">
+            <button class="btn primary" type="button" onclick="approveTeacher('${teacher_id}')">Approve</button>
+            <button class="btn danger" type="button" onclick="disableTeacher('${teacher_id}')">Disable</button>
+          </div>
+          <div class="small" style="margin-top:6px">
+            Approve uses selected plan_type.
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  $("footHint").textContent = "Tip: use search to find by email/teacher_id. Approve sets active=TRUE; Disable sets active=FALSE.";
+}
+
+async function approveTeacher(teacher_id){
+  const token = getToken();
+  if(!token) return;
+
+  const plan_type = String($("planType").value || "FREE").trim();
+  const note = prompt("Optional admin note to append (leave blank for none):", "");
+  if(note === null) return;
+
+  if(!confirm("Approve teacher access for:\n\n" + teacher_id + "\n\nPlan: " + plan_type)){
+    return;
+  }
+
+  toast("Working…", "Approving teacher.");
+  $("spin").style.display = "";
+
+  const res = await postForm(TA_URL, {
+    action:"teacher.admin.teacher.set",
+    token,
+    teacher_id,
+    active:"true",
+    plan_type,
+    note
+  });
+
+  $("spin").style.display = "none";
+
+  if(!res || res.ok !== true){
+    toast("Failed", String((res && (res.error||res.detail)) || "unknown_error"));
+    return;
+  }
+
+  toast("Approved", "Teacher is now active.");
+  await loadList();
+}
+
+async function disableTeacher(teacher_id){
+  const token = getToken();
+  if(!token) return;
+
+  const note = prompt("Reason (optional):", "");
+  if(note === null) return;
+
+  if(!confirm("Disable teacher access for:\n\n" + teacher_id)){
+    return;
+  }
+
+  toast("Working…", "Disabling teacher.");
+  $("spin").style.display = "";
+
+  const res = await postForm(TA_URL, {
+    action:"teacher.admin.teacher.set",
+    token,
+    teacher_id,
+    active:"false",
+    note
+  });
+
+  $("spin").style.display = "none";
+
+  if(!res || res.ok !== true){
+    toast("Failed", String((res && (res.error||res.detail)) || "unknown_error"));
+    return;
+  }
+
+  toast("Disabled", "Teacher is now inactive.");
+  await loadList();
+}
+
+$("btnSignOut").addEventListener("click", ()=>{
+  clearToken();
+  window.location.href = "/p/" + SLUG_LOGIN + ".html";
+});
+
+boot();
+</script>
+</body>
+</html>
