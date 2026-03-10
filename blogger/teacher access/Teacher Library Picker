@@ -1,0 +1,856 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Library Picker</title>
+
+<style>
+  :root{
+    --brand:#0b7a75;
+    --muted:#859998;
+    --ink:#1f2a28;
+    --bg:#f6f8f7;
+    --card:#ffffff;
+    --line:rgba(0,0,0,.08);
+    --soft:rgba(0,0,0,.04);
+    --danger:#b42318;
+    --warn:#b54708;
+    --ok:#067647;
+
+    --radius:16px;
+    --shadow:0 10px 30px rgba(0,0,0,.06);
+
+    --appMax: 1640px;
+    --appPad: 16px;
+  }
+  *{box-sizing:border-box}
+  html, body{width:100%}
+  body{
+    margin:0;
+    overflow-x:hidden;
+    background:linear-gradient(180deg, #f6f8f7 0%, #f3f7f6 100%);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+  }
+  #qaRoot{
+    width:100vw;
+    margin-left:calc(50% - 50vw);
+    overflow-x:hidden;
+  }
+  .post-body, .post-body-container, .widget-content{ padding:0 !important; }
+
+  .top{
+    position:sticky;top:0;z-index:5;
+    background:rgba(246,248,247,.82);
+    backdrop-filter:saturate(1.2) blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .top .bar{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:12px;padding:12px var(--appPad);
+    max-width:var(--appMax);margin:0 auto;
+  }
+  .brand{display:flex;align-items:center;gap:10px;min-width:0}
+  .logo{
+    width:34px;height:34px;border-radius:10px;
+    background:linear-gradient(135deg, var(--brand), #0e8c86);
+    box-shadow:0 6px 16px rgba(11,122,117,.25);
+  }
+  .brand h1{
+    font-size:14px;margin:0;line-height:1.1;letter-spacing:.2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .brand small{
+    display:block;color:rgba(31,42,40,.65);font-size:12px;margin-top:2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+
+  .actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  .chip{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:7px 10px;border-radius:999px;border:1px solid var(--line);
+    background:rgba(255,255,255,.8);
+    font-size:12px;color:rgba(31,42,40,.78);
+    max-width:52vw;
+  }
+  .chip b{color:rgba(31,42,40,.9);max-width:24vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dot{width:8px;height:8px;border-radius:99px;background:var(--brand)}
+  .btn{
+    appearance:none;border:1px solid var(--line);background:#fff;
+    padding:9px 12px;border-radius:12px;cursor:pointer;
+    font-weight:650;font-size:13px;
+    box-shadow:0 8px 18px rgba(0,0,0,.05);
+  }
+  .btn.primary{background:var(--brand);border-color:rgba(0,0,0,.02);color:#fff}
+  .btn.ghost{background:transparent}
+  .btn.danger{border-color:rgba(180,35,24,.25);color:var(--danger)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+
+  .wrap{
+    max-width:var(--appMax);
+    margin:0 auto;
+    padding:var(--appPad);
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .card .hd{
+    padding:14px 14px 10px;
+    border-bottom:1px solid var(--line);
+    display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
+  }
+  .card .hd h2{margin:0;font-size:14px;letter-spacing:.2px}
+  .card .hd p{margin:4px 0 0;color:rgba(31,42,40,.65);font-size:12px}
+  .card .bd{padding:14px}
+
+  label{display:block;font-size:12px;color:rgba(31,42,40,.7);margin-bottom:6px}
+  input, select{
+    width:100%;
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:12px;
+    padding:10px 10px;
+    font-size:13px;
+    outline:none;
+  }
+  input:focus, select:focus{
+    border-color: rgba(11,122,117,.35);
+    box-shadow: 0 0 0 4px rgba(11,122,117,.10);
+  }
+
+  .filters{
+    display:grid;
+    grid-template-columns: 1.1fr .9fr .8fr .8fr .6fr;
+    gap:10px;
+    align-items:end;
+  }
+  @media (max-width: 980px){ .filters{grid-template-columns:1fr 1fr} }
+
+  .rowActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:4px 8px;border-radius:999px;border:1px solid var(--line);
+    background:rgba(0,0,0,.02);font-size:12px;color:rgba(31,42,40,.75);
+  }
+  .pill.ok{border-color:rgba(6,118,71,.18);background:rgba(6,118,71,.06);color:var(--ok)}
+  .pill.warn{border-color:rgba(181,71,8,.18);background:rgba(181,71,8,.06);color:var(--warn)}
+  .pill.bad{border-color:rgba(180,35,24,.18);background:rgba(180,35,24,.06);color:var(--danger)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;font-size:12px}
+  .muted{color:rgba(31,42,40,.62)}
+
+  table{width:100%;border-collapse:separate;border-spacing:0}
+  thead th{
+    font-size:12px;text-align:left;color:rgba(31,42,40,.65);
+    background:rgba(0,0,0,.02);
+    border-bottom:1px solid var(--line);
+    padding:10px;
+  }
+  tbody td{
+    font-size:13px;padding:10px;border-bottom:1px solid var(--line);
+    vertical-align:top;
+  }
+  tbody tr:hover td{background:rgba(0,0,0,.01)}
+  .empty{padding:14px;color:rgba(31,42,40,.65);font-size:13px}
+
+  .pickBox{ width:18px;height:18px;cursor:pointer; accent-color: var(--brand); }
+
+  details.det{ border:1px solid var(--line); border-radius:12px; padding:8px 10px; background:rgba(0,0,0,.015); }
+  details.det summary{ cursor:pointer; font-weight:750; }
+  .opt{ margin-top:8px; font-size:12px; color:rgba(31,42,40,.78); line-height:1.35; }
+  .opt b{ color:rgba(31,42,40,.95); }
+  .hr{height:1px;background:var(--line);margin:10px 0}
+
+  .dock{
+    position:fixed;left:0;right:0;bottom:0;z-index:50;
+    background:rgba(255,255,255,.92);
+    backdrop-filter:saturate(1.2) blur(8px);
+    border-top:1px solid var(--line);
+  }
+  .dock .inner{
+    max-width:var(--appMax);
+    margin:0 auto;
+    padding:10px var(--appPad);
+    display:flex;gap:10px;align-items:center;justify-content:space-between;
+  }
+  .dock .count{ font-size:13px;font-weight:650;color:rgba(31,42,40,.85); }
+
+  .toast{
+    position:fixed;right:14px;bottom:70px;z-index:60;
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:10px 12px;box-shadow:0 18px 50px rgba(0,0,0,.12);
+    max-width:min(520px, calc(100vw - 28px));
+    display:none;
+  }
+  .toast.show{display:block}
+  .toast .t{font-weight:900;margin-bottom:4px}
+  .toast .m{font-size:12px;color:rgba(31,42,40,.75);line-height:1.3}
+
+  .center{min-height:55vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .gate{max-width:520px}
+  .gate h2{margin:0 0 8px;font-size:16px}
+  .gate p{margin:0 0 14px;color:rgba(31,42,40,.7);font-size:13px;line-height:1.45}
+</style>
+</head>
+
+<body>
+<div id="qaRoot">
+
+  <div class="top">
+    <div class="bar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div style="min-width:0">
+          <h1>QAcademy — Library Picker</h1>
+          <small id="subline">Checking access…</small>
+        </div>
+      </div>
+
+      <div class="actions">
+        <span class="chip" id="teacherChip" style="display:none">
+          <span class="dot"></span>
+          <span><b id="teacherName">Teacher</b> · <span id="teacherPlan">FREE</span></span>
+        </span>
+        <button class="btn ghost" id="btnRefresh" disabled>Refresh</button>
+        <button class="btn danger" id="btnSignOut">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap" id="app" style="display:none">
+    <section class="card">
+      <div class="hd">
+        <div>
+          <h2>Pick questions from QAcademy Library</h2>
+          <p>Read-only library • adds references into quiz draft • publish snapshots latest version.</p>
+        </div>
+        <div class="rowActions">
+          <span class="pill" id="countPill">0 items</span>
+        </div>
+      </div>
+
+      <div class="bd">
+        <div class="filters">
+          <div>
+            <label>Course</label>
+            <select id="courseSel">
+              <option value="">Loading courses…</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Target quiz (DRAFT)</label>
+            <select id="quizSel">
+              <option value="">Loading draft quizzes…</option>
+            </select>
+            <div class="muted" style="font-size:12px;margin-top:6px" id="quizHint">Choose a draft quiz to append into.</div>
+          </div>
+
+          <div>
+            <label>Search</label>
+            <input id="q" placeholder="e.g. airway, insulin, meningitis…" />
+          </div>
+
+          <div>
+            <label>Topic</label>
+            <select id="topicSel"><option value="">Any</option></select>
+          </div>
+
+          <div>
+            <label>Difficulty</label>
+            <select id="diffSel">
+              <option value="">Any</option>
+              <option value="Easy">Easy</option>
+              <option value="Moderate">Moderate</option>
+              <option value="Hard">Hard</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;align-items:center;margin-top:10px;flex-wrap:wrap">
+          <button class="btn" id="btnClear">Clear</button>
+          <button class="btn primary" id="btnLoad">Load</button>
+        </div>
+
+        <div style="margin-top:12px;overflow:auto;border:1px solid var(--line);border-radius:14px;background:#fff">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:46%">Stem</th>
+                <th>Meta</th>
+                <th style="width:160px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rows">
+              <tr><td colspan="3" class="empty">Pick a course and click “Load”.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="muted" style="font-size:12px;margin-top:10px" id="listHint"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Gate screen -->
+  <div class="wrap" id="gate" style="display:block">
+    <div class="center">
+      <div class="card gate">
+        <div class="hd">
+          <div>
+            <h2>Teacher access</h2>
+            <p id="gateMsg">Checking your token…</p>
+          </div>
+        </div>
+        <div class="bd">
+          <p class="muted" style="margin:0 0 12px">
+            Sign in on the portal first so <span class="mono">qa_token</span> exists in this browser.
+          </p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+            <button class="btn" id="btnRetry">Retry</button>
+            <button class="btn danger" id="btnClearToken">Clear token</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dock -->
+  <div id="dock" class="dock" style="display:none">
+    <div class="inner">
+      <div class="count" id="selCount">Selected: 0</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="btn" id="btnSelClear" type="button">Clear</button>
+        <button class="btn primary" id="btnAdd" type="button" disabled>Add selected → Draft</button>
+        <button class="btn ghost" id="btnBack" type="button">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">
+    <div class="t" id="toastTitle">Notice</div>
+    <div class="m" id="toastMsg">—</div>
+  </div>
+
+</div>
+
+<script>
+/** ================================
+ * CONFIG
+ * ================================ */
+const API_URL   = "https://script.google.com/macros/s/AKfycbz54M_jWoRq4cOC2gUQeRhd55AeEJ5vnELJ0gkBSodO58fr7WGa9jwk6JNwPptf8p8X/exec";
+const TOKEN_KEY = "qa_token";
+const LOGIN_URL = "/p/login_23.html";
+const QUIZZES_URL_FALLBACK = "/p/teacher-quizzes.html";
+
+/** ================================
+ * Query params
+ * ================================ */
+const QS = new URLSearchParams(location.search);
+const RETURN_TO = String(QS.get('return_to') || '').trim();
+let TARGET_QUIZ_ID = String(QS.get('teacher_quiz_id') || '').trim();
+
+/** ================================
+ * State
+ * ================================ */
+let teacher = null;
+let COURSES = [];
+let DRAFT_QUIZZES = [];
+let ITEMS = [];            // loaded items for current course (from backend)
+let FILTERED = [];
+let SELECTED = new Set();  // selected LIB refs
+let SELECTED_ORDER = [];   // preserve selection order
+
+/** ================================
+ * DOM
+ * ================================ */
+const $ = (id) => document.getElementById(id);
+
+function toast(title, msg){
+  const box = $("toast");
+  $("toastTitle").textContent = title || "Notice";
+  $("toastMsg").textContent = msg || "";
+  box.classList.add("show");
+  clearTimeout(box.__t);
+  box.__t = setTimeout(()=> box.classList.remove("show"), 4200);
+}
+
+function normalizeField(v){ return String(v == null ? "" : v).trim(); }
+function esc(s){
+  return String(s || "")
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+function shortStem(s){
+  const t = String(s || "").trim().replace(/\s+/g," ");
+  if (t.length <= 110) return t;
+  return t.slice(0, 110) + "…";
+}
+function canonDifficulty(v){
+  const t = String(v || "").trim().toLowerCase();
+  if (!t) return "";
+  if (t === "easy") return "Easy";
+  if (t === "moderate" || t === "medium") return "Moderate";
+  if (t === "hard" || t === "difficult") return "Hard";
+  return String(v || "").trim();
+}
+
+function loadToken(){
+  const fromUrl = String(QS.get('token') || '').trim();
+  const fromLs = String(localStorage.getItem(TOKEN_KEY) || '').trim();
+  return fromUrl || fromLs;
+}
+function saveToken(tok){
+  const t = String(tok || '').trim();
+  if (t) localStorage.setItem(TOKEN_KEY, t);
+}
+function clearToken(){ localStorage.removeItem(TOKEN_KEY); }
+function signOut(){
+  clearToken();
+  location.href = LOGIN_URL || '/';
+}
+
+async function apiPost(action, payload){
+  const token = String(localStorage.getItem(TOKEN_KEY) || '').trim();
+  const bodyObj = Object.assign({}, payload || {}, { action, token });
+
+  const res = await fetch(API_URL, {
+    method: "POST",
+    mode: "cors",
+    body: JSON.stringify(bodyObj)
+  });
+
+  const txt = await res.text();
+  let obj = null;
+  try { obj = JSON.parse(txt); } catch(e){ obj = null; }
+
+  if (!obj || obj.ok !== true){
+    return { ok:false, error: (obj && (obj.error || obj.detail)) || "request_failed", raw: obj, text: txt };
+  }
+  return { ok:true, data: obj };
+}
+
+/** ================================
+ * Draft helpers (same logic as Bank picker)
+ * ================================ */
+function parseDraftItemsJson(raw){
+  if (!raw) return { items: [] };
+  if (typeof raw === 'object'){
+    const arr = Array.isArray(raw.items) ? raw.items : [];
+    return { items: arr.map(x=>String(x||'').trim()).filter(Boolean) };
+  }
+  try{
+    const obj = JSON.parse(String(raw));
+    const arr = Array.isArray(obj.items) ? obj.items : (Array.isArray(obj) ? obj : []);
+    return { items: arr.map(x=>String(x||'').trim()).filter(Boolean) };
+  }catch(_){
+    return { items: [] };
+  }
+}
+function mergeAppendUnique(existing, picked){
+  const out = Array.isArray(existing) ? existing.slice() : [];
+  const seen = new Set(out.map(x=>String(x||'').trim()).filter(Boolean));
+  let added = 0, skipped = 0;
+
+  (picked || []).forEach(id=>{
+    id = String(id||'').trim();
+    if (!id) return;
+    if (seen.has(id)) skipped++;
+    else { seen.add(id); out.push(id); added++; }
+  });
+
+  return { items: out, added, skipped };
+}
+
+/** ================================
+ * Rendering
+ * ================================ */
+function libRef(course_id, item_id){
+  return `LIB:${String(course_id||'').trim()}:${String(item_id||'').trim()}`;
+}
+
+function rebuildTopicOptions(items){
+  const sel = $("topicSel");
+  const keep = sel.value;
+  const set = new Set();
+  (items || []).forEach(it=>{
+    const t = normalizeField(it.topic);
+    if (t) set.add(t);
+  });
+  const arr = Array.from(set).sort((a,b)=>a.localeCompare(b));
+  sel.innerHTML = `<option value="">Any</option>` + arr.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
+  if (keep && arr.includes(keep)) sel.value = keep;
+}
+
+function applyFilters(){
+  const q = normalizeField($("q").value).toLowerCase();
+  const topic = normalizeField($("topicSel").value);
+  const diff = canonDifficulty($("diffSel").value);
+
+  let out = Array.isArray(ITEMS) ? ITEMS.slice() : [];
+
+  if (topic) out = out.filter(it => normalizeField(it.topic) === topic);
+  if (diff) out = out.filter(it => canonDifficulty(it.difficulty) === diff);
+
+  if (q){
+    const tokens = q.split(/\s+/).filter(Boolean);
+    out = out.filter(it=>{
+      const hay = [
+        it.stem, it.rationale,
+        it.subject, it.topic, it.difficulty,
+        it.option_a, it.option_b, it.option_c, it.option_d, it.option_e, it.option_f
+      ].map(x=>String(x||'').toLowerCase()).join(" ");
+      return tokens.every(t => hay.includes(t));
+    });
+  }
+
+  // stable sort (updated desc if present)
+  out.sort((a,b)=> String(b.updated_at||"").localeCompare(String(a.updated_at||"")));
+  FILTERED = out;
+}
+
+function render(){
+  applyFilters();
+
+  const tbody = $("rows");
+  const n = FILTERED.length;
+  $("countPill").textContent = `${n} item(s)`;
+
+  if (!n){
+    tbody.innerHTML = `<tr><td colspan="3" class="empty">No results. Try different filters.</td></tr>`;
+    return;
+  }
+
+  const course_id = $("courseSel").value;
+
+  tbody.innerHTML = FILTERED.map(it=>{
+    const ref = libRef(course_id, it.item_id);
+    const checked = SELECTED.has(ref) ? "checked" : "";
+    const stem = esc(shortStem(it.stem || ""));
+    const id = esc(it.item_id || "");
+    const subj = esc(it.subject || "—");
+    const top = esc(it.topic || "—");
+    const diff = esc(it.difficulty || "—");
+    const marks = esc(it.marks || "1");
+    const correct = esc(it.correct || "");
+
+    const opts = [
+      it.option_a ? `<div class="opt"><b>A.</b> ${esc(it.option_a)}</div>` : "",
+      it.option_b ? `<div class="opt"><b>B.</b> ${esc(it.option_b)}</div>` : "",
+      it.option_c ? `<div class="opt"><b>C.</b> ${esc(it.option_c)}</div>` : "",
+      it.option_d ? `<div class="opt"><b>D.</b> ${esc(it.option_d)}</div>` : "",
+      it.option_e ? `<div class="opt"><b>E.</b> ${esc(it.option_e)}</div>` : "",
+      it.option_f ? `<div class="opt"><b>F.</b> ${esc(it.option_f)}</div>` : ""
+    ].join("");
+
+    const rat = it.rationale ? `<div class="hr"></div><div class="opt"><b>Rationale:</b> ${esc(it.rationale)}</div>` : "";
+
+    return `
+      <tr>
+        <td>
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <input class="pickBox" type="checkbox" data-ref="${esc(ref)}" ${checked}/>
+            <div style="min-width:0">
+              <div style="font-weight:800">${stem || "<span class='muted'>—</span>"}</div>
+              <div class="muted mono" style="margin-top:6px">${esc(ref)}</div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <div class="muted" style="font-size:12px">${subj} · ${top}</div>
+          <div class="muted" style="font-size:12px">${diff} · ${marks} mark(s) · Correct: ${correct || "—"}</div>
+          <div class="muted" style="font-size:12px">Item ID: <span class="mono">${id}</span></div>
+        </td>
+        <td style="text-align:right">
+          <details class="det">
+            <summary>Details</summary>
+            ${opts}
+            ${rat}
+          </details>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  tbody.querySelectorAll("[data-ref]").forEach(cb=>{
+    cb.addEventListener("change", ()=>{
+      const ref = String(cb.getAttribute("data-ref") || "").trim();
+      if (!ref) return;
+
+      if (cb.checked){
+        if (!SELECTED.has(ref)){
+          SELECTED.add(ref);
+          SELECTED_ORDER.push(ref);
+        }
+      }else{
+        if (SELECTED.has(ref)){
+          SELECTED.delete(ref);
+          SELECTED_ORDER = SELECTED_ORDER.filter(x=>x !== ref);
+        }
+      }
+      updateDock();
+    });
+  });
+
+  updateDock();
+}
+
+function updateDock(){
+  $("dock").style.display = "";
+  $("selCount").textContent = `Selected: ${SELECTED_ORDER.length}`;
+  $("btnAdd").disabled = !(normalizeField(TARGET_QUIZ_ID) && SELECTED_ORDER.length > 0);
+}
+
+/** ================================
+ * Actions
+ * ================================ */
+async function loadCourses(){
+  const r = await apiPost("library.courses.list", {});
+  if (!r.ok){
+    toast("Courses failed", String(r.error||"unknown"));
+    $("courseSel").innerHTML = `<option value="">(Failed to load courses)</option>`;
+    return;
+  }
+  COURSES = Array.isArray(r.data.items) ? r.data.items : [];
+  const sel = $("courseSel");
+  sel.innerHTML =
+    `<option value="">Select a course…</option>` +
+    COURSES.map(c=> `<option value="${esc(c.course_id)}">${esc(c.title || c.course_id)} (${esc(c.course_id)})</option>`).join("");
+
+  // Auto-select first if only one
+  if (COURSES.length === 1){
+    sel.value = COURSES[0].course_id;
+  }
+}
+
+async function loadDraftQuizzes(){
+  const r = await apiPost("teacher.quizzes.list", { status:"DRAFT", limit:200, q:"" });
+  if (!r.ok){
+    $("quizSel").innerHTML = `<option value="">(Failed to load draft quizzes)</option>`;
+    $("quizHint").textContent = "Could not load DRAFT quizzes.";
+    return;
+  }
+  const items = Array.isArray(r.data.items) ? r.data.items : [];
+  DRAFT_QUIZZES = items;
+
+  const sel = $("quizSel");
+  sel.innerHTML =
+    `<option value="">Select a draft quiz…</option>` +
+    items.map(q=>{
+      const id = normalizeField(q.teacher_quiz_id);
+      const t = normalizeField(q.title) || "(Untitled)";
+      return `<option value="${esc(id)}">${esc(t)}</option>`;
+    }).join("");
+
+  if (TARGET_QUIZ_ID) sel.value = TARGET_QUIZ_ID;
+
+  $("quizHint").textContent = items.length
+    ? "Select a draft quiz to append your selected library questions into."
+    : "No DRAFT quizzes found. Create a quiz first.";
+}
+
+async function loadItems(){
+  const course_id = normalizeField($("courseSel").value);
+  if (!course_id){
+    toast("Pick a course", "Select a course first.");
+    return;
+  }
+
+  $("listHint").textContent = "Loading…";
+  $("rows").innerHTML = `<tr><td colspan="3" class="empty">Loading items…</td></tr>`;
+
+  const r = await apiPost("library.items.list", {
+    course_id,
+    q: "",
+    topic: "",
+    difficulty: "",
+    limit: 1000
+  });
+
+  if (!r.ok){
+    $("listHint").textContent = "";
+    $("rows").innerHTML = `<tr><td colspan="3" class="empty">Load failed: ${esc(String(r.error||"unknown"))}</td></tr>`;
+    return;
+  }
+
+  ITEMS = Array.isArray(r.data.items) ? r.data.items : [];
+  rebuildTopicOptions(ITEMS);
+
+  $("listHint").textContent = `Loaded ${ITEMS.length} items for ${course_id}.`;
+  render();
+}
+
+function clearFilters(){
+  $("q").value = "";
+  $("topicSel").value = "";
+  $("diffSel").value = "";
+  render();
+}
+
+function clearSelection(){
+  SELECTED.clear();
+  SELECTED_ORDER = [];
+  updateDock();
+  render(); // so checkboxes reflect
+}
+
+async function addSelectedToDraft(){
+  if (!TARGET_QUIZ_ID){
+    toast("Pick a quiz", "Select a DRAFT quiz first.");
+    return;
+  }
+  if (!SELECTED_ORDER.length){
+    toast("No selection", "Tick at least 1 question.");
+    return;
+  }
+
+  $("btnAdd").disabled = true;
+  const oldTxt = $("btnAdd").textContent;
+  $("btnAdd").textContent = "Adding…";
+
+  try{
+    // 1) Load quiz
+    const g = await apiPost("teacher.quiz.get", { teacher_quiz_id: TARGET_QUIZ_ID });
+    if (!g.ok || !g.data.quiz){
+      toast("Load failed", "Could not load target quiz.");
+      return;
+    }
+
+    const status = String(g.data.quiz.status || "").toUpperCase();
+    if (status && status !== "DRAFT"){
+      toast("Locked", `Quiz is ${status}. Only DRAFT can be edited.`);
+      return;
+    }
+
+    // 2) Merge
+    const cur = parseDraftItemsJson(g.data.quiz.draft_items_json);
+    const merged = mergeAppendUnique(cur.items, SELECTED_ORDER);
+
+    if (!merged.added){
+      toast("No new items", `All selected already exist in the draft.`);
+      clearSelection();
+      return;
+    }
+
+    // 3) Save
+    const u = await apiPost("teacher.quiz.update", {
+      teacher_quiz_id: TARGET_QUIZ_ID,
+      patch: {
+        draft_items_json: JSON.stringify({ items: merged.items })
+      }
+    });
+
+    if (!u.ok){
+      toast("Save failed", String(u.error||"unknown"));
+      return;
+    }
+
+    toast("Added to draft", `Added ${merged.added} • Skipped ${merged.skipped} duplicate(s).`);
+    clearSelection();
+
+  }catch(e){
+    toast("Error", String(e && (e.message || e) || e));
+  }finally{
+    $("btnAdd").textContent = oldTxt;
+    updateDock();
+  }
+}
+
+function goBack(){
+  if (RETURN_TO){
+    location.href = RETURN_TO;
+    return;
+  }
+  // fallback
+  if (TARGET_QUIZ_ID){
+    location.href = `${QUIZZES_URL_FALLBACK}?teacher_quiz_id=${encodeURIComponent(TARGET_QUIZ_ID)}`;
+    return;
+  }
+  location.href = QUIZZES_URL_FALLBACK;
+}
+
+/** ================================
+ * Gate / Boot
+ * ================================ */
+async function verifyGate(){
+  const tok = loadToken();
+  if (!tok){
+    $("gateMsg").textContent = "No token found in this browser (localStorage.qa_token). Sign in first.";
+    return false;
+  }
+  saveToken(tok);
+
+  $("gateMsg").textContent = "Verifying teacher access…";
+
+  const v = await apiPost("teacher.verify", {});
+  if (!v.ok){
+    $("gateMsg").textContent = "Access denied: " + String(v.error||"verify_failed");
+    return false;
+  }
+
+  teacher = {
+    user_id: v.data.user && v.data.user.user_id ? v.data.user.user_id : "",
+    name: v.data.user && v.data.user.name ? v.data.user.name : "Teacher",
+    email: v.data.user && v.data.user.email ? v.data.user.email : "",
+    plan_type: v.data.teacher && v.data.teacher.plan_type ? v.data.teacher.plan_type : "FREE"
+  };
+
+  $("teacherName").textContent = teacher.name || "Teacher";
+  $("teacherPlan").textContent = teacher.plan_type || "FREE";
+  $("teacherChip").style.display = "inline-flex";
+  $("subline").textContent = teacher.email ? teacher.email : "Teacher access ok";
+
+  $("gate").style.display = "none";
+  $("app").style.display = "block";
+  $("dock").style.display = "";
+
+  $("btnRefresh").disabled = false;
+
+  // load data
+  await loadCourses();
+  await loadDraftQuizzes();
+
+  // if course already auto-selected, load items once
+  if (normalizeField($("courseSel").value)) {
+    await loadItems();
+  } else {
+    render();
+  }
+
+  updateDock();
+  return true;
+}
+
+/** ================================
+ * Events
+ * ================================ */
+$("btnSignOut").addEventListener("click", signOut);
+$("btnRetry").addEventListener("click", verifyGate);
+$("btnClearToken").addEventListener("click", ()=>{ clearToken(); $("gateMsg").textContent = "Token cleared. Sign in again."; });
+
+$("btnRefresh").addEventListener("click", async ()=>{ await loadDraftQuizzes(); toast("Refreshed", "Draft quiz list refreshed."); });
+
+$("courseSel").addEventListener("change", ()=>{ ITEMS = []; FILTERED = []; $("rows").innerHTML = `<tr><td colspan="3" class="empty">Click “Load” to fetch items for this course.</td></tr>`; $("listHint").textContent = ""; clearSelection(); rebuildTopicOptions([]); });
+$("quizSel").addEventListener("change", ()=>{ TARGET_QUIZ_ID = normalizeField($("quizSel").value); updateDock(); });
+
+$("btnLoad").addEventListener("click", loadItems);
+$("btnClear").addEventListener("click", clearFilters);
+
+$("q").addEventListener("input", ()=> render());
+$("topicSel").addEventListener("change", ()=> render());
+$("diffSel").addEventListener("change", ()=> render());
+
+$("btnSelClear").addEventListener("click", clearSelection);
+$("btnAdd").addEventListener("click", addSelectedToDraft);
+$("btnBack").addEventListener("click", goBack);
+
+// start
+verifyGate();
+</script>
+
+</body>
+</html>
