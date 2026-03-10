@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Teacher Access</title>
+<style>
+  :root{
+    --brand:#0b7a75;
+    --ink:#1f2a28;
+    --muted:#5b6a68;
+    --bg:#f6f8f7;
+    --card:#ffffff;
+    --line:rgba(0,0,0,.10);
+    --danger:#b42318;
+    --warn:#b54708;
+    --ok:#027a48;
+    --radius:16px;
+    --shadow:0 12px 30px rgba(0,0,0,.08);
+    --max:980px;
+    --pad:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  a{color:inherit}
+  .top{
+    position:sticky;top:0;z-index:10;
+    background:rgba(246,248,247,.90);
+    backdrop-filter:saturate(1.2) blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .bar{max-width:var(--max);margin:0 auto;padding:12px var(--pad);display:flex;gap:12px;align-items:center;justify-content:space-between}
+  .brand{display:flex;gap:10px;align-items:center;min-width:0}
+  .logo{
+    width:38px;height:38px;border-radius:12px;
+    background:linear-gradient(135deg, rgba(11,122,117,.16), rgba(133,153,152,.10));
+    border:1px solid rgba(11,122,117,.24);
+    display:grid;place-items:center;font-weight:950;color:var(--brand);
+    box-shadow:0 10px 20px rgba(11,122,117,.10);
+  }
+  .brand h1{margin:0;font-size:14px;line-height:1.1}
+  .brand .sub{margin-top:2px;font-size:12px;color:rgba(31,42,40,.68);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+  .chip{
+    display:inline-flex;gap:8px;align-items:center;
+    padding:6px 10px;border-radius:999px;border:1px solid var(--line);
+    background:#fff;font-size:12px;color:rgba(31,42,40,.78);
+    max-width:52vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .dot{width:8px;height:8px;border-radius:99px;background:var(--brand)}
+  .btn{
+    appearance:none;border:1px solid var(--line);background:#fff;color:var(--ink);
+    padding:9px 12px;border-radius:12px;cursor:pointer;
+    font-weight:750;font-size:13px;box-shadow:0 8px 18px rgba(0,0,0,.05);
+  }
+  .btn.primary{background:var(--brand);border-color:rgba(11,122,117,.28);color:#fff}
+  .btn.danger{border-color:rgba(180,35,24,.25);color:var(--danger);background:rgba(180,35,24,.04)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .wrap{max-width:var(--max);margin:0 auto;padding:18px var(--pad) 30px}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);overflow:hidden;
+  }
+  .hd{padding:14px 14px 10px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+  .hd h2{margin:0;font-size:14px;letter-spacing:.2px}
+  .hd p{margin:4px 0 0;font-size:12px;color:rgba(31,42,40,.68);line-height:1.35}
+  .bd{padding:14px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr} }
+  .bigTitle{font-size:18px;font-weight:950;margin:0 0 6px}
+  .muted{color:rgba(31,42,40,.68);font-size:13px;line-height:1.45}
+  .pill{
+    display:inline-flex;gap:6px;align-items:center;
+    padding:5px 9px;border-radius:999px;border:1px solid var(--line);
+    background:rgba(0,0,0,.02);font-size:12px;color:rgba(31,42,40,.76);font-weight:750;
+  }
+  .pill.ok{border-color:rgba(2,122,72,.22);background:rgba(2,122,72,.06);color:rgba(2,122,72,.92)}
+  .pill.warn{border-color:rgba(181,71,8,.22);background:rgba(181,71,8,.06);color:rgba(181,71,8,.95)}
+  .pill.bad{border-color:rgba(180,35,24,.22);background:rgba(180,35,24,.06);color:rgba(180,35,24,.95)}
+  .hr{height:1px;background:var(--line);margin:12px 0}
+  .status{
+    margin-bottom:14px;
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:12px;box-shadow:0 8px 18px rgba(0,0,0,.05);
+    display:flex;gap:10px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;
+  }
+  .status .t{font-weight:900}
+  .status .m{font-size:12px;color:rgba(31,42,40,.70);margin-top:2px;line-height:1.35;max-width:720px}
+  .spin{
+    width:18px;height:18px;border-radius:50%;
+    border:2px solid rgba(0,0,0,.14);
+    border-top-color: rgba(11,122,117,.85);
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  label{display:block;font-size:12px;color:rgba(31,42,40,.70);margin:10px 0 6px}
+  input, textarea{
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:10px 11px;
+    font-size:13px;
+    background:#fff;
+    outline:none;
+  }
+  input:focus, textarea:focus{border-color:rgba(11,122,117,.55); box-shadow:0 0 0 3px rgba(11,122,117,.12)}
+  textarea{min-height:88px;resize:vertical}
+  .note{font-size:12px;color:rgba(31,42,40,.70);margin-top:8px;line-height:1.35}
+  .toast{
+    position:fixed;right:14px;bottom:14px;z-index:9999;
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 18px 45px rgba(0,0,0,.12);
+    padding:10px 12px;min-width:240px;max-width:360px;
+    display:none;
+  }
+  .toast .tt{font-weight:900;font-size:12px}
+  .toast .tm{margin-top:2px;font-size:12px;color:rgba(31,42,40,.72);line-height:1.35}
+</style>
+</head>
+
+<body>
+  <div class="top">
+    <div class="bar">
+      <div class="brand">
+        <div class="logo">QA</div>
+        <div style="min-width:0">
+          <h1>Teacher Access</h1>
+          <div class="sub" id="subline">Checking your session…</div>
+        </div>
+      </div>
+      <div class="actions">
+        <span class="chip" id="userChip" style="display:none"><span class="dot"></span><span id="userChipText">Signed in</span></span>
+        <button class="btn danger" id="btnSignOut" type="button">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="status" id="statusBox">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <div class="spin" id="spin"></div>
+        <div>
+          <div class="t" id="statusTitle">Loading…</div>
+          <div class="m" id="statusMsg">Please wait a moment.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        <span class="pill" id="pillAuth">Auth: —</span>
+        <span class="pill" id="pillTA">Teacher Assess: —</span>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Student -->
+      <div class="card">
+        <div class="hd">
+          <div>
+            <h2>Continue as Student</h2>
+            <p>Go straight to My Classes (student access for Teacher Assess).</p>
+          </div>
+          <span class="pill ok" id="pillStudent">Ready</span>
+        </div>
+        <div class="bd">
+          <div class="bigTitle">My Classes</div>
+          <div class="muted">Join classes, see quizzes, take attempts, view results/review when allowed.</div>
+          <div class="hr"></div>
+          <button class="btn primary" id="btnGoStudent" type="button" disabled>Open My Classes</button>
+          <div class="note">You can request teacher access later from this page anytime.</div>
+        </div>
+      </div>
+
+      <!-- Teacher request -->
+      <div class="card">
+        <div class="hd">
+          <div>
+            <h2>Request Teacher Access</h2>
+            <p>Teachers must request access. Admin will approve before you can create classes/quizzes.</p>
+          </div>
+          <span class="pill warn" id="pillTeacher">Checking…</span>
+        </div>
+        <div class="bd">
+          <div class="bigTitle" id="teacherTitle">Teacher Access</div>
+          <div class="muted" id="teacherDesc">If you’re a teacher, submit a request. Approval may take a little time.</div>
+
+          <div class="hr"></div>
+
+          <div id="teacherApprovedBox" style="display:none">
+            <button class="btn primary" id="btnGoTeacher" type="button">Open Teacher Dashboard</button>
+            <div class="note">You’re already approved.</div>
+          </div>
+
+          <div id="teacherRequestBox" style="display:none">
+            <button class="btn primary" id="btnShowForm" type="button">Request Teacher Access</button>
+
+            <form id="reqForm" style="display:none;margin-top:12px">
+              <label for="reqOrg">Organisation (optional)</label>
+              <input id="reqOrg" type="text" placeholder="e.g. School / Hospital / Training centre" />
+
+              <label for="reqPhone">Phone number (optional)</label>
+              <input id="reqPhone" type="tel" placeholder="Optional" />
+
+              <label for="reqNote">Short note (optional)</label>
+              <textarea id="reqNote" placeholder="e.g. I'm a tutor and want to run assignments for my class."></textarea>
+
+              <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+                <button class="btn primary" id="btnSubmitReq" type="submit">Submit request</button>
+                <button class="btn" id="btnCancelReq" type="button">Cancel</button>
+              </div>
+
+              <div class="note" id="reqHint">
+                We’ll notify/approve from admin side. Until approved, Teacher Dashboard stays locked.
+              </div>
+            </form>
+          </div>
+
+          <div id="teacherPendingBox" style="display:none">
+            <div class="pill warn" style="display:inline-flex">Request pending</div>
+            <div class="note" style="margin-top:8px">
+              Your request already exists but is not approved yet. You may submit again if you want to bump the request count.
+            </div>
+            <div style="margin-top:10px">
+              <button class="btn primary" id="btnResubmit" type="button">Resubmit request</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="muted" style="margin-top:14px;text-align:center">
+      QAcademy • Teacher Access
+    </div>
+  </div>
+
+  <div class="toast" id="toast">
+    <div class="tt" id="toastTitle">—</div>
+    <div class="tm" id="toastMsg">—</div>
+  </div>
+
+<script>
+/** ===================== CONFIG ===================== */
+const AUTH_URL = "https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec";
+const TA_URL   = "https://script.google.com/macros/s/AKfycbz54M_jWoRq4cOC2gUQeRhd55AeEJ5vnELJ0gkBSodO58fr7WGa9jwk6JNwPptf8p8X/exec";
+
+// Slugs
+const SLUG_MY_CLASSES   = "my-classes";
+const SLUG_TEACHER_DASH = "teacher-dashboard";
+const SLUG_LOGIN        = "login_23";
+
+/** ===================== Helpers ===================== */
+const $ = (id)=>document.getElementById(id);
+
+function pageUrl(slug){
+  slug = String(slug||"").trim();
+  return slug ? ("/p/" + slug + ".html") : "/";
+}
+
+function getToken(){
+  try{ return (localStorage.getItem("qa_token")||"").trim(); }catch(_){ return ""; }
+}
+function clearToken(){
+  try{ localStorage.removeItem("qa_token"); localStorage.removeItem("qa_user_id"); }catch(_){}
+}
+
+async function postForm(url, data){
+  const body = new URLSearchParams();
+  Object.entries(data||{}).forEach(([k,v])=>{ if(v!=null) body.set(k, String(v)); });
+
+  let res, txt;
+  try{
+    res = await fetch(url, {
+      method:"POST",
+      mode:"cors",
+      credentials:"omit",
+      headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
+      body
+    });
+    txt = await res.text();
+  }catch(e){
+    return { ok:false, error:"network_error", detail:String(e && (e.message||e) || e) };
+  }
+
+  try{ return JSON.parse(txt); }
+  catch(_){ return { ok:false, error:"bad_json", raw:txt }; }
+}
+
+function setPill(id, text, cls){
+  const el = $(id);
+  el.textContent = text;
+  el.classList.remove("ok","warn","bad");
+  if(cls) el.classList.add(cls);
+}
+
+function setStatus(title, msg){
+  $("statusTitle").textContent = title || "";
+  $("statusMsg").textContent = msg || "";
+}
+
+function toast(title, msg){
+  $("toastTitle").textContent = title || "";
+  $("toastMsg").textContent = msg || "";
+  $("toast").style.display = "block";
+  setTimeout(()=>{ $("toast").style.display = "none"; }, 3200);
+}
+
+function show(elId, on){
+  const el = $(elId);
+  if(el) el.style.display = on ? "" : "none";
+}
+
+/** ===================== Logic ===================== */
+let CURRENT_USER = null;
+
+async function boot(){
+  $("spin").style.display = "";
+  setPill("pillAuth","Auth: checking…","warn");
+  setPill("pillTA","Teacher Assess: checking…","warn");
+  $("subline").textContent = "Checking your session…";
+
+  $("btnGoStudent").disabled = true;
+
+  const token = getToken();
+  if(!token){
+    $("spin").style.display = "none";
+    setStatus("Sign in required", "Your session is missing in this browser. Please sign in again.");
+    setPill("pillAuth","Auth: missing token","bad");
+    setPill("pillTA","Teacher Assess: —","");
+    $("subline").textContent = "Signed out";
+    return;
+  }
+
+  // 1) Auth verify
+  const v = await postForm(AUTH_URL, { action:"verify", token });
+  if(!v || v.ok !== true){
+    const code = (v && v.error) ? String(v.error) : "verify_failed";
+    $("spin").style.display = "none";
+    setStatus("Session problem", "Please sign in again.");
+    setPill("pillAuth","Auth: " + code,"bad");
+    setPill("pillTA","Teacher Assess: —","");
+    $("subline").textContent = "Access denied";
+    // clear token on common invalids
+    if(code === "missing_token" || code === "expired" || code === "not_found" || code === "invalid_token"){
+      clearToken();
+    }
+    return;
+  }
+
+  CURRENT_USER = v.user || {};
+  const name = String(CURRENT_USER.name || "").trim() || String(CURRENT_USER.username || "").trim() || "Signed in";
+  const email = String(CURRENT_USER.email || "").trim();
+  $("userChipText").textContent = email ? (name + " • " + email) : name;
+  $("userChip").style.display = "inline-flex";
+  $("subline").textContent = "Choose an option";
+
+  setPill("pillAuth","Auth: OK","ok");
+  $("btnGoStudent").disabled = false;
+  $("btnGoStudent").onclick = ()=> window.location.href = pageUrl(SLUG_MY_CLASSES);
+
+  // 2) Check teacher status via teacher.verify (no side effects)
+  const tv = await postForm(TA_URL, { action:"teacher.verify", token });
+
+  if(tv && tv.ok === true){
+    setPill("pillTA","Teacher Assess: Teacher","ok");
+    $("pillTeacher").textContent = "Approved";
+    $("pillTeacher").className = "pill ok";
+
+    $("teacherTitle").textContent = "You’re approved";
+    $("teacherDesc").textContent = "Teacher access is active on your account.";
+
+    show("teacherApprovedBox", true);
+    show("teacherRequestBox", false);
+    show("teacherPendingBox", false);
+
+    $("btnGoTeacher").onclick = ()=> window.location.href = pageUrl(SLUG_TEACHER_DASH);
+
+    $("spin").style.display = "none";
+    setStatus("Ready", "You can continue as student or open Teacher Dashboard.");
+    return;
+  }
+
+  // Not approved or not registered => allow request
+  const err = (tv && tv.error) ? String(tv.error) : "not_teacher";
+  setPill("pillTA","Teacher Assess: available","ok");
+
+  if(err.indexOf("teacher_not_approved") !== -1){
+    $("pillTeacher").textContent = "Pending";
+    $("pillTeacher").className = "pill warn";
+    $("teacherTitle").textContent = "Request pending";
+    $("teacherDesc").textContent = "Your teacher request exists but is not approved yet.";
+
+    show("teacherApprovedBox", false);
+    show("teacherRequestBox", false);
+    show("teacherPendingBox", true);
+
+    $("btnResubmit").onclick = ()=> submitTeacherRequest(true);
+
+  } else {
+    $("pillTeacher").textContent = "Not requested";
+    $("pillTeacher").className = "pill warn";
+    $("teacherTitle").textContent = "Request teacher access";
+    $("teacherDesc").textContent = "If you’re a teacher, submit a request now. Admin approval is required.";
+
+    show("teacherApprovedBox", false);
+    show("teacherPendingBox", false);
+    show("teacherRequestBox", true);
+
+    $("btnShowForm").onclick = ()=>{
+      $("reqForm").style.display = "";
+      $("btnShowForm").disabled = true;
+      setTimeout(()=>{ try{ $("reqOrg").focus(); }catch(_){} }, 0);
+    };
+  }
+
+  $("spin").style.display = "none";
+  setStatus("Ready", "Continue as student, or request teacher access.");
+}
+
+async function submitTeacherRequest(isResubmit){
+  const token = getToken();
+  if(!token) return;
+
+  const org = String(($("reqOrg") && $("reqOrg").value) || "").trim();
+  const phone = String(($("reqPhone") && $("reqPhone").value) || "").trim();
+  const note = String(($("reqNote") && $("reqNote").value) || "").trim();
+
+  // lightweight sanity (optional fields; keep permissive)
+  toast("Submitting…", "Sending your teacher access request.");
+
+  const payload = {
+    action: "teacher.request_access",
+    token,
+    organisation: org,
+    phone_number: phone,
+    request_note: note
+  };
+
+  const r = await postForm(TA_URL, payload);
+  if(!r || r.ok !== true){
+    toast("Request failed", String((r && (r.error||r.detail)) || "Please try again."));
+    return;
+  }
+
+  // After request, treat as pending
+  $("pillTeacher").textContent = "Pending";
+  $("pillTeacher").className = "pill warn";
+  $("teacherTitle").textContent = "Request pending";
+  $("teacherDesc").textContent = "Your request has been recorded. Admin approval is required.";
+
+  show("teacherApprovedBox", false);
+  show("teacherRequestBox", false);
+  show("teacherPendingBox", true);
+
+  // Reset form UI
+  if($("reqForm")) $("reqForm").style.display = "none";
+  if($("btnShowForm")) $("btnShowForm").disabled = false;
+
+  toast("Request submitted", isResubmit ? "Request count increased." : "Saved successfully.");
+}
+
+$("btnSignOut").addEventListener("click", ()=>{
+  clearToken();
+  window.location.href = pageUrl(SLUG_LOGIN);
+});
+
+$("btnCancelReq").addEventListener("click", ()=>{
+  $("reqForm").style.display = "none";
+  $("btnShowForm").disabled = false;
+});
+
+$("reqForm").addEventListener("submit", (e)=>{
+  e.preventDefault();
+  submitTeacherRequest(false);
+});
+
+boot();
+</script>
+</body>
+</html>
