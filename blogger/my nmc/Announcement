@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Announcements</title>
+<style>
+  :root{
+    --brand:#0b7a75;
+    --brand-soft:#e0f2f1;
+    --ink:#0f172a;
+    --muted:#6b7280;
+    --bg:#f3f4f6;
+    --card:#ffffff;
+    --line:#e5e7eb;
+    --danger:#b91c1c;
+    --danger-soft:#fef2f2;
+    --ok:#15803d;
+    --ok-soft:#ecfdf3;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    padding:0 12px 24px;
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:var(--bg);
+  }
+  .qa-shell{
+    max-width:980px;
+    margin:20px auto 32px;
+  }
+  .qa-top-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-bottom:10px;
+  }
+  .qa-top-btn{
+    display:inline-block;
+    padding:8px 12px;
+    border-radius:10px;
+    border:1px solid var(--brand);
+    color:var(--brand);
+    background:#f3faf9;
+    font-weight:600;
+    font-size:13px;
+    text-decoration:none;
+  }
+  .qa-top-btn.logout{
+    background:#ffffff;
+  }
+
+  .qa-card{
+    background:var(--card);
+    border-radius:14px;
+    border:1px solid rgba(15,23,42,0.06);
+    box-shadow:0 4px 14px rgba(15,23,42,0.06);
+    padding:14px 16px;
+    margin-bottom:14px;
+  }
+  .qa-header-main{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .qa-title{
+    font-size:18px;
+    font-weight:750;
+    color:var(--ink);
+    margin-bottom:4px;
+  }
+  .qa-subtitle{
+    font-size:13px;
+    color:var(--muted);
+    margin:0;
+  }
+  .qa-chip{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:2px 8px;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:600;
+    border:1px solid rgba(15,23,42,0.1);
+    color:var(--muted);
+    white-space:nowrap;
+  }
+  .qa-chip-course{
+    background:#eef2ff;
+    border-color:#c7d2fe;
+    color:#3730a3;
+  }
+
+  .qa-filters{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin:10px 0 4px;
+  }
+  .qa-search{
+    flex:1;
+    min-width:220px;
+    padding:9px 11px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    font-size:14px;
+  }
+  .qa-toggle-group{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:13px;
+    color:var(--muted);
+  }
+  .qa-toggle-group input{
+    accent-color:var(--brand);
+  }
+
+  .qa-stats{
+    margin-top:6px;
+    font-size:12px;
+    color:#9ca3af;
+  }
+
+  .qa-ann-list{
+    list-style:none;
+    margin:0;
+    padding:0;
+  }
+  .qa-ann-item{
+    border-radius:12px;
+    border:1px solid rgba(148,163,184,0.35);
+    padding:10px 12px;
+    margin-bottom:8px;
+    background:#ffffff;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .qa-ann-topline{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:flex-start;
+  }
+  .qa-ann-title{
+    font-size:14px;
+    font-weight:650;
+    color:var(--ink);
+  }
+  .qa-ann-body{
+    font-size:13px;
+    color:#4b5563;
+  }
+  .qa-ann-meta{
+    font-size:12px;
+    color:#9ca3af;
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .qa-ann-item-old{
+    background:#f9fafb;
+  }
+
+  .qa-ann-divider{
+    margin:10px 0 6px;
+    padding-top:6px;
+    font-size:11px;
+    font-weight:600;
+    color:#6b7280;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    border-top:1px solid var(--line);
+  }
+
+  /* ✅ Urgent card styling */
+  .qa-ann-item-urgent{
+    border-color:#fecaca;
+    background:#fff7f7;
+    box-shadow:0 6px 16px rgba(185,28,28,0.08);
+  }
+  /* ✅ Announcement rich content helpers (buttons + images) */
+.qa-ann-body a[data-qa="btn"],
+.qa-ann-body a.qa-btnlink{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:8px 12px;
+  border-radius:10px;
+  border:1px solid rgba(11,122,117,.35);
+  background:var(--brand-soft);
+  color:var(--brand);
+  text-decoration:none;
+  font-weight:700;
+  font-size:12px;
+  margin-top:6px;
+}
+
+/* ✅ Tighten spacing inside announcement bodies */
+.qa-ann-body p{
+  margin: 0 0 6px 0;   /* was browser default ~16px */
+}
+.qa-ann-body p:last-child{
+  margin-bottom: 0;
+}
+.qa-ann-body ul,
+.qa-ann-body ol{
+  margin: 4px 0 6px 18px;
+}
+.qa-ann-body li{
+  margin: 2px 0;
+}
+.qa-ann-body br{
+  line-height: 1.2;
+}
+  
+.qa-ann-body img{
+  max-width:100%;
+  height:auto;
+  display:block;
+  margin:8px 0 4px;
+  border-radius:12px;
+  border:1px solid rgba(15,23,42,0.08);
+}
+
+
+  .qa-pill{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:1px 7px;
+    border-radius:999px;
+    font-size:10px;
+    font-weight:600;
+    border:1px solid transparent;
+    white-space:nowrap;
+  }
+  .qa-pill-pinned{
+    background:#e0f2f1;
+    border-color:#b2dfdb;
+    color:#0b7a75;
+  }
+  .qa-pill-urgent{
+    background:#fef2f2;
+    border-color:#fecaca;
+    color:#b91c1c;
+  }
+  .qa-pill-upcoming{
+    background:#fef9c3;
+    border-color:#fde68a;
+    color:#a16207;
+  }
+  .qa-pill-live{
+    background:#ecfdf3;
+    border-color:#bbf7d0;
+    color:#166534;
+  }
+  .qa-pill-ended{
+    background:#f3f4f6;
+    border-color:#e5e7eb;
+    color:#6b7280;
+  }
+
+  /* ✅ Actions (Mark as read / Dismiss / Restore) */
+  .qa-ann-actions{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-top:6px;
+  }
+  .qa-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:6px 10px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--ink);
+    font-size:12px;
+    font-weight:650;
+    cursor:pointer;
+  }
+  .qa-btn:disabled{
+    opacity:.55;
+    cursor:not-allowed;
+  }
+  .qa-btn-primary{
+    border-color:rgba(11,122,117,.35);
+    background:var(--brand-soft);
+    color:var(--brand);
+  }
+  .qa-btn-danger{
+    border-color:rgba(185,28,28,.25);
+    background:var(--danger-soft);
+    color:var(--danger);
+  }
+  .qa-pill-new{
+    background:#eef2ff;
+    border-color:#c7d2fe;
+    color:#3730a3;
+  }
+  .qa-pill-seen{
+    background:#f3f4f6;
+    border-color:#e5e7eb;
+    color:#6b7280;
+  }
+  .qa-pill-dismissed{
+    background:#fff7ed;
+    border-color:#fed7aa;
+    color:#9a3412;
+  }
+
+  .qa-empty{
+    font-size:13px;
+    color:var(--muted);
+  }
+  .qa-error{
+    font-size:13px;
+    color:var(--danger);
+    background:var(--danger-soft);
+    border-radius:10px;
+    padding:8px 10px;
+    margin-top:6px;
+  }
+
+  .qa-footer-hint{
+    margin-top:8px;
+    font-size:12px;
+    color:#9ca3af;
+  }
+
+  @media (max-width:600px){
+    .qa-shell{ margin-top:12px; }
+    .qa-card{ padding:12px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 0) PAGE FLAGS -->
+<script>
+  window.QA_PAGE_KIND = 'announcements'; // generic guarded page
+</script>
+
+<!-- 1) GUARD v3 (same as your GP course page guard; reuse exactly the same script here) -->
+<script>
+(function () {
+  'use strict';
+
+  var DEFAULT_AUTH_URL       = 'https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec';
+  var DEFAULT_LOGIN_SLUG     = 'login_23';
+  var DEFAULT_DASHBOARD_SLUG = 'dashboard_23';
+
+  var cfg = (window.QA_CONFIG && typeof window.QA_CONFIG === 'object') ? window.QA_CONFIG : {};
+
+  var AUTH_URL       = cfg.AUTH_URL       || DEFAULT_AUTH_URL;
+  var LOGIN_SLUG     = cfg.LOGIN_SLUG     || DEFAULT_LOGIN_SLUG;
+  var DASHBOARD_SLUG = cfg.DASHBOARD_SLUG || DEFAULT_DASHBOARD_SLUG;
+
+  var PAGE_KIND     = window.QA_PAGE_KIND || 'announcements';
+  var COURSE_ID     = window.QA_COURSE_ID || null;
+  var REQUIRE_ADMIN = (typeof window.QA_REQUIRE_ADMIN === 'boolean')
+    ? window.QA_REQUIRE_ADMIN
+    : (String(PAGE_KIND).toLowerCase() === 'admin');
+
+  window.QA_GUARD_STATE      = 'pending';
+  window.QA_GUARD_BLOCK_TYPE = null;
+
+  var guardResolve, guardReject;
+  window.qaGuardReady = new Promise(function (resolve, reject) {
+    guardResolve = resolve;
+    guardReject  = reject;
+  });
+
+  function persistGuardState(state, blockType) {
+    window.QA_GUARD_STATE      = state;
+    window.QA_GUARD_BLOCK_TYPE = blockType || null;
+  }
+
+  function buildPageUrl(slug) {
+    slug = String(slug || '').replace(/^\s+|\s+$/g, '');
+    if (!slug) return '/';
+    return '/p/' + slug + '.html';
+  }
+
+  function go(url) { window.location.replace(url); }
+
+  function qaGoToLogin(reason) {
+    var url = buildPageUrl(LOGIN_SLUG);
+    if (reason) {
+      var sep = url.indexOf('?') === -1 ? '?' : '&';
+      url += sep + 'reason=' + encodeURIComponent(reason);
+    }
+    go(url);
+  }
+
+  function qaGoToDashboard() { go(buildPageUrl(DASHBOARD_SLUG)); }
+
+  function qaLogout() {
+    try { localStorage.removeItem('qa_token'); localStorage.removeItem('qa_user_id'); } catch (e) {}
+    qaGoToLogin('logout');
+  }
+
+  window.qaGoToLogin     = qaGoToLogin;
+  window.qaGoToDashboard = qaGoToDashboard;
+  window.qaLogout        = qaLogout;
+
+  var overlayId = 'qa-guard-overlay';
+  function ensureOverlay() {
+    var el = document.getElementById(overlayId);
+    if (el) return el;
+
+    el = document.createElement('div');
+    el.id = overlayId;
+    el.style.position   = 'fixed';
+    el.style.inset      = '0';
+    el.style.zIndex     = '99999';
+    el.style.background = 'rgba(15,23,42,0.86)';
+    el.style.display    = 'flex';
+    el.style.alignItems = 'center';
+    el.style.justifyContent = 'center';
+    el.style.fontFamily = 'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+    el.style.padding    = '16px';
+    el.style.boxSizing  = 'border-box';
+
+    el.innerHTML =
+      '<div id="qa-guard-overlay-inner" style="max-width:420px;width:100%;background:#ffffff;border-radius:16px;padding:18px 20px;box-shadow:0 18px 45px rgba(15,23,42,0.45);text-align:center;">' +
+        '<div id="qa-guard-overlay-title" style="font-size:18px;font-weight:600;margin-bottom:6px;color:#0b7a75;">Checking your access...</div>' +
+        '<div id="qa-guard-overlay-body" style="font-size:14px;color:#475569;margin-bottom:14px;">Please wait a moment.</div>' +
+        '<div id="qa-guard-overlay-actions" style="font-size:13px;color:#94a3b8;"></div>' +
+      '</div>';
+
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function showOverlay(title, body, actionsHtml) {
+    var el = ensureOverlay();
+    var t  = el.querySelector('#qa-guard-overlay-title');
+    var b  = el.querySelector('#qa-guard-overlay-body');
+    var a  = el.querySelector('#qa-guard-overlay-actions');
+
+    if (t && typeof title === 'string') t.textContent = title;
+    if (b && typeof body === 'string')  b.textContent = body;
+    if (a) a.innerHTML = actionsHtml || '';
+
+    el.style.display = 'flex';
+  }
+
+  function hideOverlay() {
+    var el = document.getElementById(overlayId);
+    if (el) el.style.display = 'none';
+  }
+
+  function buildBlockedActions(type) {
+    var btnStyle = 'display:inline-flex;align-items:center;justify-content:center;padding:8px 14px;border-radius:999px;border:none;background:#0b7a75;color:#ffffff;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;';
+    if (type === 'no_course_access' || type === 'admin_required' || type === 'account_issue') {
+      return '<button type="button" onclick="qaGoToDashboard()" style="' + btnStyle + '">Go to Dashboard</button>';
+    }
+    if (type === 'session_expired') {
+      return '<button type="button" onclick="qaGoToLogin(\'session_expired\')" style="' + btnStyle + '">Go to Login</button>';
+    }
+    return '';
+  }
+
+  function handleBlocked(type, title, body) {
+    persistGuardState('blocked', type);
+    var actionsHtml = buildBlockedActions(type);
+    showOverlay(title, body, actionsHtml);
+    guardResolve({ ok: false, blocked: true, type: type });
+  }
+
+  function runGuard() {
+    showOverlay('Checking your access...', 'Please wait while we verify your session.', '');
+
+    var token = null;
+    try { token = localStorage.getItem('qa_token'); } catch (e) { token = null; }
+
+    if (!token) {
+      handleBlocked('session_expired', 'Sign in required', 'Your session has ended. Please sign in again.');
+      qaGoToLogin('no_token');
+      return;
+    }
+
+    if (!AUTH_URL) {
+      hideOverlay();
+      persistGuardState('error', 'missing_auth_url');
+      var err = new Error('Guard misconfigured: AUTH_URL is missing.');
+      guardReject(err);
+      console.error(err);
+      return;
+    }
+
+    fetch(AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ action: 'verify', token: token })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (!data || data.ok !== true) {
+          var errCode = (data && data.error) || 'unknown_error';
+
+          if (errCode === 'missing_token' || errCode === 'not_found' || errCode === 'expired') {
+            try { localStorage.removeItem('qa_token'); localStorage.removeItem('qa_user_id'); } catch (e) {}
+            handleBlocked('session_expired', 'Sign in required', 'Your session has ended. Please sign in again.');
+            qaGoToLogin('session_expired');
+            return;
+          }
+
+          if (errCode === 'user_missing' || errCode === 'user_inactive' || errCode === 'user_expired') {
+            handleBlocked('account_issue', 'Account issue', 'There is a problem with your account. Please contact QAcademy support.');
+            return;
+          }
+
+          persistGuardState('error', errCode);
+          hideOverlay();
+          var err2 = new Error('Guard verify failed: ' + errCode);
+          guardReject(err2);
+          console.error(err2);
+          return;
+        }
+
+        var u         = data.user   || {};
+        var flags     = data.flags  || {};
+        var access    = (data.access && typeof data.access === 'object') ? data.access : {};
+        var courseIds = Array.isArray(access.courses) ? access.courses.slice() : [];
+        var upperIds  = courseIds.map(function (c) { return String(c || '').trim().toUpperCase(); }).filter(Boolean);
+        var coursesMeta = Array.isArray(data.courses) ? data.courses : [];
+
+        var QA_USER = {
+          id:                 u.user_id || '',
+          user_id:            u.user_id || '',
+          username:           u.username || '',
+          email:              u.email || '',
+          name:               u.name || '',
+          forename:           u.forename || '',
+          surname:            u.surname || '',
+          phone_number:       u.phone_number || '',
+          program_id:         u.program_id || '',
+          cohort:             u.cohort || '',
+          avatar_url:         u.avatar_url || '',
+          role:               u.role || '',
+          is_admin:           !!(flags && flags.is_admin),
+          must_change_password: !!u.must_change_password,
+          user_expires_utc:   u.expires_utc || ''
+        };
+
+        var QA_ACCESS = {
+          courseIds:          upperIds,
+          access_expires_utc: access.expires_utc || '',
+          coursesMeta:        coursesMeta,
+          hasCourse: function (courseId) {
+            var cid = String(courseId || '').trim().toUpperCase();
+            if (!cid) return false;
+            return this.courseIds.indexOf(cid) !== -1;
+          }
+        };
+
+        window.QA_USER   = QA_USER;
+        window.QA_ACCESS = QA_ACCESS;
+
+        try { if (QA_USER.user_id) localStorage.setItem('qa_user_id', QA_USER.user_id); } catch (e) {}
+
+        var kind = String(PAGE_KIND || '').toLowerCase();
+        var cid  = COURSE_ID ? String(COURSE_ID).trim().toUpperCase() : '';
+
+        if (kind === 'dashboard') {
+          persistGuardState('ready', null);
+          hideOverlay();
+          guardResolve({ ok: true, blocked: false, kind: kind });
+          return;
+        }
+
+        if (kind === 'admin' || REQUIRE_ADMIN) {
+          if (!QA_USER.is_admin) {
+            handleBlocked('admin_required', 'Admin access required', 'This page is only available to QAcademy admins.');
+            return;
+          }
+          persistGuardState('ready', null);
+          hideOverlay();
+          guardResolve({ ok: true, blocked: false, kind: kind });
+          return;
+        }
+
+        if (kind === 'course' || kind === 'builder' || kind === 'runner_instant' || kind === 'runner_timed' || kind === 'history_course') {
+          if (!cid) {
+            persistGuardState('error', 'missing_course_id');
+            hideOverlay();
+            var err3 = new Error('Guard misconfigured: QA_COURSE_ID is missing for course-tied page.');
+            guardReject(err3);
+            console.error(err3);
+            return;
+          }
+
+          if (!QA_ACCESS.hasCourse(cid)) {
+            handleBlocked('no_course_access', 'No access to this course',
+              'Your current subscription does not include this course. Please go back to your dashboard to see the courses you have access to.'
+            );
+            return;
+          }
+
+          persistGuardState('ready', null);
+          hideOverlay();
+          guardResolve({ ok: true, blocked: false, kind: kind, course_id: cid });
+          return;
+        }
+
+        if (kind === 'history') {
+          persistGuardState('ready', null);
+          hideOverlay();
+          guardResolve({ ok: true, blocked: false, kind: kind });
+          return;
+        }
+
+        persistGuardState('ready', null);
+        hideOverlay();
+        guardResolve({ ok: true, blocked: false, kind: kind });
+      })
+      .catch(function (err) {
+        persistGuardState('error', 'network');
+        console.error('Guard network/error', err);
+        showOverlay('Network problem',
+          'We could not verify your access due to a network error. Please check your connection and reload this page.',
+          ''
+        );
+        guardReject(err);
+      });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', runGuard);
+  else runGuard();
+})();
+</script>
+
+<!-- 2) PAGE CONTENT (hidden until guard passes) -->
+<div id="qa-app" style="display:none;">
+  <div class="qa-shell">
+
+    <div class="qa-top-actions">
+      <a href="/p/dashboard_23.html" class="qa-top-btn">Dashboard</a>
+      <a href="#" onclick="qaLogout();return false;" class="qa-top-btn logout">Logout</a>
+    </div>
+
+    <!-- Header card -->
+    <div class="qa-card">
+      <div class="qa-header-main">
+        <div>
+          <div class="qa-title" id="qa-ann-title">Announcements</div>
+          <p class="qa-subtitle" id="qa-ann-subtitle">Loading announcements for your account...</p>
+        </div>
+        <div id="qa-ann-course-chip" style="display:none;">
+          <span class="qa-chip qa-chip-course" id="qa-ann-course-label">Course: GP</span>
+        </div>
+      </div>
+
+      <!-- ✅ Scope filter (ALL vs COURSE) -->
+      <div class="qa-filters" style="margin-bottom:6px;">
+        <label class="qa-toggle-group">
+          <input type="radio" name="qa-ann-scope" value="ALL" checked />
+          <span>All announcements</span>
+        </label>
+
+        <label class="qa-toggle-group">
+          <input type="radio" name="qa-ann-scope" value="COURSE" />
+          <span>Specific course</span>
+        </label>
+
+        <select id="qa-ann-course-select" class="qa-search" style="max-width:220px; display:none;" aria-label="Select course">
+          <option value="">Select course...</option>
+        </select>
+      </div>
+
+      <!-- Existing filters -->
+      <div class="qa-filters">
+        <input id="qa-ann-search" type="search" class="qa-search" placeholder="Search announcements..." aria-label="Search announcements" />
+        <label class="qa-toggle-group">
+          <input type="checkbox" id="qa-ann-urgent-only" />
+          <span>Urgent only</span>
+        </label>
+        <label class="qa-toggle-group">
+          <input type="checkbox" id="qa-ann-include-old" />
+          <span>Show older</span>
+        </label>
+
+        <!-- ✅ NEW: show dismissed -->
+        <label class="qa-toggle-group">
+          <input type="checkbox" id="qa-ann-include-dismissed" />
+          <span>Show dismissed</span>
+        </label>
+      </div>
+
+      <div id="qa-ann-stats" class="qa-stats"></div>
+      <div id="qa-ann-error" class="qa-error" style="display:none;"></div>
+    </div>
+
+    <!-- Announcements list -->
+    <div class="qa-card">
+      <ul id="qa-ann-list" class="qa-ann-list"></ul>
+      <div id="qa-ann-empty" class="qa-empty" style="display:none;">No announcements to show here yet.</div>
+      <div id="qa-ann-footer-hint" class="qa-footer-hint">
+        Showing active, upcoming and recently ended announcements from the last 30 days.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 3) ANNOUNCEMENTS JS -->
+<script>
+function qaInitAnnouncementsPage(){
+  (function(){
+    var cfg = (window.QA_CONFIG && typeof window.QA_CONFIG === 'object') ? window.QA_CONFIG : {};
+    var BUILDER_API_URL   = cfg.BUILDER_API_URL ||
+      'https://script.google.com/macros/s/AKfycbx_CDJU5juEDxybplqBlYjJP0tAS52-HIOWE6is19Ub7NqhaV_16MnFmstJpWcdorHT/exec';
+    var ANNOUNCEMENTS_URL = cfg.ANNOUNCEMENTS_URL || BUILDER_API_URL || '';
+
+    var DAYS_RECENT = 30;
+
+    var paramsUrl = new URLSearchParams(window.location.search);
+    var COURSE_ID = (paramsUrl.get('course_id') || '').trim().toUpperCase() || '';
+
+    var elTitle          = document.getElementById('qa-ann-title');
+    var elSubTitle       = document.getElementById('qa-ann-subtitle');
+    var elCourseChipWrap = document.getElementById('qa-ann-course-chip');
+    var elCourseLabel    = document.getElementById('qa-ann-course-label');
+
+    var elSearch      = document.getElementById('qa-ann-search');
+    var elUrgent      = document.getElementById('qa-ann-urgent-only');
+    var elIncludeOld  = document.getElementById('qa-ann-include-old');
+    var elIncludeDismissed = document.getElementById('qa-ann-include-dismissed');
+    var elStats       = document.getElementById('qa-ann-stats');
+    var elError       = document.getElementById('qa-ann-error');
+    var elList        = document.getElementById('qa-ann-list');
+    var elEmpty       = document.getElementById('qa-ann-empty');
+    var elFooterHint  = document.getElementById('qa-ann-footer-hint');
+
+    var elScopeRadios  = document.querySelectorAll('input[name="qa-ann-scope"]');
+    var elCourseSelect = document.getElementById('qa-ann-course-select');
+
+    var currentScope   = 'ALL';
+    var selectedCourse = '';
+
+    if (!ANNOUNCEMENTS_URL || !elList) {
+      if (elSubTitle) elSubTitle.textContent = 'Announcements service is not available right now.';
+      return;
+    }
+
+    function setHeaderForScope(){
+      var cid = (currentScope === 'COURSE') ? (selectedCourse || '') : '';
+      if (cid && elCourseChipWrap && elCourseLabel) {
+        elCourseLabel.textContent = 'Course: ' + cid;
+        elCourseChipWrap.style.display = 'block';
+        if (elTitle) elTitle.textContent = 'Course announcements';
+        if (elSubTitle) elSubTitle.textContent = 'You are viewing announcements targeted to this course.';
+      } else {
+        if (elCourseChipWrap) elCourseChipWrap.style.display = 'none';
+        if (elTitle) elTitle.textContent = 'Announcements';
+        if (elSubTitle) elSubTitle.textContent = 'Announcements that apply to your QAcademy account.';
+      }
+    }
+
+    var allItems = [];
+    var statesById = {}; // announcement_id -> { state: "seen"|"dismissed", seen_at, dismissed_at }
+
+    function parseDate(val){
+      if (!val && val !== 0) return null;
+      var d = (val instanceof Date) ? val : new Date(val);
+      if (isNaN(d.getTime())) return null;
+      return d;
+    }
+
+    function fmtDateShort(d){
+      if (!d) return '';
+      return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+    }
+
+    function classifyState(a){
+      var now   = new Date();
+      var start = parseDate(a.start_at || a.created_at);
+      var end   = parseDate(a.end_at);
+      var status = String(a.status || '').toLowerCase();
+
+      if (status === 'draft') return 'HIDDEN';
+      if (start && now < start) return 'UPCOMING';
+
+      if (end && now > end){
+        var diffMs   = now.getTime() - end.getTime();
+        var diffDays = Math.floor(diffMs / (1000*60*60*24));
+        if (diffDays <= DAYS_RECENT) return 'ENDED_RECENT';
+        return 'ENDED_OLD';
+      }
+      return 'LIVE';
+    }
+
+    function clearError(){
+      if (!elError) return;
+      elError.style.display = 'none';
+      elError.textContent = '';
+    }
+    function showError(msg){
+      if (!elError) return;
+      elError.style.display = 'block';
+      elError.textContent = msg || 'Something went wrong loading announcements.';
+    }
+
+    function stateOf(id){
+      var s = statesById && statesById[id];
+      return s && s.state ? String(s.state).toLowerCase() : '';
+    }
+var INSTANT_RUNNER_URL =
+  cfg.INSTANT_RUNNER_URL ||
+  'https://nursing2000a.blogspot.com/p/instant-ruuner-for-quiz-builder.html';
+
+var TIMED_RUNNER_URL =
+  cfg.TIMED_RUNNER_URL ||
+  'https://nursing2000a.blogspot.com/p/timed-ruuner-for-quiz-builder.html';
+
+function getToken(){
+  try{ return localStorage.getItem('qa_token') || ''; }catch(e){ return ''; }
+}
+function qaSafeUserId(){
+  if (window.QA_USER && window.QA_USER.user_id) return String(window.QA_USER.user_id);
+  try{ return localStorage.getItem('qa_user_id') || ''; }catch(e){ return ''; }
+}
+
+function qaOpenFixedQuizFromAnnouncementSmart(quizId, preferredMode){
+  quizId = String(quizId || '').trim();
+  if(!quizId) return;
+
+  clearError();
+
+  var token = getToken();
+  if(!token){
+    showError('Missing session token. Please sign in again.');
+    return;
+  }
+
+  if (elSubTitle) elSubTitle.textContent = 'Opening quiz...';
+
+  // IMPORTANT: do NOT restrict by source here, or you may miss an existing in-progress attempt
+  var urlList = BUILDER_API_URL +
+    '?action=attempts.list' +
+    '&token=' + encodeURIComponent(token);
+
+
+  fetch(urlList)
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+      var attempts = Array.isArray(res && res.attempts) ? res.attempts : [];
+
+      // Only this quiz
+      var mine = attempts.filter(function(a){
+        return String(a.quiz_id || '').trim() === quizId;
+      });
+
+      // Sort newest first
+      mine.sort(function(a,b){
+        var da = new Date(a.ts_iso || a.timestamp || 0).getTime();
+        var db = new Date(b.ts_iso || b.timestamp || 0).getTime();
+        return (db||0) - (da||0);
+      });
+
+      var inProg = mine.find(function(a){
+        return String(a.status || '').toLowerCase() === 'in_progress';
+      });
+
+      if(inProg && inProg.attempt_id){
+        // ✅ Resume
+        goToAttemptId(inProg.attempt_id, inProg.mode || preferredMode);
+        return { done:true };
+      }
+
+      // If there is no in-progress attempt, we start a fresh attempt.
+      // (We do NOT auto-open completed attempts from announcements.)
+
+
+      // 3) Otherwise spawn new (token-authoritative)
+      var payload = {
+        quiz_id: quizId,
+        source: 'fixed'
+        // Do NOT send user_id. Backend should derive it from token.
+      };
+
+      var spawnBody = new URLSearchParams();
+      spawnBody.set('action', 'fixed.spawn');
+      spawnBody.set('token', token);
+      spawnBody.set('payload', JSON.stringify(payload));
+
+      return fetch(BUILDER_API_URL, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+        body: spawnBody
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(!data || data.ok === false) throw new Error((data && data.error) || 'spawn_failed');
+        if(!data.attempt_id) throw new Error('Missing attempt_id');
+        goToAttemptId(data.attempt_id, (data.mode || preferredMode));
+        return { done:true };
+      });
+
+    })
+    .catch(function(err){
+      console.error(err);
+      showError('Could not open quiz: ' + err.message);
+      if (elSubTitle) setHeaderForScope();
+    });
+
+  function goToAttemptId(attemptId, mode){
+    var m = String(mode || preferredMode || '').toLowerCase();
+    var base = (m === 'timed') ? TIMED_RUNNER_URL : INSTANT_RUNNER_URL;
+    var sep = base.indexOf('?') === -1 ? '?' : '&';
+    window.location.href = base + sep + 'quiz_id=' + encodeURIComponent(attemptId);
+  }
+}
+
+// ✅ Intercept quiz-launch links inside announcement bodies
+document.addEventListener('click', function(e){
+  var a = e.target && e.target.closest ? e.target.closest('a[data-qa-fixed-quiz]') : null;
+  if(!a) return;
+
+  e.preventDefault();
+
+  // prevent double-click spawns
+  if (a.dataset.busy === '1') return;
+  a.dataset.busy = '1';
+
+  var quizId = a.getAttribute('data-qa-fixed-quiz');
+  var mode   = a.getAttribute('data-qa-mode'); // optional
+
+  qaOpenFixedQuizFromAnnouncementSmart(quizId, mode);
+
+  // release the lock after a short grace period (redirect should happen quickly)
+  setTimeout(function(){ try{ a.dataset.busy = ''; }catch(_e){} }, 4000);
+});
+
+
+    function postAction(action, payloadObj){
+      var token = null;
+      try{ token = localStorage.getItem('qa_token'); }catch(e){ token = null; }
+      if (!token) return Promise.reject(new Error('Missing session token.'));
+
+      var body = new URLSearchParams();
+      body.set('action', action);
+      body.set('token', token);
+      if (payloadObj){
+        Object.keys(payloadObj).forEach(function(k){
+          body.set(k, (payloadObj[k] == null) ? '' : String(payloadObj[k]));
+        });
+      }
+
+      return fetch(ANNOUNCEMENTS_URL, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+        body: body
+      }).then(function(r){ return r.json(); });
+    }
+
+    function setBtnBusy(btn, busy){
+      if (!btn) return;
+      btn.disabled = !!busy;
+      btn.dataset.busy = busy ? '1' : '';
+    }
+
+    /* ==========================
+       ✅ Priority (numeric) helpers
+       - Sheets / API may send 0/1/2/3 or "3"
+       - 3 = Urgent (highest)
+       ========================== */
+    function priorityLevel(a){
+      var n = Number(a && a.priority);
+      return Number.isFinite(n) ? n : 1; // default Normal
+    }
+    function priorityLabel(level){
+      if (level >= 3) return 'Urgent';
+      if (level === 2) return 'High';
+      if (level === 0) return 'Low';
+      return 'Normal';
+    }
+    function isUrgent(a){
+      return priorityLevel(a) >= 3;
+    }
+
+    function buildPills(a, state){
+      var pills = [];
+
+      if (a.pinned){
+        pills.push('<span class="qa-pill qa-pill-pinned">Pinned</span>');
+      }
+
+      // ✅ Urgent pill (numeric priority)
+      if (isUrgent(a)){
+        pills.push('<span class="qa-pill qa-pill-urgent">Urgent</span>');
+      }
+
+      // ✅ New / Seen / Dismissed
+      var id = (a._id || a.announcement_id || a.id || a.ann_id || '').trim();
+      var st = stateOf(id);
+      if (!st) pills.push('<span class="qa-pill qa-pill-new">New</span>');
+      else if (st === 'seen') pills.push('<span class="qa-pill qa-pill-seen">Seen</span>');
+      else if (st === 'dismissed') pills.push('<span class="qa-pill qa-pill-dismissed">Dismissed</span>');
+
+      if (state === 'UPCOMING'){
+        pills.push('<span class="qa-pill qa-pill-upcoming">Upcoming</span>');
+      } else if (state === 'LIVE'){
+        pills.push('<span class="qa-pill qa-pill-live">Live</span>');
+      } else if (state === 'ENDED_RECENT'){
+        pills.push('<span class="qa-pill qa-pill-ended">Ended</span>');
+      } else if (state === 'ENDED_OLD'){
+        pills.push('<span class="qa-pill qa-pill-ended">Ended (older)</span>');
+      }
+
+      return pills.join(' ');
+    }
+    
+    
+    /* ==========================
+   ✅ SAFE HTML RENDERING (body_html)
+   - Allow a small whitelist of tags
+   - Strip event handlers + unsafe attrs
+   - Allow only safe href protocols
+   ========================== */
+function qaIsSafeHref(href){
+  if (!href) return false;
+  href = String(href).trim();
+
+  // allow relative links
+  if (href[0] === '/' || href[0] === '?' || href[0] === '#') return true;
+
+  // block javascript:, data:, vbscript: even with whitespace/casing tricks
+  var lower = href.replace(/\s+/g,'').toLowerCase();
+  if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) return false;
+
+  try{
+    var u = new URL(href, window.location.origin);
+    return (u.protocol === 'http:' || u.protocol === 'https:' || u.protocol === 'mailto:' || u.protocol === 'tel:');
+  }catch(e){
+    return false;
+  }
+}
+function qaIsSafeSrc(src){
+  if (!src) return false;
+  src = String(src).trim();
+
+  // allow relative
+  if (src[0] === '/' || src[0] === '?') return true;
+
+  // block javascript:, data:, vbscript: even with whitespace/casing tricks
+  var lower = src.replace(/\s+/g,'').toLowerCase();
+  if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) return false;
+
+  try{
+    var u = new URL(src, window.location.origin);
+    return (u.protocol === 'http:' || u.protocol === 'https:');
+  }catch(e){
+    return false;
+  }
+}
+
+    
+function qaSanitizeHtmlToFragment(html){
+  html = qaDecodeHtmlEntities(html);   // ✅ keep for now
+  html = String(html || '');
+  var tpl = document.createElement('template');
+  tpl.innerHTML = html;
+
+  var ALLOWED = {
+    A:1, P:1, BR:1, STRONG:1, EM:1, B:1, I:1,
+    UL:1, OL:1, LI:1,
+    CODE:1, PRE:1,
+    SPAN:1, DIV:1,
+    IMG:1
+  };
+
+  // Walk all elements and sanitize
+  var walker = document.createTreeWalker(tpl.content, NodeFilter.SHOW_ELEMENT, null, false);
+  var nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+
+  nodes.forEach(function(node){
+    var tag = node.tagName;
+
+    // Drop disallowed tags but keep their text content
+    if (!ALLOWED[tag]){
+      var parent = node.parentNode;
+      if (parent){
+        while (node.firstChild) parent.insertBefore(node.firstChild, node);
+        parent.removeChild(node);
+      }
+      return;
+    }
+
+    // Strip all attributes except safe ones
+    var attrs = Array.prototype.slice.call(node.attributes || []);
+    attrs.forEach(function(attr){
+      var name = String(attr.name || '').toLowerCase();
+
+      // kill event handlers + style always
+      if (name.startsWith('on') || name === 'style'){
+        node.removeAttribute(attr.name);
+        return;
+      }
+
+      if (tag === 'A'){
+if (
+  name !== 'href' &&
+  name !== 'title' &&
+  name !== 'class' &&
+  name !== 'data-qa' &&
+  name !== 'data-qa-fixed-quiz' &&   // ✅ allow quiz launcher marker
+  name !== 'data-qa-mode'            // ✅ optional (instant/timed)
+){
+  node.removeAttribute(attr.name);
+  return;
+}
+
+        if (name === 'href'){
+          var href = node.getAttribute('href') || '';
+          if (!qaIsSafeHref(href)){
+            node.removeAttribute('href');
+          } else {
+            node.setAttribute('target','_blank');
+            node.setAttribute('rel','noopener noreferrer nofollow');
+          }
+        }
+      }
+      else if (tag === 'IMG'){
+        // allow src + alt + title only
+        if (name !== 'src' && name !== 'alt' && name !== 'title'){
+          node.removeAttribute(attr.name);
+          return;
+        }
+        if (name === 'src'){
+          var src = node.getAttribute('src') || '';
+          if (!qaIsSafeSrc(src)){
+            node.removeAttribute('src');
+          }
+        }
+      }
+      else {
+        // non-A, non-IMG tags: remove all attributes
+        node.removeAttribute(attr.name);
+      }
+    });
+  });
+
+  return tpl.content;
+}
+
+
+function qaRenderAnnouncementBody(bodyEl, a){
+  if (!bodyEl || !a) return;
+
+  // Prefer body_html (sanitized)
+  if (a.body_html && String(a.body_html).trim()){
+    bodyEl.innerHTML = ''; // clear
+    try{
+      var frag = qaSanitizeHtmlToFragment(a.body_html);
+      bodyEl.appendChild(frag);
+
+      // ✅ If sanitizer results in empty output, fallback to text
+      if (!bodyEl.textContent.trim() && !bodyEl.querySelector('a,img,br,strong,em,ul,ol,li,code,pre,span,div,p')){
+        bodyEl.textContent = (a.body_text || a.body || '').trim();
+      }
+      return;
+    }catch(e){
+      // fallback below
+    }
+  }
+
+  // Fallback: body_text (then body), always as plain text
+  if (a.body_text && String(a.body_text).trim()){
+    bodyEl.textContent = String(a.body_text).trim();
+  } else if (a.body && String(a.body).trim()){
+    bodyEl.textContent = String(a.body).trim();
+  } else {
+    bodyEl.textContent = '';
+  }
+}
+
+
+function qaDecodeHtmlEntities(str){
+  str = String(str || '');
+  // fast skip
+  if (str.indexOf('&lt;') === -1 && str.indexOf('&gt;') === -1 && str.indexOf('&amp;') === -1) return str;
+
+  var ta = document.createElement('textarea');
+  ta.innerHTML = str;
+  return ta.value;
+}
+
+    function render(){
+      var q          = (elSearch && elSearch.value || '').trim().toLowerCase();
+      var urgentOnly = !!(elUrgent && elUrgent.checked);
+      var includeOld = !!(elIncludeOld && elIncludeOld.checked);
+      var includeDismissed = !!(elIncludeDismissed && elIncludeDismissed.checked);
+
+      var visible = [];
+      var counts  = { live:0, upcoming:0, ended_recent:0, total:0 };
+
+      allItems.forEach(function(a){
+        var state = a._state;
+        if (state === 'HIDDEN') return;
+
+        if (state === 'ENDED_OLD' && !includeOld) return;
+
+        // ✅ hide dismissed by default
+        var id = (a._id || a.announcement_id || a.id || a.ann_id || '').trim();
+        var userState = stateOf(id);
+        if (userState === 'dismissed' && !includeDismissed) return;
+
+        // ✅ Urgent-only filter (numeric priority)
+        var urgentFlag = isUrgent(a);
+        if (urgentOnly && !urgentFlag) return;
+
+        var text = (a.title || '') + ' ' + (a.body_text || '') + ' ' + (a.body || '');
+        if (q && text.toLowerCase().indexOf(q) === -1) return;
+
+        visible.push(a);
+
+        if (state === 'LIVE') counts.live++;
+        else if (state === 'UPCOMING') counts.upcoming++;
+        else if (state === 'ENDED_RECENT') counts.ended_recent++;
+        counts.total++;
+      });
+
+      if (elStats){
+        if (!allItems.length){
+          elStats.textContent = '';
+        } else {
+          elStats.textContent =
+            'Live: ' + counts.live +
+            ' | Upcoming: ' + counts.upcoming +
+            ' | Recently ended: ' + counts.ended_recent;
+        }
+      }
+
+      if (elFooterHint){
+        if (!allItems.length){
+          elFooterHint.textContent = '';
+        } else if (includeOld){
+          elFooterHint.textContent = 'Including older announcements beyond the last 30 days.';
+        } else {
+          elFooterHint.textContent = 'Showing active, upcoming and recently ended announcements from the last 30 days.';
+        }
+      }
+
+      elList.innerHTML = '';
+
+      if (!visible.length){
+        if (elEmpty) elEmpty.style.display = 'block';
+        return;
+      }
+      if (elEmpty) elEmpty.style.display = 'none';
+
+      visible.sort(function(a,b){
+        function prRank(x){ return isUrgent(x) ? 0 : 1; } // ✅ urgent first
+        function pinRank(x){ return x.pinned ? 0 : 1; }   // pinned first
+        function stateRank(x){
+          var order = { 'LIVE':0, 'UPCOMING':1, 'ENDED_RECENT':2, 'ENDED_OLD':3 };
+          return (order[x._state] != null) ? order[x._state] : 99;
+        }
+
+        // 1) pinned+urgent first
+        var au = prRank(a), bu = prRank(b);
+        var ap = pinRank(a), bp = pinRank(b);
+        var aPU = (ap === 0 && au === 0) ? 0 : 1;
+        var bPU = (bp === 0 && bu === 0) ? 0 : 1;
+        if (aPU !== bPU) return aPU - bPU;
+
+        // 2) urgent next
+        if (au !== bu) return au - bu;
+
+        // 3) pinned next
+        if (ap !== bp) return ap - bp;
+
+        // 4) state order
+        var as = stateRank(a), bs = stateRank(b);
+        if (as !== bs) return as - bs;
+
+        // 5) newest created_at first
+        var da = parseDate(a.created_at);
+        var db = parseDate(b.created_at);
+        if (da && db) return db - da;
+        if (da && !db) return -1;
+        if (!da && db) return 1;
+        return 0;
+      });
+
+      var hasOlder = visible.some(function(a){ return a._state === 'ENDED_OLD'; });
+      var olderInserted = false;
+
+      visible.forEach(function(a){
+        var state = a._state;
+
+        if (state === 'ENDED_OLD' && hasOlder && !olderInserted){
+          olderInserted = true;
+          var divider = document.createElement('li');
+          divider.className = 'qa-ann-divider';
+          divider.textContent = 'Older announcements';
+          elList.appendChild(divider);
+        }
+
+        var li = document.createElement('li');
+        li.className = 'qa-ann-item';
+
+        // ✅ Urgent styling (numeric priority)
+        if (isUrgent(a)) li.className += ' qa-ann-item-urgent';
+
+        if (state === 'ENDED_OLD') li.className += ' qa-ann-item-old';
+
+        var top = document.createElement('div');
+        top.className = 'qa-ann-topline';
+
+        var left = document.createElement('div');
+
+        var title = document.createElement('div');
+        title.className = 'qa-ann-title';
+        title.textContent = (a.title || '').trim() || 'Announcement';
+
+        var body = document.createElement('div');
+        body.className = 'qa-ann-body';
+
+qaRenderAnnouncementBody(body, a);
+
+
+        left.appendChild(title);
+        if (body.textContent || body.innerHTML){
+          left.appendChild(body);
+        }
+
+        var right = document.createElement('div');
+        right.innerHTML = buildPills(a, state);
+
+        top.appendChild(left);
+        top.appendChild(right);
+
+        var meta = document.createElement('div');
+        meta.className = 'qa-ann-meta';
+
+        var datePrimary = parseDate(a.start_at || a.created_at);
+        var dateEnd     = parseDate(a.end_at);
+        var bits = [];
+
+        if (datePrimary){
+          if (state === 'UPCOMING') bits.push('Starts: ' + fmtDateShort(datePrimary));
+          else bits.push('From: ' + fmtDateShort(datePrimary));
+        }
+        if (dateEnd){
+          bits.push((state === 'ENDED_RECENT' ? 'Ended: ' : 'Until: ') + fmtDateShort(dateEnd));
+        }
+
+        // ✅ Priority label shown as Low/Normal/High/Urgent (not raw number)
+        var lvl = priorityLevel(a);
+        var label = priorityLabel(lvl);
+        if (label !== 'Normal'){
+          bits.push('Priority: ' + label);
+        }
+
+        if (bits.length) meta.textContent = bits.join(' - ');
+
+        li.appendChild(top);
+        if (bits.length) li.appendChild(meta);
+
+        // ✅ Actions row (writes ONLY when clicked)
+        var id2 = (a._id || a.announcement_id || a.id || a.ann_id || '').trim();
+        var userState2 = stateOf(id2);
+
+        var actions = document.createElement('div');
+        actions.className = 'qa-ann-actions';
+
+        // Mark as read (only if not seen/dismissed)
+        if (id2 && userState2 !== 'seen' && userState2 !== 'dismissed'){
+          var btnSeen = document.createElement('button');
+          btnSeen.className = 'qa-btn qa-btn-primary';
+          btnSeen.type = 'button';
+          btnSeen.textContent = 'Mark as read';
+          btnSeen.addEventListener('click', function(){
+            setBtnBusy(btnSeen, true);
+            postAction('announcements.markseen', { payload: JSON.stringify({ items: [id2] }) })
+              .then(function(resp){
+                if (!resp || resp.ok !== true) throw new Error((resp && resp.error) || 'markSeen_failed');
+                statesById[id2] = Object.assign({}, statesById[id2] || {}, { state:'seen' });
+                render();
+              })
+              .catch(function(e){ showError('Could not mark as read: ' + e.message); })
+              .finally(function(){ setBtnBusy(btnSeen, false); });
+          });
+          actions.appendChild(btnSeen);
+        }
+
+        // Dismiss / Restore
+        if (id2){
+if (userState2 === 'dismissed'){
+  var btnRestore = document.createElement('button');
+  btnRestore.className = 'qa-btn';
+  btnRestore.type = 'button';
+  btnRestore.textContent = 'Restore';
+  btnRestore.addEventListener('click', function(){
+    setBtnBusy(btnRestore, true);
+    postAction('announcements.restore', { payload: JSON.stringify({ item_id: id2 }) })
+      .then(function(resp){
+        if (!resp || resp.ok !== true) throw new Error((resp && resp.error) || 'restore_failed');
+
+        // ✅ Restore = Seen (NOT New)
+        statesById[id2] = Object.assign({}, statesById[id2] || {}, { state:'seen' });
+
+        render();
+      })
+      .catch(function(e){ showError('Could not restore: ' + e.message); })
+      .finally(function(){ setBtnBusy(btnRestore, false); });
+  });
+  actions.appendChild(btnRestore);
+}
+
+          else if (a.dismissible && String(a.dismissible).toLowerCase() !== 'false') {
+            var btnDismiss = document.createElement('button');
+            btnDismiss.className = 'qa-btn qa-btn-danger';
+            btnDismiss.type = 'button';
+            btnDismiss.textContent = 'Dismiss';
+            btnDismiss.addEventListener('click', function(){
+              setBtnBusy(btnDismiss, true);
+              postAction('announcements.dismiss', { payload: JSON.stringify({ item_id: id2 }) })
+                .then(function(resp){
+                  if (!resp || resp.ok !== true) throw new Error((resp && resp.error) || 'dismiss_failed');
+                  statesById[id2] = Object.assign({}, statesById[id2] || {}, { state:'dismissed' });
+                  render();
+                })
+                .catch(function(e){ showError('Could not dismiss: ' + e.message); })
+                .finally(function(){ setBtnBusy(btnDismiss, false); });
+            });
+            actions.appendChild(btnDismiss);
+          }
+        }
+
+        if (actions.children.length) li.appendChild(actions);
+
+        elList.appendChild(li);
+      });
+    }
+
+    function populateCourses(){
+      if (!elCourseSelect || !window.QA_ACCESS) return;
+      var courses = window.QA_ACCESS.courseIds || [];
+      elCourseSelect.innerHTML = '<option value="">Select course...</option>';
+      courses.forEach(function(cid){
+        var opt = document.createElement('option');
+        opt.value = cid;
+        opt.textContent = cid;
+        elCourseSelect.appendChild(opt);
+      });
+    }
+
+    function load(){
+      clearError();
+      if (elSubTitle) elSubTitle.textContent = 'Loading announcements...';
+
+      var token = null;
+      try{ token = localStorage.getItem('qa_token'); }catch(e){ token = null; }
+
+      if (!token){
+        if (elSubTitle) elSubTitle.textContent = 'Unable to verify your session. Please sign in again.';
+        showError('Missing session token.');
+        return;
+      }
+
+      setHeaderForScope();
+
+      var params = new URLSearchParams();
+      params.set('action','announcements.list');
+      params.set('token', token);
+      params.set('mode','archive');
+      params.set('limit','200');
+
+      if (currentScope === 'COURSE' && selectedCourse){
+        params.set('course_id', selectedCourse);
+      }
+
+      var url = ANNOUNCEMENTS_URL + '?' + params.toString();
+
+      fetch(url)
+        .then(function(res){ return res.json(); })
+        .then(function(data){
+          if (data && data.ok === false){
+            showError('Announcements error: ' + (data.error || 'unknown'));
+            if (elSubTitle) elSubTitle.textContent = 'Could not load announcements.';
+            return;
+          }
+
+          var items = Array.isArray(data && data.items) ? data.items : [];
+
+          // ✅ pull states map from backend (recommended: data.states = { ANN001:{state:'seen'}, ... })
+          statesById = (data && data.states && typeof data.states === 'object') ? data.states : {};
+
+          allItems = items.map(function(a){
+            var copy = Object.assign({}, a);
+            copy._state = classifyState(copy);
+            copy._id = (copy.announcement_id || copy.id || copy.ann_id || '').trim();
+            return copy;
+          });
+
+          if (!allItems.length){
+            if (elSubTitle) elSubTitle.textContent = 'No announcements found.';
+          }
+
+          render();
+        })
+        .catch(function(err){
+          console.error('Announcements archive error', err);
+          showError('Failed to load announcements: ' + err.message);
+          if (elSubTitle) elSubTitle.textContent = 'Could not load announcements.';
+        });
+    }
+
+    function onScopeChange(){
+      var checked = document.querySelector('input[name="qa-ann-scope"]:checked');
+      currentScope = checked ? checked.value : 'ALL';
+
+      if (currentScope === 'COURSE'){
+        if (elCourseSelect) elCourseSelect.style.display = 'block';
+
+        if (!selectedCourse && COURSE_ID && elCourseSelect){
+          selectedCourse = COURSE_ID;
+          elCourseSelect.value = COURSE_ID;
+        }
+      } else {
+        if (elCourseSelect) elCourseSelect.style.display = 'none';
+        selectedCourse = '';
+        if (elCourseSelect) elCourseSelect.value = '';
+      }
+
+      load();
+    }
+
+    if (elScopeRadios && elScopeRadios.length){
+      elScopeRadios.forEach(function(r){ r.addEventListener('change', onScopeChange); });
+    }
+    if (elCourseSelect){
+      elCourseSelect.addEventListener('change', function(){
+        selectedCourse = this.value || '';
+        if (currentScope === 'COURSE') load();
+      });
+    }
+
+    if (elSearch)     elSearch.addEventListener('input', render);
+    if (elUrgent)     elUrgent.addEventListener('change', render);
+    if (elIncludeOld) elIncludeOld.addEventListener('change', render);
+    if (elIncludeDismissed) elIncludeDismissed.addEventListener('change', render);
+
+    populateCourses();
+
+    if (COURSE_ID){
+      var courseRadio = document.querySelector('input[name="qa-ann-scope"][value="COURSE"]');
+      if (courseRadio){
+        courseRadio.checked = true;
+        selectedCourse = COURSE_ID;
+        if (elCourseSelect){
+          elCourseSelect.style.display = 'block';
+          elCourseSelect.value = COURSE_ID;
+        }
+        currentScope = 'COURSE';
+      }
+    }
+
+    setHeaderForScope();
+    load();
+  })();
+}
+</script>
+
+<!-- 4) HOOK TO GUARD -->
+<script>
+if (window.qaGuardReady){
+  window.qaGuardReady.then(function(state){
+    if (!state || state.blocked || state.ok === false) return;
+    var app = document.getElementById('qa-app');
+    if (app) app.style.display = 'block';
+    if (typeof qaInitAnnouncementsPage === 'function') qaInitAnnouncementsPage();
+  }).catch(function(err){
+    console.error('Guard error on announcements page:', err);
+  });
+}
+</script>
+
+</body>
+</html>
