@@ -1,0 +1,2727 @@
+<html lang="en">
+
+<head>
+  <meta charset="utf-8"></meta>
+  <meta content="width=device-width,initial-scale=1" name="viewport"></meta>
+  <title>QAcademy — Instant Runner</title>
+  <style>
+    :root {
+      --brand: #0b7a75;
+      --muted: #859998;
+      --ink: #1f2a28;
+      --bg: #f6f8f7;
+      --card: #ffffff;
+      --soft: rgba(0, 0, 0, .06);
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: system-ui, Segoe UI, Roboto, sans-serif
+    }
+
+    .wrap {
+      max-width: 920px;
+      margin: 24px auto;
+      padding: 0 14px
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--soft);
+      border-radius: 16px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .06);
+      padding: 16px;
+      margin-bottom: 14px
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 22px;
+      color: #0b7a75;
+      font-weight: 800;
+      letter-spacing: .2px
+    }
+
+    .sub {
+      color: #576663;
+      font-size: 13px;
+      margin-bottom: 10px
+    }
+
+    .bar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin: 6px 0 8px;
+      flex-wrap: wrap
+    }
+
+    .pill {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #eef3f2;
+      color: #25413d;
+      border: 1px solid #dbe4e2;
+      font-size: 12px
+    }
+
+    /* Slim sticky header bar (progress + view + flag nav) */
+    #headerCard {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: rgba(255, 255, 255, .97);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid #dbe4e2;
+      border-radius: 0 0 16px 16px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, .08);
+      padding: 8px 12px;
+      margin-bottom: 10px;
+    }
+
+    .headerBar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .progress {
+      position: relative;
+      height: 10px;
+      background: #e6eceb;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid #cfe0dd;
+      margin-top: 4px;
+    }
+
+    .progress>div {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 0%;
+      background: repeating-linear-gradient(45deg, #0b7a75, #0b7a75 10px, #0a6a66 10px, #0a6a66 20px);
+      box-shadow: inset 0 0 6px rgba(0, 0, 0, .15);
+      background-size: 40px 40px;
+      animation: qaStripes 1.2s linear infinite;
+    }
+
+    .progLabel {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #0b7a75;
+      mix-blend-mode: multiply;
+      pointer-events: none;
+    }
+
+    @keyframes qaStripes {
+      from {
+        background-position: 0 0;
+      }
+
+      to {
+        background-position: 40px 0;
+      }
+    }
+
+    .flag-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+
+    .view-toggle {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center
+    }
+
+    .flag-nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center
+    }
+
+    /* NEW: feedback-mode buttons */
+    .feedback-toggle {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .btn {
+      background: #0b7a75;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer
+    }
+
+    .btn.ghost {
+      background: #e6f2f0;
+      color: #0a6c67
+    }
+
+    .btn.softer {
+      background: #eef3f2;
+      color: #25413d
+    }
+
+    .btn.small {
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 10px
+    }
+
+    .btn:disabled {
+      opacity: .6;
+      cursor: not-allowed
+    }
+
+    /* highlight active feedback mode button */
+    .btn.softer.small.activeFeedback {
+      background: #0b7a75;
+      color: #ffffff;
+      border-color: #0b7a75;
+    }
+
+    .qstem {
+      font-weight: 700;
+      margin: 4px 0 0
+    }
+
+    .q-topic {
+      font-size: 11px;
+      color: #6b7b78;
+      margin-top: 2px;
+    }
+
+    .opts {
+      display: grid;
+      gap: 10px;
+      margin-top: 8px
+    }
+
+    .opt {
+      border: 1px solid #d8dfdd;
+      border-radius: 12px;
+      background: #fff;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: flex-start;
+      cursor: pointer
+    }
+
+    .opt input {
+      margin-top: 3px
+    }
+
+    .opt-title {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap
+    }
+
+    .chip {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 12px;
+      border: 1px solid #dbe4e2;
+      background: #eef3f2;
+      color: #25413d
+    }
+
+    .chip.correct {
+      background: #e6f7f3;
+      color: #0a6c67;
+      border-color: #bfe7dd
+    }
+
+    .chip.your {
+      background: #fff8e6;
+      color: #6a4a0a;
+      border-color: #f3d9a5
+    }
+
+    .opt-fb {
+      grid-column: 1 / -1;
+      margin: 4px 0 0 26px;
+      padding: 8px 10px;
+      border-left: 3px solid #e6efed;
+      background: #f8fbfa;
+      border-radius: 8px;
+      color: #3b4a47;
+      font-size: 13px;
+      white-space: pre-wrap;
+      display: none
+    }
+
+    .rationale {
+      margin-top: 12px;
+      padding: 10px;
+      border: 1px dashed #d8dfdd;
+      border-radius: 10px;
+      background: #fcfefd;
+      color: #31403d;
+      font-size: 13px;
+      white-space: pre-wrap;
+      display: none;
+    }
+
+    /* Rationale image block */
+    .rationale-text {
+      margin-bottom: 6px;
+    }
+
+    .rationale-img-wrap {
+      margin-top: 4px;
+      text-align: left;
+    }
+
+    .rationale-img-thumb {
+      max-width: 100%;
+      max-height: 180px;
+      border-radius: 10px;
+      border: 1px solid #d8dfdd;
+      display: block;
+      cursor: pointer;
+    }
+
+    .rationale-img-caption {
+      font-size: 11px;
+      color: #4b5a58;
+      margin-top: 4px;
+    }
+
+    .nav {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px
+    }
+
+    .status {
+      font-family: ui-monospace, Consolas, monospace;
+      background: #0a302e;
+      color: #dbfff8;
+      border-radius: 12px;
+      padding: 12px;
+      white-space: pre-wrap
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+      gap: 8px
+    }
+
+    .cell {
+      border: 1px solid #d8dfdd;
+      border-radius: 10px;
+      background: #fff;
+      text-align: center;
+      padding: 8px 0;
+      font-weight: 700;
+      cursor: pointer
+    }
+
+    .cell.active {
+      border-color: #0b7a75;
+      box-shadow: 0 0 0 2px rgba(11, 122, 117, .15) inset
+    }
+
+    .cell.done {
+      background: #f0f9f8
+    }
+
+    .score {
+      font-size: 18px;
+      font-weight: 900;
+      color: #0b7a75
+    }
+
+    /* Multi-question paging + question card layout */
+    .q-block {
+      padding: 6px 0 30px 0;
+      border-bottom: 1px dashed #e0e6e5;
+      margin-bottom: 8px;
+      position: relative;
+    }
+
+    .q-head {
+      margin-bottom: 4px;
+    }
+
+    .q-index {
+      display: inline-block;
+      margin-bottom: 4px;
+    }
+
+    .q-footer {
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .flag-btn {
+      padding: 6px 10px;
+      font-size: 12px;
+      border-radius: 10px
+    }
+
+    .watermark {
+      font-size: 11px;
+      font-weight: 700;
+      color: #0b7a75;
+      opacity: .75;
+      border-radius: 999px;
+      border: 1px solid #e6eceb;
+      padding: 4px 8px;
+      background: rgba(255, 255, 255, .9);
+    }
+
+
+    .pagebar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+      flex-wrap: wrap
+    }
+
+    .pagebar.sticky {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: #ffffffcc;
+      backdrop-filter: blur(6px);
+      border-bottom: 1px solid #e6eeec;
+      padding: 8px 12px;
+      margin: -16px -16px 12px;
+      border-radius: 16px 16px 0 0;
+    }
+
+    /* Floating grid button */
+    .fab-grid {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 40;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .18);
+      border-radius: 999px;
+    }
+
+    /* Generic overlay container (reused) */
+    .grid-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .35);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 60;
+    }
+
+    .grid-panel {
+      width: 100%;
+      max-width: 360px;
+      max-height: 70vh;
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, .28);
+      padding: 10px 12px;
+      overflow-y: auto;
+    }
+
+    .grid-header {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      padding-bottom: 6px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #1f2a28;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .grid-body {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+      gap: 6px;
+    }
+
+    .grid-btn {
+      min-width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .grid-btn.answered {
+      background: #eef2ff;
+      border-color: #c7d2fe;
+    }
+
+    .grid-btn.flagged {
+      background: #fff7ed;
+      border-color: #fdba74;
+    }
+
+    /* Image rationale overlay */
+    .img-panel {
+      width: 100%;
+      max-width: 520px;
+      max-height: 80vh;
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, .28);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    #imgOverlayImg {
+      max-width: 100%;
+      max-height: 70vh;
+      border-radius: 10px;
+      object-fit: contain;
+    }
+
+    /* GLOBAL LOADER OVERLAY (same style as Timed Runner) */
+    .qa-loader-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, .55);
+      z-index: 999;
+    }
+
+    .qa-loader-card {
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 14px 18px;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, .35);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      max-width: 320px;
+      width: 90%;
+    }
+
+    .qa-loader-spinner {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      border: 3px solid #e2ecea;
+      border-top-color: #0b7a75;
+      animation: qaSpin 0.8s linear infinite;
+    }
+
+    .qa-loader-text {
+      font-size: 13px;
+      color: #1f2a28;
+    }
+
+    .qa-loader-title {
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+
+    .qa-loader-sub {
+      font-size: 12px;
+      color: #4b5a58;
+    }
+
+    @keyframes qaSpin {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (max-width:720px) {
+      .bar {
+        flex-direction: column;
+        align-items: flex-start
+      }
+
+      .flag-controls {
+        flex-direction: column;
+        align-items: flex-start
+      }
+
+      .headerBar {
+        align-items: flex-start
+      }
+    }
+
+    @media (max-width:480px) {
+      #headerCard {
+        padding: 6px 10px;
+        border-radius: 0 0 12px 12px;
+      }
+
+      .headerBar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+
+      .view-toggle span {
+        display: none;
+      }
+
+      /* hide "View:" label on very small screens */
+      .feedback-toggle span {
+        display: none;
+      }
+
+      /* hide "Feedback:" label on very small screens */
+
+      .btn.small {
+        padding: 4px 8px;
+        font-size: 11px;
+        border-radius: 9px;
+      }
+
+      .flag-controls {
+        margin-top: 4px;
+        gap: 6px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <div class="card" id="infoCard">
+      <h1>Instant Quiz</h1>
+      <div class="sub">Practice mode • Feedback behaves according to the selected feedback mode</div>
+      <div class="bar">
+        <div class="pill" id="userPill">User: —</div>
+        <div class="pill" id="coursePill">Course: —</div>
+        <div class="pill" id="metaPill">Attempt: —</div>
+        <div class="pill" id="countPill">0 / 0 answered</div>
+      </div>
+    </div>
+
+    <div class="card" id="headerCard">
+      <div class="headerBar">
+        <div class="pill" id="modePill">Instant:Inline feedback</div>
+        <div style="flex: 1; min-width: 140px;">
+          <div class="progress">
+            <div id="progFill"></div>
+            <div class="progLabel" id="progLabel">0%</div>
+          </div>
+        </div>
+        <div class="view-toggle">
+          <span style="color: #4b5a58; font-size: 11px; margin-right: 4px;">View:</span>
+          <button class="btn softer small" id="viewAllBtn" type="button">All</button>
+          <button class="btn softer small" id="viewFlaggedBtn" type="button">Flagged</button>
+        </div>
+        <div class="feedback-toggle">
+          <span style="color:#4b5a58;font-size:11px;margin-right:4px;">Feedback:</span>
+          <button class="btn softer small" id="fbInlineBtn" type="button">Inline</button>
+          <button class="btn softer small" id="fbStandaloneBtn" type="button">Standalone</button>
+          <button class="btn softer small" id="fbHideBtn" type="button">Hide</button>
+        </div>
+      </div>
+
+      <div class="flag-controls">
+        <div style="color: #4b5a58; font-size: 11px;">Flag navigation:</div>
+        <div class="flag-nav">
+          <button class="btn softer small" id="prevFlagBtn" style="display: none;" type="button">Prev flagged</button>
+          <button class="btn softer small" id="nextFlagBtn" style="display: none;" type="button">Next flagged</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="preCard" style="display: none;">
+      <h2 style="font-size: 18px; margin: 0 0 4px;">Ready to start your practice quiz?</h2>
+      <p class="sub" id="preSummary">Loading quiz details...</p>
+      <div class="pill" id="preMetaPill">Mode: Instant • Questions: —</div>
+
+      <div style="color: #3b4a47; font-size: 13px; margin-top: 10px;">
+        <p style="margin: 0 0 4px;">How this quiz works:</p>
+        <ul style="margin: 4px 0 0 18px; padding: 0;">
+          <li>Questions are shown in pages. Use <strong>Prev</strong> and <strong>Next</strong> to move.</li>
+          <li>Your choice is recorded immediately and feedback follows the selected feedback mode.</li>
+          <li>You can change your answers before you submit the quiz.</li>
+          <li>At the end you’ll see your score and a question grid so you can jump around.</li>
+        </ul>
+      </div>
+
+      <label style="align-items: center; color: #3b4a47; display: flex; font-size: 12px; gap: 6px; margin-top: 10px;">
+        <input id="preSkip" type="checkbox" />
+        <span>Don’t show this again on this device</span>
+      </label>
+
+      <div class="nav" style="margin-top: 10px;">
+        <button class="btn ghost" id="preCancelBtn" type="button">Cancel</button>
+        <button class="btn" id="preStartBtn" type="button">Start quiz</button>
+      </div>
+    </div>
+
+    <div class="card" id="qCard" style="display: none;">
+
+      <div class="pagebar sticky" id="pagebarTop">
+        <div class="pill" id="pagePill">Page 1 / 1</div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn softer prevPage" type="button">◀ Prev Page</button>
+          <button class="btn softer nextPage" type="button">Next Page ▶</button>
+        </div>
+      </div>
+
+      <div id="qList"></div>
+
+      <div class="pagebar" id="pagebarBottom">
+        <div class="pill" id="pagePillBottom">Page 1 / 1</div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn softer prevPage" type="button">◀ Prev Page</button>
+          <button class="btn softer nextPage" type="button">Next Page ▶</button>
+        </div>
+      </div>
+
+      <div class="nav">
+        <button class="btn ghost" id="reviewBtn" type="button">Review</button>
+        <button class="btn" id="submitBtn" type="button">Submit</button>
+        <button class="btn ghost" id="exitBtn" type="button">Exit</button>
+        <button class="btn ghost" id="restartBtn" style="display: none;" type="button">Restart</button>
+      </div>
+    </div>
+
+    <div class="card" id="reviewCard" style="display: none;">
+      <div style="align-items: center; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between;">
+        <div class="score" id="scoreText">Score: —</div>
+        <button class="btn softer" id="backToQuizBtn" type="button">Back to quiz</button>
+      </div>
+      <div class="grid" id="grid"></div>
+    </div>
+
+    <div class="card" id="logCard">
+      <div class="status" id="log">Loading attempt…</div>
+    </div>
+  </div>
+
+  <button class="btn softer fab-grid" id="fabGrid" style="display: none;" type="button">Questions ▢</button>
+
+  <div class="grid-overlay" id="gridOverlay">
+    <div class="grid-panel">
+      <div class="grid-header">
+        <span>Question grid</span>
+        <button class="btn softer small" id="gridOverlayClose" type="button">Close</button>
+      </div>
+      <div class="grid-body" id="gridOverlayBody"></div>
+    </div>
+  </div>
+
+  <div class="grid-overlay" id="exitOverlay">
+    <div class="grid-panel">
+      <div class="grid-header">
+        <span>Leave this quiz?</span>
+      </div>
+      <div style="color: #3b4a47; font-size: 13px; margin-bottom: 10px;">
+        <p style="margin: 0 0 6px;">
+          If you leave now:
+        </p>
+        <ul style="margin: 0 0 8px 18px; padding: 0;">
+          <li><strong>Save &amp; resume later</strong> will store your current answers as an in-progress attempt.</li>
+          <li><strong>Submit &amp; exit</strong> will mark this attempt as completed and show your results.</li>
+          <li><strong>Cancel</strong> will return you to the quiz.</li>
+        </ul>
+      </div>
+      <div class="nav" style="margin-top: 4px;">
+        <button class="btn ghost" id="exitCancelBtn" type="button">Cancel</button>
+        <button class="btn softer" id="exitSaveBtn" type="button">Save &amp; resume later</button>
+        <button class="btn" id="exitSubmitBtn" type="button">Submit &amp; exit</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-overlay" id="msgOverlay">
+    <div class="grid-panel">
+      <div class="grid-header">
+        <span>Send Feedback On This Question?</span>
+        <button class="btn softer small" id="msgOverlayClose" type="button">Close</button>
+      </div>
+
+      <div style="color:#3b4a47;font-size:13px;margin-bottom:10px;">
+        <p style="margin:0 0 8px;">
+          You’re about to open the Messages page for this question in a new tab.
+        </p>
+        <ul style="margin:0 0 8px 18px;padding:0;">
+          <li>Your current quiz stays open.</li>
+          <li>We’ll save your progress, then open Messages in a new tab.</li>
+        </ul>
+      </div>
+
+      <div class="nav" style="margin-top:4px;">
+        <button class="btn ghost" id="msgCancelBtn" type="button">Cancel</button>
+        <button class="btn" id="msgSaveOpenBtn" type="button">Save &amp; open messages</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="grid-overlay" id="imgOverlay">
+    <div class="img-panel">
+      <div class="grid-header" style="margin-bottom:4px;">
+        <span>Rationale image</span>
+        <button class="btn softer small" id="imgOverlayClose" type="button">Close</button>
+      </div>
+      <img id="imgOverlayImg" alt="Rationale illustration" />
+    </div>
+  </div>
+
+  <div class="qa-loader-overlay" id="qaLoader">
+    <div class="qa-loader-card">
+      <div class="qa-loader-spinner"></div>
+      <div class="qa-loader-text">
+        <div class="qa-loader-title">Working on it...</div>
+        <div class="qa-loader-sub" id="qaLoaderMsg">Preparing your quiz</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      // === CONFIG (AUTH + BUILDER + GUARD V3 STYLE) ===
+      const DEFAULT_AUTH_URL = "https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec"; // auth/verify
+      const DEFAULT_BUILDER_URL = "https://script.google.com/macros/s/AKfycbx_CDJU5juEDxybplqBlYjJP0tAS52-HIOWE6is19Ub7NqhaV_16MnFmstJpWcdorHT/exec"; // builder/attempt
+      const DEFAULT_LOGIN_SLUG = "login_23";
+      const DEFAULT_DASHBOARD_SLUG = "dashboard_23";
+      const DEFAULT_MESSAGES_SLUG = "messages"; // <-- set to your real messages page slug if different
+      const DEFAULT_TOKEN_KEY = "qa_token";
+      const DEFAULT_USER_ID_KEY = "qa_user_id";
+
+      var cfg = (window.QA_CONFIG && typeof window.QA_CONFIG === "object") ? window.QA_CONFIG : {};
+
+      const AUTH_WEB_APP_URL = cfg.AUTH_URL || cfg.authUrl || DEFAULT_AUTH_URL;
+      const BUILDER_WEB_APP_URL = cfg.BUILDER_API_URL || cfg.builderApiUrl || DEFAULT_BUILDER_URL;
+
+      const TOKEN_KEY = cfg.TOKEN_KEY || cfg.tokenKey || DEFAULT_TOKEN_KEY;
+      const USER_ID_KEY = cfg.USER_ID_KEY || cfg.userIdKey || DEFAULT_USER_ID_KEY;
+      const LOGIN_SLUG = cfg.LOGIN_SLUG || cfg.loginSlug || DEFAULT_LOGIN_SLUG;
+      const DASHBOARD_SLUG = cfg.DASHBOARD_SLUG || cfg.dashboardSlug || DEFAULT_DASHBOARD_SLUG;
+
+      const MESSAGES_PAGE_URL =
+        (cfg.MESSAGES_PAGE_URL || cfg.messagesPageUrl || "") ||
+        ("/p/" + DEFAULT_MESSAGES_SLUG + ".html");
+
+      const SHUFFLE_OPTIONS = true;
+      const QUESTIONS_PER_PAGE = 1; // adjust if you like
+      const PREF_KEY_HIDE_PREFLIGHT = "qa_preflight_hide_instant_v1";
+
+      // NEW: feedback mode persistence
+      const FEEDBACK_KEY = "qa_instant_feedback_mode_v1";
+      const FEEDBACK_MODES = ["inline", "standalone", "hide"];
+
+      const COURSE_LABELS = {
+        "GP": "General Paper",
+        "RN_MED": "Medicine & Medical Nursing(RN)",
+        "RN_SURG": "Surgery & Surgical Nursing(RN)",
+        "RM_PED_OBS_HRN": "Paediatric, Obstetric Anatomy, & High-Risk Neonates(RM)",
+        "RM_MID": "Midwifery(RM)",
+        "RPHN_PPHN": "Principles of Public Health Nursing(RPHN)",
+        "RPHN_DISEASE_CTRL": "Principles of Disease Management & Control(RPHN)",
+        "RMHN_PSYCH_NURS": "Principles & Practice of Psychiatric Nursing(RMHN)",
+        "RMHN_PSYCH_PPHARM": "Psychiatry, Psychopathology & Psychopharmacology(RMHN)",
+        "NAC_BASIC_CLIN": "Basic Clinical Nursing(NACNAP)",
+        "NAC_BASIC_PREV": "Basic Preventive Nursing(NACNAP)"
+      };
+
+      // === STATE ===
+      let ATT = null;
+      let ITEMS = [];
+      let ANSW = {}; // item_id -> 'A'|'B'|'C'|'D'
+      let FLAGS = {}; // item_id -> true/false (flagged)
+      let LOCKED = false;
+      let SCORE = 0;
+
+      // For total time tracking (for analytics)
+      let QUIZ_STARTED_AT = null; // timestamp (ms) when quiz starts
+      let FINISH_SENT = false; // prevent double attempt.finish
+
+      // attempt.update throttling
+      let LAST_SAVE_AT = 0;
+      const MIN_SAVE_INTERVAL_MS = 5000; // minimum gap between actual calls
+
+      // Autosave interval (will be recomputed once items are loaded)
+      // default: 60s, but recalculated as ~10% of total quiz time
+      let AUTOSAVE_INTERVAL_MS = 60000;
+
+      const AUTOSAVE_MIN_MS = 60000; // 1 minute
+      const AUTOSAVE_MAX_MS = 600000; // 10 minutes
+
+      function recomputeAutosaveInterval() {
+        if (!ITEMS || !ITEMS.length) return;
+
+        const perQuestionMs = 60000; // 60s per question
+        const totalMs = ITEMS.length * perQuestionMs;
+
+        // 10% of total quiz time
+        const raw = Math.round(totalMs * 0.10);
+
+        // Clamp between 1 min and 10 min
+        const clamped = clamp(raw, AUTOSAVE_MIN_MS, AUTOSAVE_MAX_MS);
+
+        AUTOSAVE_INTERVAL_MS = clamped;
+        console.log("Instant Runner autosave interval set to", AUTOSAVE_INTERVAL_MS, "ms");
+      }
+
+      // Paging
+      let PAGE = 0;
+      let TOTAL_PAGES = 1;
+      let viewMode = 'ALL'; // 'ALL' or 'FLAGGED'
+
+      // Cache: item_id -> shuffled [{id,text,fb,isCorrect}] in display order
+      const SHUF = new Map();
+
+      // Auth payload (from verify)
+      let AUTH = null;
+      let ALLOWED_COURSE_IDS = [];
+
+      // Feedback mode (inline / standalone / hide)
+      let feedbackMode = "inline";
+
+      // For body scroll locking during overlay(s)
+      let prevBodyOverflow = '';
+      let prevBodyOverflowExit = '';
+      let prevBodyOverflowImg = '';
+
+      // Pending navigation target when user clicks a link while quiz is active
+      let PENDING_NAV_HREF = null;
+      let PENDING_MSG_URL = null;
+
+
+      // === EL ===
+      const el = {
+        userPill: document.getElementById('userPill'),
+        coursePill: document.getElementById('coursePill'),
+        metaPill: document.getElementById('metaPill'),
+        countPill: document.getElementById('countPill'),
+        progFill: document.getElementById('progFill'),
+        progLabel: document.getElementById('progLabel'),
+
+        preCard: document.getElementById('preCard'),
+        preSummary: document.getElementById('preSummary'),
+        preMetaPill: document.getElementById('preMetaPill'),
+        preSkip: document.getElementById('preSkip'),
+        preStartBtn: document.getElementById('preStartBtn'),
+        preCancelBtn: document.getElementById('preCancelBtn'),
+
+        qCard: document.getElementById('qCard'),
+        qList: document.getElementById('qList'),
+        pagePill: document.getElementById('pagePill'),
+        pagePillBottom: document.getElementById('pagePillBottom'),
+
+        reviewBtn: document.getElementById('reviewBtn'),
+        submitBtn: document.getElementById('submitBtn'),
+        restartBtn: document.getElementById('restartBtn'),
+        exitBtn: document.getElementById('exitBtn'),
+
+        reviewCard: document.getElementById('reviewCard'),
+        grid: document.getElementById('grid'),
+        scoreText: document.getElementById('scoreText'),
+        backToQuizBtn: document.getElementById('backToQuizBtn'),
+
+        // View / flag nav
+        viewAllBtn: document.getElementById('viewAllBtn'),
+        viewFlaggedBtn: document.getElementById('viewFlaggedBtn'),
+        prevFlagBtn: document.getElementById('prevFlagBtn'),
+        nextFlagBtn: document.getElementById('nextFlagBtn'),
+
+        // NEW: feedback-mode buttons
+        fbInlineBtn: document.getElementById('fbInlineBtn'),
+        fbStandaloneBtn: document.getElementById('fbStandaloneBtn'),
+        fbHideBtn: document.getElementById('fbHideBtn'),
+
+        // Floating grid overlay
+        fabGrid: document.getElementById('fabGrid'),
+        gridOverlay: document.getElementById('gridOverlay'),
+        gridOverlayBody: document.getElementById('gridOverlayBody'),
+        gridOverlayClose: document.getElementById('gridOverlayClose'),
+
+        // Exit overlay
+        exitOverlay: document.getElementById('exitOverlay'),
+        exitSaveBtn: document.getElementById('exitSaveBtn'),
+        exitSubmitBtn: document.getElementById('exitSubmitBtn'),
+        exitCancelBtn: document.getElementById('exitCancelBtn'),
+
+        // Message overlay
+        msgOverlay: document.getElementById('msgOverlay'),
+        msgOverlayClose: document.getElementById('msgOverlayClose'),
+        msgCancelBtn: document.getElementById('msgCancelBtn'),
+        msgSaveOpenBtn: document.getElementById('msgSaveOpenBtn'),
+
+
+        // Image overlay
+        imgOverlay: document.getElementById('imgOverlay'),
+        imgOverlayImg: document.getElementById('imgOverlayImg'),
+        imgOverlayClose: document.getElementById('imgOverlayClose'),
+
+        log: document.getElementById('log'),
+        modePill: document.getElementById('modePill')
+      };
+
+      // Loader elements
+      const loaderEl = document.getElementById('qaLoader');
+      const loaderMsgEl = document.getElementById('qaLoaderMsg');
+
+      // === UTIL ===
+      function qs(k) {
+        return new URLSearchParams(location.search).get(k) || '';
+      }
+
+      function log(msg) {
+        el.log.textContent = typeof msg === 'string' ? msg : JSON.stringify(msg, null, 2);
+      }
+
+      function clamp(n, min, max) {
+        return Math.max(min, Math.min(max, n));
+      }
+
+      function pct(a, b) {
+        return b ? Math.round((a / b) * 100) : 0;
+      }
+
+      function go(path) {
+        location.replace(path);
+      }
+
+      function qaShowLoader(msg) {
+        if (!loaderEl) return;
+        if (loaderMsgEl && msg) loaderMsgEl.textContent = msg;
+        loaderEl.style.display = 'flex';
+      }
+
+      function qaHideLoader() {
+        if (!loaderEl) return;
+        loaderEl.style.display = 'none';
+      }
+
+function safeTrim(s, max){
+  const t = String(s || "").replace(/\s+/g,' ').trim();
+  if(!max) return t;
+  return t.length > max ? (t.slice(0, max-1) + "…") : t;
+}
+
+
+      // REVIEW MODE flag from URL (?review=1)
+      const REVIEW_MODE = (new URLSearchParams(location.search).get('review') === '1');
+
+      function getLocalUserId() {
+        try {
+          return localStorage.getItem(USER_ID_KEY) || "";
+        } catch (_) {
+          return "";
+        }
+      }
+
+      // Feedback mode helpers
+      function loadFeedbackMode() {
+        const fromUrl = (qs('fb_mode') || qs('fb') || '').toLowerCase();
+        if (FEEDBACK_MODES.indexOf(fromUrl) >= 0) return fromUrl;
+        try {
+          const st = (localStorage.getItem(FEEDBACK_KEY) || '').toLowerCase();
+          if (FEEDBACK_MODES.indexOf(st) >= 0) return st;
+        } catch (_) {}
+        return "inline";
+      }
+
+      function saveFeedbackMode(mode) {
+        try {
+          localStorage.setItem(FEEDBACK_KEY, mode);
+        } catch (_) {}
+      }
+
+      function updateFeedbackUI() {
+        if (el.modePill) {
+          var labelMap = {
+            inline: "Inline feedback",
+            standalone: "Standalone feedback",
+            hide: "Hide explanations"
+          };
+          var base = REVIEW_MODE ? "Review" : "Instant";
+          var desc = labelMap[feedbackMode] || "Inline feedback";
+          el.modePill.textContent = base + " | " + desc;
+        }
+        var map = {
+          inline: el.fbInlineBtn,
+          standalone: el.fbStandaloneBtn,
+          hide: el.fbHideBtn
+        };
+        Object.keys(map).forEach(function (key) {
+          var btn = map[key];
+          if (!btn) return;
+          if (key === feedbackMode) {
+            btn.classList.add('activeFeedback');
+            btn.disabled = true;
+          } else {
+            btn.classList.remove('activeFeedback');
+            btn.disabled = false;
+          }
+        });
+      }
+
+      function extractUserId(payload) {
+        if (!payload || typeof payload !== "object") return "";
+        var rawUser = payload.user || payload.account || payload.profile || null;
+        var candidates = [
+          payload.user_id,
+          payload.username,
+          payload.email,
+          payload.id,
+          rawUser && rawUser.user_id,
+          rawUser && rawUser.id,
+          rawUser && rawUser.username,
+          rawUser && rawUser.email
+        ];
+        for (var i = 0; i < candidates.length; i++) {
+          var v = candidates[i];
+          if (v !== undefined && v !== null) {
+            var s = String(v).trim();
+            if (s) return s;
+          }
+        }
+        return "";
+      }
+
+      function getDisplayNameFromAuth(auth) {
+        if (!auth || typeof auth !== "object") return "";
+        var profile = auth.profile || auth.user || auth.account || {};
+        var candidates = [
+          auth.name,
+          profile.name,
+          auth.full_name,
+          profile.full_name,
+          auth.display_name,
+          profile.display_name
+        ];
+        for (var i = 0; i < candidates.length; i++) {
+          var v = candidates[i];
+          if (v !== undefined && v !== null) {
+            var s = String(v).trim();
+            if (s) return s;
+          }
+        }
+        return "";
+      }
+
+      function getEmailFromAuth(auth) {
+        if (!auth || typeof auth !== "object") return "";
+        var profile = auth.profile || auth.user || auth.account || {};
+        var candidates = [
+          auth.email,
+          profile.email,
+          auth.username,
+          profile.username
+        ];
+        for (var i = 0; i < candidates.length; i++) {
+          var v = candidates[i];
+          if (v !== undefined && v !== null) {
+            var s = String(v).trim();
+            if (s) return s;
+          }
+        }
+        return "";
+      }
+
+      async function verifyToken() {
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (!token) {
+          go("/p/" + LOGIN_SLUG + ".html");
+          return null;
+        }
+        try {
+          const body = new URLSearchParams({
+            action: "verify",
+            token
+          });
+          const res = await fetch(AUTH_WEB_APP_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body
+          });
+          if (!res.ok) throw new Error("Verify HTTP " + res.status);
+          const payload = await res.json();
+          if (!payload || !payload.ok) {
+            localStorage.removeItem(TOKEN_KEY);
+            go("/p/" + LOGIN_SLUG + ".html");
+            return null;
+          }
+
+          // Save auth payload + allowed courses (Guard v3-style)
+          AUTH = payload;
+          const courses = Array.isArray(payload.courses) ? payload.courses : [];
+          const active = courses.filter(c => String(c.status || '').toLowerCase() === 'active');
+          ALLOWED_COURSE_IDS = active
+            .map(c => (c.course_id || '').trim())
+            .filter(Boolean);
+
+          // Store user_id locally (for cross-check + analytics)
+          const uid = extractUserId(payload);
+          if (uid) {
+            try {
+              localStorage.setItem(USER_ID_KEY, uid);
+            } catch (_) {}
+          }
+
+          // fill user pill
+          const name = getDisplayNameFromAuth(payload);
+          const email = getEmailFromAuth(payload);
+          let label = "User: —";
+          if (name && email) label = `User: ${name} (${email})`;
+          else if (name) label = `User: ${name}`;
+          else if (email) label = `User: ${email}`;
+          if (el.userPill) el.userPill.textContent = label;
+
+          return payload;
+        } catch (err) {
+          console.error("Instant runner guard verify failed:", err);
+          localStorage.removeItem(TOKEN_KEY);
+          go("/p/" + LOGIN_SLUG + ".html");
+          return null;
+        }
+      }
+
+      function shouldSkipPreflight() {
+        try {
+          return localStorage.getItem(PREF_KEY_HIDE_PREFLIGHT) === "1";
+        } catch (_) {
+          return false;
+        }
+      }
+
+      function setSkipPreflight(on) {
+        try {
+          if (on) localStorage.setItem(PREF_KEY_HIDE_PREFLIGHT, "1");
+          else localStorage.removeItem(PREF_KEY_HIDE_PREFLIGHT);
+        } catch (_) {}
+      }
+
+      // Deterministic shuffle (same as Timed)
+      function seedFrom(str) {
+        let s = 0;
+        for (let i = 0; i < str.length; i++) s = (s * 31 + str.charCodeAt(i)) >>> 0;
+        return s >>> 0;
+      }
+
+      function rand(so) {
+        so.seed ^= so.seed << 13;
+        so.seed >>>= 0;
+        so.seed ^= so.seed >> 17;
+        so.seed >>>= 0;
+        so.seed ^= so.seed << 5;
+        so.seed >>>= 0;
+        return (so.seed >>> 0) / 0xFFFFFFFF;
+      }
+
+      function shuffleDet(arr, key) {
+        const a = arr.slice();
+        const so = {
+          seed: seedFrom(key)
+        };
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(rand(so) * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      }
+
+      function displayLabel(i) {
+        return ['A', 'B', 'C', 'D'][i] || '?';
+      }
+
+      function getShuffledOptionsFor(r) {
+        const cached = SHUF.get(r.item_id);
+        if (cached) return cached;
+
+        const raw = [{
+            id: 'A',
+            text: r.option_a,
+            fb: r.fb_a,
+            isCorrect: (String(r.correct || '').trim().toUpperCase() === 'A')
+          },
+          {
+            id: 'B',
+            text: r.option_b,
+            fb: r.fb_b,
+            isCorrect: (String(r.correct || '').trim().toUpperCase() === 'B')
+          },
+          {
+            id: 'C',
+            text: r.option_c,
+            fb: r.fb_c,
+            isCorrect: (String(r.correct || '').trim().toUpperCase() === 'C')
+          },
+          {
+            id: 'D',
+            text: r.option_d,
+            fb: r.fb_d,
+            isCorrect: (String(r.correct || '').trim().toUpperCase() === 'D')
+          }
+        ].filter(o => (String(o.text || '').trim().length > 0));
+
+        const correctCount = raw.reduce((acc, o) => acc + (o.isCorrect ? 1 : 0), 0);
+        let arr = raw;
+        if (SHUFFLE_OPTIONS && correctCount === 1 && raw.length > 1) {
+          arr = shuffleDet(raw, String(ATT.attempt_id || '') + '|' + String(r.item_id || ''));
+        }
+
+        SHUF.set(r.item_id, arr);
+        return arr;
+      }
+
+      /* Build a rich (but URL-safe) ref_text:
+         - includes stem + options A–D as shown
+         - includes user's current choice (if any)
+         - DOES NOT include correct answer to avoid leaking solutions mid-quiz
+      */
+      
+      
+     
+       function buildFriendlyRefText(r, globalIdx){
+    const courseId = String((ATT && ATT.course_id) || "").trim();
+const cid = String(courseId || "").toUpperCase();
+const courseLabel = COURSE_LABELS[cid] || courseId || "Your course";
+    const topic = safeTrim(r && r.topic, 240);
+    const stem  = safeTrim(r && r.stem, 900);
+
+    const opts = getShuffledOptionsFor(r);
+    const lines = [];
+    for (let j = 0; j < Math.min(4, opts.length); j++){
+      const label = ['A','B','C','D'][j] || '?';
+      const txt = safeTrim(opts[j] && opts[j].text, 360);
+      lines.push(`${label}. ${txt || '(blank)'}`);
+    }
+
+    const chosenLabel = String(ANSW && ANSW[r.item_id] ? ANSW[r.item_id] : "").trim().toUpperCase();
+    let chosenText = "";
+    if (chosenLabel){
+      const idx = ['A','B','C','D'].indexOf(chosenLabel);
+      if (idx >= 0 && opts[idx]) chosenText = safeTrim(opts[idx].text, 360);
+    }
+
+    const ref = [];
+    ref.push(`QAcademy - Question feedback (Instant quiz)`);
+    ref.push(`Course: ${courseLabel}`);
+    ref.push(`Question: ${globalIdx + 1} of ${ITEMS.length || "?"}`);
+    if (topic) ref.push(`Topic: ${topic}`);
+    ref.push("");
+    ref.push("Question:");
+    ref.push(stem || "(no question text)");
+    ref.push("");
+    ref.push("Options (as shown):");
+    ref.push(...lines);
+    ref.push("");
+    if (chosenLabel){
+      ref.push(`My answer: ${chosenLabel}${chosenText ? " - " + chosenText : ""}`);
+    } else {
+      ref.push(`My answer: (not answered yet)`);
+    }
+    return ref.join("\n");
+  }
+
+ function buildMessagesUrlForQuestion(r, globalIdx){
+    const courseId  = String((ATT && ATT.course_id) || "").trim();
+    const attemptId = String((ATT && ATT.attempt_id) || "").trim();
+    const quizId    = String((ATT && (ATT.quiz_id || ATT.base_quiz_id || ATT.fixed_quiz_id)) || "").trim();
+    const qid       = String((r && r.item_id) || "").trim();
+
+    // Friendly ref_text (no technical IDs inside)
+    const refText = buildFriendlyRefText(r, globalIdx);
+
+    const p = new URLSearchParams();
+    p.set("context_type", "question");
+    if (courseId)  p.set("course_id", courseId);
+    if (attemptId) p.set("attempt_id", attemptId);   // kept for backend linkage (not shown in ref_text)
+    if (quizId)    p.set("quiz_id", quizId);         // kept for backend linkage (not shown in ref_text)
+    if (qid)       p.set("question_id", qid);        // kept for backend linkage (not shown in ref_text)
+    p.set("ref_text", refText);
+
+    return MESSAGES_PAGE_URL + "?" + p.toString();
+  }
+
+
+      function openReportQuestion(r, globalIdx) {
+        try {
+          const url = buildMessagesUrlForQuestion(r, globalIdx);
+          window.open(url, "_blank", "noopener,noreferrer");
+        } catch (err) {
+          alert("Could not open Messages. " + (err && err.message ? err.message : ""));
+        }
+      }
+
+      // === FLAG / VIEW HELPERS ===
+      function flaggedPageIndexes() {
+        const pages = new Set();
+        ITEMS.forEach((r, idx) => {
+          if (FLAGS[r.item_id]) pages.add(Math.floor(idx / QUESTIONS_PER_PAGE));
+        });
+        return Array.from(pages).sort((a, b) => a - b);
+      }
+
+      function jumpToNextFlagged() {
+        const pages = flaggedPageIndexes();
+        if (!pages.length) {
+          alert('No flagged questions.');
+          return;
+        }
+        const cur = PAGE;
+        const next = pages.find(p => p > cur);
+        PAGE = (next !== undefined) ? next : pages[0];
+        viewMode = 'ALL';
+        renderPage();
+      }
+
+      function jumpToPrevFlagged() {
+        const pages = flaggedPageIndexes();
+        if (!pages.length) {
+          alert('No flagged questions.');
+          return;
+        }
+        const cur = PAGE;
+        let target = null;
+        for (let i = pages.length - 1; i >= 0; i--) {
+          if (pages[i] < cur) {
+            target = pages[i];
+            break;
+          }
+        }
+        PAGE = (target !== null && target !== undefined) ? target : pages[pages.length - 1];
+        viewMode = 'ALL';
+        renderPage();
+      }
+
+      function updateFlagNavVisibility() {
+        const anyFlagged = Object.values(FLAGS).some(Boolean);
+        if (!anyFlagged) {
+          if (el.prevFlagBtn) el.prevFlagBtn.style.display = 'none';
+          if (el.nextFlagBtn) el.nextFlagBtn.style.display = 'none';
+          return;
+        }
+        const showNav = (viewMode === 'FLAGGED');
+        if (el.prevFlagBtn) el.prevFlagBtn.style.display = showNav ? '' : 'none';
+        if (el.nextFlagBtn) el.nextFlagBtn.style.display = showNav ? '' : 'none';
+      }
+
+      // Generate current source list depending on viewMode
+      function getCurrentSource() {
+        const list = [];
+        ITEMS.forEach((it, idx) => {
+          if (viewMode === 'FLAGGED') {
+            if (FLAGS[it.item_id]) list.push({
+              it,
+              idx
+            });
+          } else {
+            list.push({
+              it,
+              idx
+            });
+          }
+        });
+        if (viewMode === 'FLAGGED' && !list.length) {
+          ITEMS.forEach((it, idx) => list.push({
+            it,
+            idx
+          }));
+        }
+        return list;
+      }
+
+      // === PREFLIGHT HANDLERS ===
+      function feedbackModeLabelShort() {
+        if (feedbackMode === 'inline') return 'Inline feedback';
+        if (feedbackMode === 'standalone') return 'Standalone feedback';
+        if (feedbackMode === 'hide') return 'Hide explanations';
+        return 'Inline feedback';
+      }
+
+      function preparePreflight() {
+        if (!ATT || !ITEMS.length || !el.preCard) return;
+        const cid = String(ATT.course_id || "").toUpperCase();
+        const courseLabel = COURSE_LABELS[cid] || ATT.course_id || '—';
+        const total = ITEMS.length;
+        const fbLabel = feedbackModeLabelShort();
+        el.preSummary.textContent = `${courseLabel} | ${total} question${total===1?'':'s'} | ${fbLabel}`;
+        el.preMetaPill.textContent = `Mode: Instant | Questions: ${total} | Feedback: ${fbLabel}`;
+        if (el.preSkip) el.preSkip.checked = false;
+        el.preCard.style.display = 'block';
+        el.qCard.style.display = 'none';
+        if (el.fabGrid) el.fabGrid.style.display = 'none';
+        log("Review the quiz details, then click Start quiz when you're ready.");
+      }
+
+      function startQuiz() {
+        if (!ITEMS.length) return;
+        if (el.preCard) el.preCard.style.display = 'none';
+        el.qCard.style.display = 'block';
+        if (el.fabGrid) el.fabGrid.style.display = 'inline-flex';
+
+        PAGE = 0;
+        viewMode = 'ALL';
+
+        if (!QUIZ_STARTED_AT) {
+          QUIZ_STARTED_AT = Date.now();
+        }
+
+        renderPage();
+        renderProgress();
+
+        const metaStatus = String(ATT && ATT.status || "").toLowerCase();
+        const hasSaved = ATT && Array.isArray(ATT.answers) && ATT.answers.length > 0;
+        if (metaStatus === "in_progress" && hasSaved) {
+          log("Resuming your in-progress attempt. Any changes will be saved.");
+        } else {
+          log("Ready. Choose an answer to see how you did based on your feedback mode.");
+        }
+      }
+
+      // === COMPUTE SCORE ===
+      function computeScore() {
+        let ok = 0;
+        ITEMS.forEach(r => {
+          const opts = getShuffledOptionsFor(r);
+          const chosenLabel = ANSW[r.item_id];
+          if (!chosenLabel) return;
+          const idx = ['A', 'B', 'C', 'D'].indexOf(chosenLabel);
+          const chosenObj = opts[idx];
+          if (chosenObj && chosenObj.isCorrect) ok++;
+        });
+        return {
+          ok,
+          total: ITEMS.length
+        };
+      }
+
+      // === LOAD ATTEMPT (BUILDER API) ===
+      async function loadAttempt() {
+        const quiz_id = qs('quiz_id') || '';
+        const attempt_id = qs('attempt_id') || quiz_id;
+
+        if (!attempt_id) {
+          log("Missing attempt_id (or quiz_id) in URL.");
+          return;
+        }
+
+        // include token + mode so backend can enforce ownership + mode match
+        const token = (function () {
+          try {
+            return localStorage.getItem(TOKEN_KEY) || "";
+          } catch (_) {
+            return "";
+          }
+        })();
+
+        const params = new URLSearchParams();
+        params.set("action", "attempt");
+        params.set("attempt_id", attempt_id);
+        if (token) {
+          params.set("token", token);
+        }
+        // Instant Runner always expects instant attempts
+        params.set("mode", "instant");
+
+        const url = `${BUILDER_WEB_APP_URL}?${params.toString()}`;
+
+        try {
+          const res = await fetch(url);
+          let data;
+          try {
+            data = await res.json();
+          } catch (err) {
+            log("Server returned invalid response.");
+            return;
+          }
+
+          // explicit backend error
+          if (data && data.ok === false) {
+            const msg = data.error || "Backend rejected this attempt.";
+            log(msg);
+            return;
+          }
+
+          if (!data || !Array.isArray(data.items)) {
+            const msg = data && data.error ? data.error : "Attempt could not be loaded.";
+            log(msg);
+            return;
+          }
+
+          if (!data.items.length) {
+            const msg = data && data.error ? data.error : "No items returned for this attempt.";
+            log(msg);
+            return;
+          }
+
+          ATT = data.meta || {};
+          ITEMS = data.items;
+          ANSW = {};
+          FLAGS = {};
+          FINISH_SENT = false;
+
+          // Compute dynamic autosave interval (based on total quiz time)
+          recomputeAutosaveInterval();
+
+          // fill course pill
+          const cid = String(ATT.course_id || "").toUpperCase();
+          const courseLabel = COURSE_LABELS[cid] || ATT.course_id || '—';
+          if (el.coursePill) {
+            el.coursePill.textContent = `Course: ${courseLabel}`;
+          }
+
+          // Course-level access check using Guard v3 courses
+          if (cid) {
+            let allowedSet = null;
+            if (ALLOWED_COURSE_IDS && ALLOWED_COURSE_IDS.length) {
+              allowedSet = new Set(ALLOWED_COURSE_IDS.map(id => String(id).toUpperCase()));
+            } else if (AUTH && Array.isArray(AUTH.course_ids)) {
+              allowedSet = new Set(AUTH.course_ids.map(id => String(id).toUpperCase()));
+            }
+            if (allowedSet && !allowedSet.has(cid)) {
+              log("You are not enrolled for this course. Redirecting to dashboard…");
+              setTimeout(() => {
+                go("/p/" + DASHBOARD_SLUG + ".html");
+              }, 1200);
+              return;
+            }
+          }
+
+          // Attempt-level security (user_id match)
+          const attUserIdRaw = (ATT.user_id || "").toString().trim();
+          const localUidRaw = getLocalUserId().trim();
+          const authUidRaw = AUTH ? extractUserId(AUTH).trim() : "";
+          const currentUid = localUidRaw || authUidRaw || "";
+
+          if (attUserIdRaw && currentUid && attUserIdRaw !== currentUid) {
+            log("This quiz attempt is not linked to your account. Please start a new quiz from the course page.");
+            setTimeout(() => {
+              go("/p/" + DASHBOARD_SLUG + ".html");
+            }, 1800);
+            return;
+          }
+
+          // Mode must be 'instant' for this runner
+          const attMode = String(ATT.mode || "").toLowerCase();
+          if (attMode && attMode !== "instant") {
+            log("This attempt was created for a different mode (timed). Please open it with the Timed Runner.");
+            return;
+          }
+
+          const metaStatus = String(ATT.status || "").toLowerCase();
+          const savedAnswers = Array.isArray(ATT.answers) ? ATT.answers : [];
+          const isResume = !REVIEW_MODE && (metaStatus === "in_progress" && savedAnswers.length > 0);
+          const isCompletedWithAnswers = (metaStatus === "completed" && savedAnswers.length > 0);
+
+          TOTAL_PAGES = Math.max(1, Math.ceil(ITEMS.length / QUESTIONS_PER_PAGE));
+          PAGE = 0;
+          viewMode = 'ALL';
+
+          const total = ITEMS.length;
+          el.metaPill.textContent = `Attempt: ${ATT.attempt_id || attempt_id} | ${total} item${total===1?'':'s'}`;
+
+          // REVIEW MODE FLOW
+          if (REVIEW_MODE) {
+            const subEl = document.querySelector('#infoCard .sub');
+            if (subEl) subEl.textContent = "Reviewing a completed instant quiz • Answers are read-only";
+            if (el.submitBtn) el.submitBtn.style.display = "none";
+
+            if (!isCompletedWithAnswers) {
+              log("This attempt is not available for review yet. It may still be in progress.");
+            }
+
+            hydrateFromMetaAnswers(savedAnswers);
+
+            LOCKED = true;
+            QUIZ_STARTED_AT = null;
+
+            if (el.preCard) el.preCard.style.display = 'none';
+            el.qCard.style.display = 'block';
+            if (el.fabGrid) el.fabGrid.style.display = 'inline-flex';
+
+            renderPage();
+            renderProgress();
+
+            let scrText = "Score: —";
+            const rawMeta = ATT.score_raw;
+            const totMeta = ATT.score_total;
+            if (rawMeta != null && totMeta != null && totMeta !== "") {
+              const raw = Number(rawMeta);
+              const tot = Number(totMeta) || ITEMS.length;
+              const perc = tot ? pct(raw, tot) : null;
+              scrText = `Score: ${raw} / ${tot}` + (perc !== null ? ` (${perc}%)` : "");
+            } else {
+              const s = computeScore();
+              const perc = pct(s.ok, s.total);
+              scrText = `Score: ${s.ok} / ${s.total} (${perc}%)`;
+            }
+            el.scoreText.textContent = scrText;
+            openReviewGrid();
+            log("Reviewing your completed attempt. Answers and feedback are read-only.");
+            return;
+          }
+
+          // Normal INSTANT/RESUME FLOW
+          if (isResume) {
+            hydrateFromMetaAnswers(savedAnswers);
+            if (el.preCard) el.preCard.style.display = 'none';
+            startQuiz();
+          } else {
+            if (shouldSkipPreflight()) {
+              startQuiz();
+            } else {
+              preparePreflight();
+            }
+          }
+        } catch (err) {
+          log("Failed to load attempt: " + (err.message || String(err)));
+        }
+      }
+
+      // === RENDER PAGE ===
+      function renderPage() {
+        if (!ITEMS || !ITEMS.length) {
+          el.qList.innerHTML = '';
+          return;
+        }
+        const src = getCurrentSource();
+        const totalVisible = src.length;
+        TOTAL_PAGES = Math.max(1, Math.ceil(totalVisible / QUESTIONS_PER_PAGE));
+        PAGE = clamp(PAGE, 0, TOTAL_PAGES - 1);
+
+        const start = PAGE * QUESTIONS_PER_PAGE;
+        const end = Math.min(start + QUESTIONS_PER_PAGE, totalVisible);
+
+        const pageText = `Page ${PAGE+1} / ${TOTAL_PAGES}`;
+        el.pagePill.textContent = pageText;
+        el.pagePillBottom.textContent = pageText;
+
+        const prevDisabled = (PAGE === 0);
+        const nextDisabled = (PAGE >= TOTAL_PAGES - 1);
+        document.querySelectorAll('.prevPage').forEach(b => b.disabled = prevDisabled);
+        document.querySelectorAll('.nextPage').forEach(b => b.disabled = nextDisabled);
+
+        el.qList.innerHTML = '';
+        for (let k = start; k < end; k++) {
+          const {
+            it: r,
+            idx: globalIdx
+          } = src[k];
+
+          const qWrap = document.createElement('div');
+          qWrap.className = 'q-block';
+          qWrap.id = `q_${globalIdx}`;
+
+          const qHead = document.createElement('div');
+          qHead.className = 'q-head';
+
+          const idxPill = document.createElement('div');
+          idxPill.className = 'pill q-index';
+          idxPill.textContent = `Q${globalIdx+1} / ${ITEMS.length}`;
+
+          const stem = document.createElement('div');
+          stem.className = 'qstem';
+          stem.textContent = r.stem || '(no stem)';
+
+          qHead.appendChild(idxPill);
+
+          const topicText = (r.topic || '').trim();
+          if (topicText) {
+            const topicEl = document.createElement('div');
+            topicEl.className = 'q-topic';
+            topicEl.textContent = topicText;
+            qHead.appendChild(topicEl);
+          }
+
+          qHead.appendChild(stem);
+          qWrap.appendChild(qHead);
+
+          const optsWrap = document.createElement('div');
+          optsWrap.className = 'opts';
+
+          const opts = getShuffledOptionsFor(r);
+          const chosen = ANSW[r.item_id];
+
+          opts.forEach((o, j) => {
+            const label = displayLabel(j);
+
+            const row = document.createElement('label');
+            row.className = 'opt';
+
+            const input = document.createElement('input');
+            input.type = 'radio';
+            input.name = `opt_${r.item_id}`;
+            input.value = label;
+            input.disabled = LOCKED || REVIEW_MODE;
+            input.checked = (chosen === label);
+
+            const body = document.createElement('div');
+            const head = document.createElement('div');
+            head.className = 'opt-title';
+
+            const title = document.createElement('div');
+            title.innerHTML = `<strong>${label}.</strong> ${o.text || ''}`;
+            head.appendChild(title);
+
+            const fb = document.createElement('div');
+            fb.className = 'opt-fb';
+            fb.dataset.label = label;
+
+            input.addEventListener('change', () => {
+              if (LOCKED || REVIEW_MODE) return;
+              ANSW[r.item_id] = label;
+              updateQuestionFeedback(r.item_id);
+              renderProgress();
+              // No immediate save here: page change + autosave handle persistence
+            });
+
+            body.appendChild(head);
+            body.appendChild(fb);
+            row.appendChild(input);
+            row.appendChild(body);
+            optsWrap.appendChild(row);
+          });
+
+          const ratEl = document.createElement('div');
+          ratEl.className = 'rationale';
+          ratEl.id = `rat_${r.item_id}`;
+          ratEl.style.display = 'none';
+
+          qWrap.appendChild(optsWrap);
+          qWrap.appendChild(ratEl);
+
+          const footer = document.createElement('div');
+          footer.className = 'q-footer';
+
+          const flagBtn = document.createElement('button');
+          flagBtn.type = 'button';
+          flagBtn.className = 'btn ghost small flag-btn';
+          flagBtn.textContent = FLAGS[r.item_id] ? 'Unflag' : 'Flag';
+          flagBtn.disabled = REVIEW_MODE;
+          flagBtn.addEventListener('click', () => {
+            if (REVIEW_MODE) return;
+            FLAGS[r.item_id] = !FLAGS[r.item_id];
+            flagBtn.textContent = FLAGS[r.item_id] ? 'Unflag' : 'Flag';
+            updateFlagNavVisibility();
+            saveInProgress(false);
+          });
+
+          // NEW: message about this question (opens Messages in new tab)
+          const reportBtn = document.createElement('button');
+          reportBtn.type = 'button';
+          reportBtn.className = 'btn softer small';
+          reportBtn.textContent = 'Send feedback';
+          reportBtn.disabled = false;
+          reportBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // If quiz is completed/review, just open directly
+            if (LOCKED || REVIEW_MODE) {
+              openReportQuestion(r, globalIdx);
+              return;
+            }
+
+            // Otherwise show modal, with the exact URL we’ll open
+            try {
+              const url = buildMessagesUrlForQuestion(r, globalIdx);
+              openMsgOverlay(url);
+            } catch (err) {
+              alert("Could not prepare Messages link.");
+            }
+          });
+
+
+          const wm = document.createElement('div');
+          wm.className = 'watermark';
+          wm.textContent = 'QAcademy';
+
+          footer.appendChild(flagBtn);
+          footer.appendChild(reportBtn);
+          footer.appendChild(wm);
+          qWrap.appendChild(footer);
+
+          el.qList.appendChild(qWrap);
+
+          // Show feedback for answered questions while in-progress,
+          // and for ALL questions once the quiz is locked/submitted or in review.
+          if (ANSW.hasOwnProperty(r.item_id) || LOCKED || REVIEW_MODE || FINISH_SENT) {
+            updateQuestionFeedback(r.item_id);
+          }
+        }
+
+        const header = document.getElementById('headerCard');
+        const headerH = header ? (header.offsetHeight || 0) : 0;
+        const top = el.qCard.getBoundingClientRect().top + window.scrollY - headerH - 8;
+        window.scrollTo({
+          top,
+          behavior: 'smooth'
+        });
+
+        updateFlagNavVisibility();
+      }
+
+      // === INLINE/STANDALONE/HIDE FEEDBACK FOR ONE QUESTION ===
+      function updateQuestionFeedback(itemId) {
+        const r = ITEMS.find(x => String(x.item_id) === String(itemId));
+        if (!r) return;
+
+        const chosenLabel = ANSW[itemId] || '';
+        const opts = getShuffledOptionsFor(r);
+        const qSelIndex = ITEMS.indexOf(r);
+        const qBlock = document.querySelector(`#qList #q_${qSelIndex}`);
+        if (!qBlock) return;
+
+        const rows = qBlock.querySelectorAll('.opt');
+        const ratEl = document.getElementById(`rat_${r.item_id}`);
+
+        const rat = String(r.rationale || '').trim();
+        const imgUrl = String(r.rationale_img || '').trim();
+
+        // After submission/review we want feedback even if unanswered
+        const showAfterSubmit = !!(LOCKED || REVIEW_MODE || FINISH_SENT);
+
+        /* ---------- RATIONALE BLOCK (per mode) ---------- */
+        if (ratEl) {
+          ratEl.innerHTML = '';
+
+          // Before submit + no choice → no rationale
+          if ((!chosenLabel && !showAfterSubmit) || feedbackMode === 'hide') {
+            ratEl.style.display = 'none';
+          } else if (feedbackMode === 'inline') {
+            // Inline: rationale + optional image
+            let hasContent = false;
+
+            if (rat) {
+              const t = document.createElement('div');
+              t.className = 'rationale-text';
+              t.textContent = `Rationale: ${rat}`;
+              ratEl.appendChild(t);
+              hasContent = true;
+            }
+
+            if (imgUrl) {
+              const wrap = document.createElement('div');
+              wrap.className = 'rationale-img-wrap';
+
+              const img = document.createElement('img');
+              img.className = 'rationale-img-thumb';
+              img.src = imgUrl;
+              img.alt = 'Rationale illustration';
+              img.loading = 'lazy';
+              img.decoding = 'async';
+
+              img.addEventListener('click', function () {
+                openImgOverlay(imgUrl);
+              });
+
+              const cap = document.createElement('div');
+              cap.className = 'rationale-img-caption';
+              cap.textContent = "Tap to enlarge";
+
+              wrap.appendChild(img);
+              wrap.appendChild(cap);
+              ratEl.appendChild(wrap);
+              hasContent = true;
+            }
+
+            ratEl.style.display = hasContent ? 'block' : 'none';
+          } else if (feedbackMode === 'standalone') {
+            // Standalone: rationale + "Why the options" + optional image
+            let hasAny = false;
+            const frag = document.createDocumentFragment();
+
+            if (rat) {
+              const t = document.createElement('div');
+              t.className = 'rationale-text';
+              t.textContent = `Rationale: ${rat}`;
+              frag.appendChild(t);
+              hasAny = true;
+            }
+
+            // Option explanations aggregated
+            const letters = ['A', 'B', 'C', 'D'];
+            let anyOptFb = false;
+            const optWrap = document.createElement('div');
+            let headerAdded = false;
+
+            letters.forEach(function (letter, idx) {
+              const o = opts[idx];
+              if (!o || !o.text) return;
+              const fbText = String(o.fb || '').trim();
+              if (!fbText) return;
+
+              if (!headerAdded) {
+                const h = document.createElement('div');
+                h.style.marginTop = '6px';
+                h.innerHTML = "<strong>Why the options:</strong>";
+                optWrap.appendChild(h);
+                headerAdded = true;
+              }
+
+              const line = document.createElement('div');
+              line.innerHTML = "<strong>" + letter + ".</strong> " + (o.text || '') + " — " + fbText;
+              optWrap.appendChild(line);
+              anyOptFb = true;
+            });
+
+            if (anyOptFb) {
+              frag.appendChild(optWrap);
+              hasAny = true;
+            }
+
+            if (imgUrl) {
+              const wrap = document.createElement('div');
+              wrap.className = 'rationale-img-wrap';
+
+              const img = document.createElement('img');
+              img.className = 'rationale-img-thumb';
+              img.src = imgUrl;
+              img.alt = 'Rationale illustration';
+              img.loading = 'lazy';
+              img.decoding = 'async';
+
+              img.addEventListener('click', function () {
+                openImgOverlay(imgUrl);
+              });
+
+              const cap = document.createElement('div');
+              cap.className = 'rationale-img-caption';
+              cap.textContent = "Tap to enlarge";
+
+              wrap.appendChild(img);
+              wrap.appendChild(cap);
+              frag.appendChild(wrap);
+              hasAny = true;
+            }
+
+            if (hasAny) {
+              ratEl.appendChild(frag);
+              ratEl.style.display = 'block';
+            } else {
+              ratEl.style.display = 'none';
+            }
+          }
+        }
+
+        /* ---------- OPTION-LEVEL CHIPS + INLINE FEEDBACK ---------- */
+        rows.forEach((row, j) => {
+          const label = ['A', 'B', 'C', 'D'][j];
+          const o = opts[j];
+          if (!o) return;
+
+          const head = row.querySelector('.opt-title');
+          const fb = row.querySelector('.opt-fb');
+          if (!head || !fb) return;
+
+          // Clear any existing chips
+          head.querySelectorAll('.chip').forEach(ch => ch.remove());
+
+          // Before submit + no answer → hide everything for this option
+          const hasChoice = !!chosenLabel;
+          const shouldShow = hasChoice || showAfterSubmit;
+          if (!shouldShow) {
+            fb.style.display = 'none';
+            fb.textContent = '';
+            return;
+          }
+
+          // Chips: always show "Correct answer" after submit/review,
+          // and "Your choice" only if the learner picked it.
+          if (o.isCorrect) {
+            const chipC = document.createElement('span');
+            chipC.className = 'chip correct';
+            chipC.textContent = 'Correct answer';
+            head.appendChild(chipC);
+          }
+          if (label === chosenLabel) {
+            const chipY = document.createElement('span');
+            chipY.className = 'chip your';
+            chipY.textContent = 'Your choice';
+            head.appendChild(chipY);
+          }
+
+          // Option feedback text only in INLINE mode
+          if (feedbackMode === 'inline') {
+            const fbText = String(o.fb || '').trim() || '(No feedback provided)';
+            fb.textContent = fbText;
+            fb.style.display = 'block';
+          } else {
+            fb.textContent = '';
+            fb.style.display = 'none';
+          }
+        });
+      }
+
+      // === PROGRESS ===
+      function renderProgress() {
+        const total = ITEMS.length;
+        const answered = Object.keys(ANSW).length;
+        el.countPill.textContent = `${answered} / ${total} answered`;
+        const p = pct(answered, total);
+        el.progFill.style.width = p + '%';
+        if (el.progLabel) el.progLabel.textContent = p + '%';
+
+        if (!REVIEW_MODE && !LOCKED && total > 0 && answered === total) {
+          submitQuiz();
+        }
+      }
+
+      // === REVIEW GRID ===
+      function buildGrid() {
+        if (!ITEMS.length) return;
+        el.grid.innerHTML = '';
+
+        ITEMS.forEach((r, i) => {
+          const answered = !!ANSW[r.item_id];
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          if (answered) cell.classList.add('done');
+          cell.textContent = (i + 1);
+
+          if (!LOCKED && !REVIEW_MODE) {
+            cell.style.borderColor = answered ? '#0b7a75' : '#d8dfdd';
+            cell.title = answered ? `Question ${i+1} • answered` : `Question ${i+1} • not answered`;
+          } else {
+            const opts = getShuffledOptionsFor(r);
+            const chosenLabel = ANSW[r.item_id] || '—';
+            let good = false;
+            if (chosenLabel !== '—') {
+              const idx = ['A', 'B', 'C', 'D'].indexOf(chosenLabel);
+              const chosenObj = opts[idx];
+              good = !!(chosenObj && chosenObj.isCorrect);
+            }
+            cell.title = `Your: ${chosenLabel}`;
+            cell.style.borderColor = answered ? (good ? '#bfe7dd' : '#f1c4c4') : '#d8dfdd';
+          }
+
+          cell.addEventListener('click', () => {
+            viewMode = 'ALL';
+            PAGE = Math.floor(i / QUESTIONS_PER_PAGE);
+            renderPage();
+            if (ANSW[r.item_id]) updateQuestionFeedback(r.item_id);
+            const target = document.getElementById(`q_${i}`);
+            if (target) target.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start'
+            });
+            el.reviewCard.style.display = 'none';
+          });
+
+          el.grid.appendChild(cell);
+        });
+      }
+
+      function openReviewGrid() {
+        buildGrid();
+        el.reviewCard.style.display = 'block';
+      }
+
+      // === FLOATING GRID OVERLAY ===
+      function openOverlay() {
+        if (!el.gridOverlay) return;
+        buildOverlayGrid();
+        prevBodyOverflow = document.body.style.overflow || '';
+        document.body.style.overflow = 'hidden';
+        el.gridOverlay.style.display = 'flex';
+      }
+
+      function closeOverlay() {
+        if (!el.gridOverlay) return;
+        el.gridOverlay.style.display = 'none';
+        document.body.style.overflow = prevBodyOverflow;
+      }
+
+      function buildOverlayGrid() {
+        if (!ITEMS.length || !el.gridOverlayBody) return;
+        el.gridOverlayBody.innerHTML = '';
+
+        ITEMS.forEach((r, idx) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'grid-btn';
+          btn.textContent = String(idx + 1);
+
+          const answered = !!ANSW[r.item_id];
+          const flagged = !!FLAGS[r.item_id];
+          if (answered) btn.classList.add('answered');
+          if (flagged) btn.classList.add('flagged');
+
+          btn.addEventListener('click', () => {
+            viewMode = 'ALL';
+            PAGE = Math.floor(idx / QUESTIONS_PER_PAGE);
+            renderPage();
+            if (ANSW[r.item_id]) updateQuestionFeedback(r.item_id);
+            const target = document.getElementById(`q_${idx}`);
+            if (target) target.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start'
+            });
+            closeOverlay();
+          });
+
+          el.gridOverlayBody.appendChild(btn);
+        });
+      }
+
+      // === IMAGE OVERLAY HELPERS ===
+      function openImgOverlay(url) {
+        if (!el.imgOverlay || !el.imgOverlayImg) return;
+        prevBodyOverflowImg = document.body.style.overflow || '';
+        el.imgOverlayImg.src = url;
+        el.imgOverlay.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeImgOverlay() {
+        if (!el.imgOverlay || !el.imgOverlayImg) return;
+        el.imgOverlay.style.display = 'none';
+        el.imgOverlayImg.src = '';
+        document.body.style.overflow = prevBodyOverflowImg;
+      }
+
+      // === ANSWER PAYLOAD BUILDER ===
+      function buildAnswersPayload() {
+        const out = [];
+        ITEMS.forEach((r) => {
+          const opts = getShuffledOptionsFor(r);
+          const chosenLabel = ANSW[r.item_id] || '';
+          const idx = ['A', 'B', 'C', 'D'].indexOf(chosenLabel);
+          const chosenObj = idx >= 0 ? opts[idx] : null;
+
+          const correctIdx = opts.findIndex(o => o.isCorrect);
+          const correctLabel = correctIdx >= 0 ? ['A', 'B', 'C', 'D'][correctIdx] : '';
+
+          out.push({
+            item_id: r.item_id,
+            chosen: chosenLabel,
+            correct: correctLabel,
+            is_correct: !!(chosenObj && chosenObj.isCorrect),
+            flagged: !!FLAGS[r.item_id],
+            time_spent_s: null
+          });
+        });
+        return out;
+      }
+
+      // === RESUME HYDRATOR ===
+      function hydrateFromMetaAnswers(metaAnswers) {
+        if (!Array.isArray(metaAnswers) || !metaAnswers.length) return;
+
+        ANSW = {};
+        FLAGS = {};
+
+        metaAnswers.forEach(function (entry) {
+          const itemId = String(entry.item_id || "").trim();
+          if (!itemId) return;
+
+          const chosen = String(entry.chosen || "").trim().toUpperCase();
+          if (['A', 'B', 'C', 'D'].indexOf(chosen) >= 0) {
+            ANSW[itemId] = chosen;
+          }
+
+          if (entry.flagged) {
+            FLAGS[itemId] = true;
+          }
+        });
+
+        if (!REVIEW_MODE && ATT && ATT.time_taken_s != null && ATT.time_taken_s !== "") {
+          const used = parseInt(ATT.time_taken_s, 10);
+          if (!isNaN(used) && used > 0) {
+            QUIZ_STARTED_AT = Date.now() - (used * 1000);
+          }
+        }
+      }
+
+      // === attempt.update (in-progress save) ===
+      async function saveInProgress(force) {
+        if (REVIEW_MODE) return;
+        if (!ATT || !ATT.attempt_id) return;
+        if (LOCKED) return;
+
+        const now = Date.now();
+        if (!force && (now - LAST_SAVE_AT < MIN_SAVE_INTERVAL_MS)) return;
+        LAST_SAVE_AT = now;
+
+        const attemptId = ATT.attempt_id;
+        const answersArray = buildAnswersPayload();
+        const usedSec = QUIZ_STARTED_AT ? Math.max(0, Math.round((now - QUIZ_STARTED_AT) / 1000)) : 0;
+
+        const payload = {
+          attempt_id: attemptId,
+          status: "in_progress",
+          time_taken_s: usedSec,
+          answers: answersArray
+        };
+
+        try {
+          const body = new URLSearchParams();
+          body.append("action", "attempt.update");
+          body.append("payload", JSON.stringify(payload));
+
+          const res = await fetch(BUILDER_WEB_APP_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body
+          });
+
+          let data = null;
+          try {
+            data = await res.json();
+          } catch (_) {}
+          if (!data || data.ok === false) {
+            console.warn("attempt.update (instant) error:", data);
+          } else {
+            console.log("attempt.update (instant) ok");
+          }
+        } catch (err) {
+          console.error("attempt.update (instant) failed:", err);
+        }
+      }
+
+      // === attempt.finish ===
+      async function sendAttemptFinish(attemptId, scoreRaw, scoreTotal, timeTakenSec, answersArray) {
+        if (REVIEW_MODE) return;
+        if (!attemptId) return;
+        if (FINISH_SENT) return;
+        FINISH_SENT = true;
+
+        const payload = {
+          attempt_id: attemptId,
+          status: "completed",
+          completion_reason: "user",
+          score_raw: scoreRaw,
+          score_total: scoreTotal,
+          time_taken_s: timeTakenSec,
+          answers: answersArray || []
+        };
+
+        try {
+          const body = new URLSearchParams();
+          body.append("action", "attempt.finish");
+          body.append("payload", JSON.stringify(payload));
+
+          const res = await fetch(BUILDER_WEB_APP_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body
+          });
+
+          let data = null;
+          try {
+            data = await res.json();
+          } catch (_) {}
+
+          if (!data || data.ok === false) {
+            console.warn("attempt.finish (instant) error:", data);
+          } else {
+            console.log("attempt.finish (instant) ok");
+          }
+        } catch (err) {
+          console.error("attempt.finish (instant) failed:", err);
+        }
+      }
+
+      // === SUBMIT ===
+      async function submitQuiz() {
+        if (REVIEW_MODE) return;
+        if (LOCKED) return;
+
+        const total = ITEMS.length;
+        const answered = Object.keys(ANSW).length;
+        if (answered < total) {
+          const okConfirm = confirm(`You have ${total-answered} unanswered question(s). Submit now?`);
+          if (!okConfirm) return;
+        }
+
+        LOCKED = true;
+
+        document.querySelectorAll('input[type="radio"]').forEach(x => x.disabled = true);
+
+        const s = computeScore();
+        SCORE = s.ok;
+
+        const attemptId = ATT && ATT.attempt_id ? ATT.attempt_id : (qs('attempt_id') || qs('quiz_id') || '');
+        const nowMs = Date.now();
+        const timeTakenSec = QUIZ_STARTED_AT ? Math.max(0, Math.round((nowMs - QUIZ_STARTED_AT) / 1000)) : null;
+        const answersArray = buildAnswersPayload();
+
+        qaShowLoader("Submitting your results...");
+        await sendAttemptFinish(attemptId, s.ok, s.total, timeTakenSec, answersArray);
+        qaHideLoader();
+
+        viewMode = 'ALL';
+        PAGE = 0;
+        renderPage();
+
+        el.scoreText.textContent = `Score: ${s.ok} / ${s.total} (${pct(s.ok,s.total)}%)`;
+        openReviewGrid();
+        el.restartBtn.style.display = 'inline-block';
+      }
+
+      // === RESTART ===
+      function restart() {
+        const ref = document.referrer || '';
+        if (ref) {
+          location.href = ref;
+        } else {
+          location.href = location.pathname;
+        }
+      }
+
+      // === EXIT OVERLAY HELPERS ===
+      function openExitOverlay() {
+        if (!el.exitOverlay) return;
+        prevBodyOverflowExit = document.body.style.overflow || '';
+        document.body.style.overflow = 'hidden';
+        el.exitOverlay.style.display = 'flex';
+      }
+
+      function closeExitOverlay() {
+        if (!el.exitOverlay) return;
+        el.exitOverlay.style.display = 'none';
+        document.body.style.overflow = prevBodyOverflowExit;
+        PENDING_NAV_HREF = null;
+      }
+
+      function openMsgOverlay(url) {
+        if (!el.msgOverlay) return;
+        PENDING_MSG_URL = url || null;
+
+        // lock scroll like your other overlays
+        prevBodyOverflowExit = document.body.style.overflow || '';
+        document.body.style.overflow = 'hidden';
+        el.msgOverlay.style.display = 'flex';
+      }
+
+      function closeMsgOverlay() {
+        if (!el.msgOverlay) return;
+        el.msgOverlay.style.display = 'none';
+        document.body.style.overflow = prevBodyOverflowExit;
+        PENDING_MSG_URL = null;
+      }
+
+
+      // === NAV (both pagers) ===
+      document.querySelectorAll('.prevPage').forEach(b => b.addEventListener('click', () => {
+        saveInProgress(false);
+        PAGE--;
+        renderPage();
+      }));
+      document.querySelectorAll('.nextPage').forEach(b => b.addEventListener('click', () => {
+        saveInProgress(false);
+        PAGE++;
+        renderPage();
+      }));
+
+      el.reviewBtn.addEventListener('click', openReviewGrid);
+      el.backToQuizBtn.addEventListener('click', () => {
+        el.reviewCard.style.display = 'none';
+      });
+      el.submitBtn.addEventListener('click', submitQuiz);
+      el.restartBtn.addEventListener('click', restart);
+
+      if (el.fabGrid) {
+        el.fabGrid.addEventListener('click', openOverlay);
+      }
+      if (el.gridOverlayClose) {
+        el.gridOverlayClose.addEventListener('click', closeOverlay);
+      }
+
+      if (el.viewAllBtn) {
+        el.viewAllBtn.addEventListener('click', () => {
+          viewMode = 'ALL';
+          PAGE = 0;
+          renderPage();
+          updateFlagNavVisibility();
+        });
+      }
+      if (el.viewFlaggedBtn) {
+        el.viewFlaggedBtn.addEventListener('click', () => {
+          viewMode = 'FLAGGED';
+          PAGE = 0;
+          renderPage();
+          updateFlagNavVisibility();
+        });
+      }
+      if (el.prevFlagBtn) {
+        el.prevFlagBtn.addEventListener('click', jumpToPrevFlagged);
+      }
+      if (el.nextFlagBtn) {
+        el.nextFlagBtn.addEventListener('click', jumpToNextFlagged);
+      }
+
+      // NEW: feedback mode button handlers
+      if (el.fbInlineBtn) {
+        el.fbInlineBtn.addEventListener('click', () => {
+          feedbackMode = "inline";
+          saveFeedbackMode(feedbackMode);
+          updateFeedbackUI();
+          if (ITEMS && ITEMS.length) renderPage();
+        });
+      }
+      if (el.fbStandaloneBtn) {
+        el.fbStandaloneBtn.addEventListener('click', () => {
+          feedbackMode = "standalone";
+          saveFeedbackMode(feedbackMode);
+          updateFeedbackUI();
+          if (ITEMS && ITEMS.length) renderPage();
+        });
+      }
+      if (el.fbHideBtn) {
+        el.fbHideBtn.addEventListener('click', () => {
+          feedbackMode = "hide";
+          saveFeedbackMode(feedbackMode);
+          updateFeedbackUI();
+          if (ITEMS && ITEMS.length) renderPage();
+        });
+      }
+
+      // Exit button + overlay
+      if (el.exitBtn) {
+        el.exitBtn.addEventListener('click', () => {
+          if (LOCKED || REVIEW_MODE) {
+            const ref = document.referrer || '';
+            if (ref) location.href = ref;
+            else go("/p/" + DASHBOARD_SLUG + ".html");
+            return;
+          }
+          PENDING_NAV_HREF = null;
+          openExitOverlay();
+        });
+      }
+
+      if (el.exitCancelBtn) {
+        el.exitCancelBtn.addEventListener('click', () => {
+          closeExitOverlay();
+        });
+      }
+
+      // === Message overlay events ===
+      if (el.msgOverlayClose) el.msgOverlayClose.addEventListener('click', closeMsgOverlay);
+      if (el.msgCancelBtn) el.msgCancelBtn.addEventListener('click', closeMsgOverlay);
+
+      if (el.msgSaveOpenBtn) {
+        el.msgSaveOpenBtn.addEventListener('click', async function () {
+          const url = PENDING_MSG_URL;
+          qaShowLoader("Saving your progress...");
+          await saveInProgress(true);
+          qaHideLoader();
+          closeMsgOverlay();
+          if (url) window.open(url, "_blank", "noopener,noreferrer");
+        });
+      }
+
+      if (el.exitSaveBtn) {
+        el.exitSaveBtn.addEventListener('click', async () => {
+          qaShowLoader("Saving your progress...");
+          await saveInProgress(true);
+          const target = PENDING_NAV_HREF;
+          closeExitOverlay();
+          qaHideLoader();
+          log("Progress saved as in-progress. You can resume this attempt from your history when available.");
+          if (target) {
+            location.href = target;
+          } else {
+            const ref = document.referrer || '';
+            if (ref) location.href = ref;
+            else go("/p/" + DASHBOARD_SLUG + ".html");
+          }
+        });
+      }
+
+      if (el.exitSubmitBtn) {
+        el.exitSubmitBtn.addEventListener('click', () => {
+          const target = PENDING_NAV_HREF;
+          closeExitOverlay();
+          submitQuiz().then(() => {
+            if (target) {
+              setTimeout(() => {
+                location.href = target;
+              }, 400);
+            }
+          });
+        });
+      }
+
+      // Image overlay events
+      if (el.imgOverlayClose) {
+        el.imgOverlayClose.addEventListener('click', closeImgOverlay);
+      }
+      if (el.imgOverlay) {
+        el.imgOverlay.addEventListener('click', function (e) {
+          if (e.target === el.imgOverlay) closeImgOverlay();
+        });
+      }
+
+      // Preflight buttons
+      el.preStartBtn.addEventListener('click', () => {
+        if (el.preSkip && el.preSkip.checked) setSkipPreflight(true);
+        startQuiz();
+      });
+      el.preCancelBtn.addEventListener('click', () => {
+        const ref = document.referrer || '';
+        if (ref) {
+          location.href = ref;
+        } else {
+          location.href = location.pathname;
+        }
+      });
+
+      // === LINK-GUARD: intercept navigation while quiz is active ===
+      document.addEventListener('click', function (e) {
+        if (REVIEW_MODE) return;
+        if (!ATT || !ITEMS.length || LOCKED) return;
+        if (!el.qCard || el.qCard.style.display === 'none') return;
+
+        const target = e.target;
+        if (!target || typeof target.closest !== 'function') return;
+
+        if (el.exitOverlay && el.exitOverlay.contains(target)) return;
+        if (el.gridOverlay && el.gridOverlay.contains(target)) return;
+        if (el.reviewCard && el.reviewCard.contains(target)) return;
+        if (el.imgOverlay && el.imgOverlay.contains(target)) return;
+        if (el.msgOverlay && el.msgOverlay.contains(target)) return;
+
+
+        const link = target.closest('a');
+        if (!link) return;
+
+        const href = link.getAttribute('href') || '';
+        if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+
+        e.preventDefault();
+        PENDING_NAV_HREF = link.href;
+        openExitOverlay();
+      });
+
+      // === beforeunload ===
+      window.addEventListener('beforeunload', function (e) {
+        if (REVIEW_MODE) return;
+        if (!ATT || !ITEMS.length || LOCKED) return;
+        if (!el.qCard || el.qCard.style.display === 'none') return;
+        e.preventDefault();
+        e.returnValue = '';
+      });
+
+      // Initial review-mode header tweak (only sub text, pill handled by updateFeedbackUI)
+      if (REVIEW_MODE) {
+        const subEl = document.querySelector('#infoCard .sub');
+        if (subEl) subEl.textContent = "Reviewing a completed instant quiz • Answers are read-only";
+      }
+
+      // Init feedbackMode from storage / URL and update UI
+      feedbackMode = loadFeedbackMode();
+      updateFeedbackUI();
+
+      // === BACKGROUND AUTOSAVE (dynamic interval) ===
+      let AUTOSAVE_TIMER_ID = null;
+
+      function startAutosaveLoop() {
+        // Clear any previous loop (safety)
+        if (AUTOSAVE_TIMER_ID !== null) {
+          clearTimeout(AUTOSAVE_TIMER_ID);
+          AUTOSAVE_TIMER_ID = null;
+        }
+
+        function tick() {
+          // Only autosave when:
+          // - Not in review mode
+          // - We have an active attempt
+          // - Quiz not locked/submitted
+          // - Items loaded
+          // - Quiz card is visible (user actually in the quiz)
+          if (!REVIEW_MODE &&
+            ATT && ATT.attempt_id &&
+            !LOCKED &&
+            ITEMS && ITEMS.length &&
+            el.qCard && el.qCard.style.display !== 'none') {
+            // Throttling still enforced inside saveInProgress
+            saveInProgress(false);
+          }
+
+          // Schedule next tick using the CURRENT interval
+          AUTOSAVE_TIMER_ID = setTimeout(tick, AUTOSAVE_INTERVAL_MS);
+        }
+
+        // Kick off the first tick
+        AUTOSAVE_TIMER_ID = setTimeout(tick, AUTOSAVE_INTERVAL_MS);
+      }
+
+      // === INIT: verify auth first, then load attempt ===
+      (async function initGuarded() {
+        log("Checking access...");
+        qaShowLoader("Checking your access...");
+        AUTH = await verifyToken();
+        if (!AUTH) {
+          qaHideLoader();
+          return;
+        }
+        log("Access OK. Loading attempt...");
+        qaShowLoader("Loading your quiz...");
+        await loadAttempt();
+        qaHideLoader();
+
+        // Start dynamic autosave loop after attempt metadata/items are loaded
+        startAutosaveLoop();
+      })();
+    })();
+  </script>
+</body>
+
+</html>
