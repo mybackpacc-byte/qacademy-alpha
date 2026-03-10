@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Messages</title>
+<style>
+  :root{
+    --brand:#0b7a75;
+    --muted:#859998;
+    --ink:#0f172a;
+    --bg:#f6f8f7;
+    --card:#ffffff;
+    --line:#e5e7eb;
+    --soft:rgba(0,0,0,.06);
+    --danger:#b91c1c;
+    --warn:#8f2727;
+    --ok:#0a6c67;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+  }
+  .wrap{
+    max-width:1100px;
+    margin:18px auto;
+    padding:0 12px 22px;
+  }
+
+  /* Full Screen Loader Overlay */
+  #globalLoader {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(2px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .topbar{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:12px;
+    flex-wrap:wrap;
+  }
+  .title{
+    font-weight:800;
+    letter-spacing:-.02em;
+    font-size:18px;
+  }
+  .pill{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 10px;
+    border-radius:999px;
+    background:var(--card);
+    border:1px solid var(--line);
+    box-shadow:0 6px 20px var(--soft);
+    color:#334155;
+    font-size:12px;
+    white-space:nowrap;
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background:var(--card);
+    box-shadow:0 6px 20px var(--soft);
+    font-weight:700;
+    cursor:pointer;
+    color:var(--ink);
+    text-decoration:none;
+    user-select:none;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{
+    background:var(--brand);
+    border-color:var(--brand);
+    color:#fff;
+  }
+  .btn.primary[disabled]{
+    opacity:.65;
+    cursor:not-allowed;
+  }
+  .btn.ghost{
+    background:transparent;
+    box-shadow:none;
+  }
+
+  .top-actions{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+  .helper{
+    width:100%;
+    font-size:12px;
+    color:#64748b;
+    margin-top:-6px;
+    text-align:right;
+  }
+  @media (max-width: 920px){
+    .helper{ text-align:left; }
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns: 360px 1fr;
+    gap:12px;
+  }
+  @media (max-width: 920px){
+    .grid{ grid-template-columns: 1fr; }
+  }
+
+  /* ===========================
+   Mobile: 2-state view (threads vs chat)
+   Desktop stays split-pane
+=========================== */
+@media (max-width: 920px){
+  body[data-view="threads"] .chat-card{ display:none; }
+  body[data-view="chat"] .threads-card{ display:none; }
+
+  /* Make the visible card fill nicely */
+  body[data-view="threads"] .threads{ max-height:72vh; }
+  body[data-view="chat"] .chat{ height:64vh; }
+}
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    box-shadow:0 10px 30px var(--soft);
+    overflow:hidden;
+  }
+
+  /* Threads */
+  .threads-head{
+    padding:12px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .threads-head .sub{
+    font-size:12px;
+    color:#475569;
+  }
+  .threads{
+    max-height:70vh;
+    overflow:auto;
+  }
+  .trow{
+    padding:12px;
+    border-bottom:1px solid var(--line);
+    cursor:pointer;
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+  }
+  .trow:hover{ background:#f8fafc; }
+  .trow.active{ background:#ecfeff; }
+  .dot{
+    width:10px;height:10px;border-radius:999px;
+    margin-top:4px;
+    background:transparent;
+    border:1px solid var(--line);
+    flex:0 0 auto;
+  }
+  .dot.unread{ background:var(--brand); border-color:var(--brand); }
+  .tmeta{ flex:1; min-width:0; }
+  .tline1{
+    display:flex; gap:8px; align-items:center;
+    justify-content:space-between;
+  }
+  .tctx{
+    font-weight:800;
+    font-size:13px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .twhen{
+    font-size:11px;
+    color:#64748b;
+    white-space:nowrap;
+    margin-left:10px;
+  }
+  .tline2{
+    display:flex;
+    gap:8px;
+    margin-top:4px;
+    flex-wrap:wrap;
+  }
+  .chip{
+    font-size:11px;
+    padding:4px 8px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#f8fafc;
+    color:#334155;
+  }
+  .chip.brand{
+    border-color: rgba(11,122,117,.25);
+    background: rgba(11,122,117,.10);
+    color: var(--brand);
+    font-weight:800;
+  }
+  .chip.status-open{
+    border-color: rgba(10,108,103,.25);
+    background: rgba(10,108,103,.10);
+    color: var(--ok);
+    font-weight:800;
+  }
+  .chip.status-closed{
+    border-color: rgba(143,39,39,.25);
+    background: rgba(143,39,39,.10);
+    color: var(--warn);
+    font-weight:800;
+  }
+
+  /* Messages */
+  .chat-head{
+    padding:12px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .chat-title{
+    font-weight:900;
+    font-size:13px;
+    display:flex;
+    gap:8px;
+    align-items:center;
+    min-width:0;
+  }
+  .chat-title .dim{
+    font-weight:700;
+    color:#64748b;
+    font-size:12px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  
+  /* ===== Chat header mobile layout ===== */
+@media (max-width: 920px){
+  .chat-head{
+    align-items:flex-start;
+    gap:10px;
+  }
+
+  /* Make the title block stack into 2 lines */
+  .chat-title{
+    flex:1;
+    min-width:0;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:2px;
+  }
+
+  /* Let subtitle wrap (not squeezed into ellipsis) */
+  .chat-title .dim{
+    white-space:normal;
+    overflow:visible;
+    text-overflow:clip;
+    line-height:1.25;
+  }
+
+  /* Make the back button compact so it doesn't dominate */
+  #btnChatBack.btn{
+    padding:8px 10px;
+    border-radius:12px;
+    font-size:12px;
+    white-space:nowrap;
+  }
+}
+
+  .chat{
+    height:60vh;
+    overflow:auto;
+    padding:12px;
+    background:linear-gradient(180deg,#ffffff,#fbfffe);
+  }
+  @media (max-width: 920px){
+    .chat{ height:52vh; }
+    .threads{ max-height:40vh; }
+  }
+/* When banners live inside the chat scroll area, keep them tight */
+.chat .banner{
+  margin: 0 0 10px 0;
+}
+
+  .msg{
+    display:flex;
+    margin:10px 0;
+  }
+  .bubble{
+    max-width: 85%;
+    padding:10px 12px;
+    border-radius:14px;
+    border:1px solid var(--line);
+    box-shadow:0 8px 18px var(--soft);
+    background:#fff;
+    line-height:1.45;
+    white-space:pre-wrap;
+    word-wrap:break-word;
+  }
+  .msg.user{ justify-content:flex-end; }
+  .msg.user .bubble{
+    background:rgba(11,122,117,.10);
+    border-color: rgba(11,122,117,.25);
+  }
+  .meta{
+    font-size:11px;
+    color:#64748b;
+    margin-top:6px;
+  }
+
+  .composer{
+    border-top:1px solid var(--line);
+    padding:10px;
+    display:flex;
+    gap:10px;
+    align-items:flex-end;
+    background:#fff;
+  }
+  textarea{
+    width:100%;
+    min-height:42px;
+    max-height:140px;
+    resize:vertical;
+    border-radius:12px;
+    border:1px solid var(--line);
+    padding:10px 10px;
+    font-family:inherit;
+    font-size:14px;
+    outline:none;
+  }
+  textarea:focus{
+    border-color: rgba(11,122,117,.55);
+    box-shadow:0 0 0 4px rgba(11,122,117,.12);
+  }
+  textarea[disabled]{
+    opacity:.75;
+    background:#f8fafc;
+    cursor:not-allowed;
+  }
+
+  .hint{
+    font-size:12px;
+    color:#64748b;
+    padding:10px 12px;
+  }
+
+  .err{
+    background:#fef2f2;
+    border:1px solid #fecaca;
+    color:var(--danger);
+    padding:10px 12px;
+    border-radius:12px;
+    margin:12px;
+    font-weight:700;
+    font-size:13px;
+  }
+
+  /* Thread state banner */
+  .banner{
+    margin:12px;
+    border-radius:12px;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    background:#f8fafc;
+    color:#334155;
+    font-size:13px;
+    font-weight:700;
+    display:none;
+    white-space:pre-wrap;
+  }
+  .banner.closed{
+    border-color: rgba(143,39,39,.25);
+    background: rgba(143,39,39,.08);
+    color: var(--warn);
+  }
+  .banner.info{
+    border-color: rgba(11,122,117,.25);
+    background: rgba(11,122,117,.08);
+    color: var(--brand);
+  }
+
+  /* Empty state card */
+  .empty{
+    padding:18px 12px;
+  }
+  .empty h3{
+    margin:0 0 6px;
+    font-size:14px;
+    font-weight:900;
+  }
+  .empty p{
+    margin:0 0 12px;
+    font-size:12px;
+    color:#64748b;
+    line-height:1.5;
+  }
+
+  /* Tiny loader */
+  .spin{
+    display: inline-block;
+    width:14px;height:14px;border-radius:50%;
+    border:2px solid rgba(15,23,42,.15);
+    border-top-color: rgba(15,23,42,.6);
+    animation:spin 1s linear infinite;
+  }
+  .spin-large {
+    width: 40px; height: 40px;
+    border-width: 4px;
+    border-top-color: var(--brand);
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="globalLoader">
+  <div class="spin spin-large"></div>
+  <div id="loaderText" style="font-weight: 700; color: var(--ink);">Please wait...</div>
+</div>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="title">Messages</div>
+
+    <div class="top-actions">
+      <span class="pill" id="qaStatus"><span class="spin"></span> Loading…</span>
+      <a class="btn ghost" href="#" id="btnBack">← Back</a>
+      <button class="btn primary" id="btnNewGeneral" type="button">New message</button>
+      <div class="helper">Reuses your open conversation unless it’s closed.</div>
+    </div>
+  </div>
+
+  <div class="grid">
+<div class="card threads-card">
+      <div class="threads-head">
+        <div>
+          <div style="font-weight:900;">Your threads</div>
+          <div class="sub">Tap any thread to open</div>
+        </div>
+        <button class="btn" id="btnRefresh" type="button">Refresh</button>
+      </div>
+
+      <div id="threadsErr" style="display:none;" class="err"></div>
+      <div class="threads" id="threads"></div>
+
+      <div class="hint" id="threadsHint">Tip: keep messages short and avoid sharing passwords or sensitive personal details.</div>
+    </div>
+
+<div class="card chat-card">
+<div class="chat-head">
+  <button class="btn ghost" id="btnChatBack" type="button" aria-label="Back to threads" style="display:none;">← Threads</button>
+
+  <div class="chat-title">
+    <span id="chatLabel">Select a thread</span>
+    <span class="dim" id="chatSub"></span>
+  </div>
+</div>
+
+
+     <div id="chatErr" style="display:none;" class="err"></div>
+<div id="threadBanner" class="banner"></div>
+
+<div class="chat" id="chat">
+  <!-- These now scroll with the conversation -->
+  <div id="refBox" class="banner info" style="display:none;"></div>
+  <div id="refHelp" class="banner" style="display:none;"></div>
+
+  <!-- Messages will render here -->
+  <div id="chatList">
+    <div class="hint">Choose a thread on the left (or above on mobile). If you came from a course/quiz link, we’ll create the right thread automatically.</div>
+  </div>
+</div>
+
+
+      <div class="composer">
+        <textarea id="msgBox" placeholder="Type your message…"></textarea>
+        <button class="btn primary" id="btnSend" type="button" disabled>Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===========================
+   CONFIG
+=========================== */
+const QA = {
+  MSG_URL: "https://script.google.com/macros/s/AKfycbyyPv8GxEZ4trRpHFVG1IzctDn_1utELw62WBqbJVGmHdRH0PLI5h1jsROsRnA0VGt4/exec",
+  TOKEN_KEY: "qa_token",
+  LOGIN_URL: "/p/login_23.html",
+  BACK_URL: "/p/dashboard_23.html"
+};
+
+/* ===========================
+   Frontend-only restrictions (USER SEND)
+=========================== */
+const QA_SEND_RULES = {
+  MAX_LEN: 800,
+  BLOCK_ANGLE_BRACKETS: true,
+  BLOCK_HTML_TAGS: true,
+  BLOCK_JS_PROTOCOL: true
+};
+
+/* ===========================
+   Helpers
+=========================== */
+function $(id){ return document.getElementById(id); }
+function qs(){ return new URLSearchParams(location.search); }
+function token(){ return localStorage.getItem(QA.TOKEN_KEY) || ""; }
+
+function setGlobalLoader(show, text = "Loading...") {
+  const loader = $("globalLoader");
+  const txt = $("loaderText");
+  txt.textContent = text;
+  loader.style.display = show ? "flex" : "none";
+}
+
+function setView(view){
+  // view: "threads" | "chat"
+  document.body.setAttribute("data-view", view);
+  // mobile UX: keep top-of-pane visible
+  try{ window.scrollTo({ top:0, behavior:"instant" }); }catch(_){ window.scrollTo(0,0); }
+}
+
+function isMobile(){
+  return window.matchMedia && window.matchMedia("(max-width: 920px)").matches;
+}
+
+function syncChatBackVisibility(){
+  const b = $("btnChatBack");
+  if(!b) return;
+  b.style.display = isMobile() ? "inline-flex" : "none";
+}
+  
+  
+function fmtWhen(iso){
+  if(!iso) return "";
+  try{
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {year:"numeric",month:"short",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+  }catch(_){ return iso; }
+}
+
+  function fmtWhenRel(iso){
+  if(!iso) return "";
+  try{
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMin = Math.floor(diffMs / 60000);
+
+    if (diffMin < 1) return "Just now";
+    if (diffMin < 60) return diffMin + "m ago";
+
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return diffHr + "h ago";
+
+    const diffDay = Math.floor(diffHr / 24);
+    if (diffDay === 1) return "Yesterday";
+    if (diffDay < 7) return diffDay + "d ago";
+
+    // fallback short date
+    return d.toLocaleDateString(undefined, { day:"2-digit", month:"short" });
+  }catch(_){
+    return "";
+  }
+}
+
+async function postForm(payload){
+  const body = new URLSearchParams(payload);
+  const r = await fetch(QA.MSG_URL, {
+    method:"POST",
+    headers: {"Content-Type":"application/x-www-form-urlencoded"},
+    body
+  });
+  return await r.json();
+}
+
+function setStatus(txt, ok=true){
+  const el = $("qaStatus");
+  el.innerHTML = ok ? "● " + txt : "⚠ " + txt;
+  el.style.color = ok ? "#0a6c67" : "#b91c1c";
+}
+
+function showErr(id, msg){
+  const el = $(id);
+  if(!msg){ el.style.display="none"; el.textContent=""; return; }
+  el.style.display="block";
+  el.textContent = msg;
+}
+
+/* real escaping (important) */
+function esc(s){
+  return String(s ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#39;");
+}
+
+function setBanner(kind, msg){
+  const el = $("threadBanner");
+  if(!msg){
+    el.style.display = "none";
+    el.className = "banner";
+    el.textContent = "";
+    return;
+  }
+  el.style.display = "block";
+  el.className = "banner " + (kind || "info");
+  el.textContent = msg;
+}
+
+function isThreadClosed(thread){
+  const s = (thread && thread.status ? String(thread.status) : "").toUpperCase();
+  return s === "CLOSED";
+}
+
+/* Validate outbound user messages (frontend-only) */
+function validateOutboundMessage(text){
+  const t = String(text || "").trim();
+  if(!t) return { ok:false, error:"Type a message first." };
+
+  if(t.length > QA_SEND_RULES.MAX_LEN){
+    return { ok:false, error:`Message too long. Keep it under ${QA_SEND_RULES.MAX_LEN} characters.` };
+  }
+
+  if(QA_SEND_RULES.BLOCK_ANGLE_BRACKETS && (t.includes("<") || t.includes(">"))){
+    return { ok:false, error:"HTML is not allowed. Please send plain text only (links are fine as plain text)." };
+  }
+
+  if(QA_SEND_RULES.BLOCK_HTML_TAGS){
+    const tagLike = /<\/?[a-z][\s\S]*?>/i;
+    if(tagLike.test(t)){
+      return { ok:false, error:"HTML tags are not allowed. Please send plain text only." };
+    }
+  }
+
+  if(QA_SEND_RULES.BLOCK_JS_PROTOCOL){
+    const jsProto = /javascript\s*:/i;
+    if(jsProto.test(t)){
+      return { ok:false, error:"That link format is not allowed." };
+    }
+  }
+
+  return { ok:true, value:t };
+}
+
+/* ===========================
+   State
+=========================== */
+let STATE = {
+  threads: [],
+  activeThreadId: "",
+  activeThread: null,
+  busySend: false,
+  busyOpen: false
+};
+
+/* ===========================
+   Local thread patching (no extra backend call)
+=========================== */
+function patchThreadLocally(threadId, patch){
+  const list = STATE.threads || [];
+  for(let i=0;i<list.length;i++){
+    if(list[i].thread_id === threadId){
+      list[i] = Object.assign({}, list[i], patch);
+      break;
+    }
+  }
+}
+
+function markThreadReadLocally(threadId){
+  patchThreadLocally(threadId, { unread:false });
+}
+
+function updateThreadFromOpenLocally(thread){
+  if(!thread || !thread.thread_id) return;
+  const patch = { unread:false };
+  if(thread.status) patch.status = thread.status;
+  if(thread.last_message_at) patch.last_message_at = thread.last_message_at;
+  patchThreadLocally(thread.thread_id, patch);
+}
+
+/* ===========================
+   Ref text helpers
+=========================== */
+function getRefTextFromQuery(){
+  const q = qs();
+  return q.get("ref_text") || q.get("ref") || q.get("rt") || "";
+}
+
+function setRefBox(text){
+  const el = $("refBox");
+  if(!text){
+    el.style.display = "none";
+    el.textContent = "";
+    return;
+  }
+  el.style.display = "block";
+  el.textContent = text;
+}
+
+  function setRefHelp(text){
+  const el = $("refHelp");
+  if(!el) return;
+  if(!text){
+    el.style.display = "none";
+    el.textContent = "";
+    return;
+  }
+  el.style.display = "block";
+  el.textContent = text;
+}
+
+
+/* ===========================
+   Composer control
+=========================== */
+function recomputeSendEnabled(){
+  const box = $("msgBox");
+  const btn = $("btnSend");
+  const textOk = !!(box && box.value && box.value.trim());
+  const threadOk = !!STATE.activeThreadId && STATE.activeThread && !isThreadClosed(STATE.activeThread);
+  const canSend = textOk && threadOk && !STATE.busySend;
+  btn.disabled = !canSend;
+}
+
+function setComposerEnabled(enabled, reasonMsg){
+  const box = $("msgBox");
+  const btn = $("btnSend");
+
+  box.disabled = !enabled;
+  if(!enabled){
+    btn.disabled = true;
+  }else{
+    recomputeSendEnabled();
+  }
+
+  if(!enabled && reasonMsg){
+    setBanner("closed", reasonMsg);
+  }
+}
+
+/* ===========================
+   UI Actions
+=========================== */
+function renderThreads(){
+  const box = $("threads");
+  box.innerHTML = "";
+
+  const list = STATE.threads || [];
+  if(!list.length){
+    box.innerHTML = `
+      <div class="empty">
+        <h3>No messages yet</h3>
+        <p>Start a conversation with QAcademy support. Your open conversation will be reused until it’s closed.</p>
+        <button class="btn primary" id="btnEmptyStart" type="button">Start a message</button>
+      </div>
+    `;
+    setTimeout(()=>{
+      const b = document.getElementById("btnEmptyStart");
+      if(b) b.onclick = () => ensureGeneralFromEmpty();
+    },0);
+    return;
+  }
+
+  list.forEach(t => {
+    const tid = t.thread_id;
+    const isActive = tid === STATE.activeThreadId;
+
+    const ctx = String(t.context_type || "general").toLowerCase();
+    const courseTitle = String(t.course_title || "").trim();
+
+    // Title (human)
+    let title = "Support";
+    if (ctx === "course"){
+      title = (courseTitle || "Course") + " Support";
+    } else if (ctx === "question"){
+      title = "Question Discussion";
+    }
+
+    // Subtitle (optional)
+    let subtitle = "";
+    if (ctx === "question" && courseTitle){
+      subtitle = "From " + courseTitle + " quiz";
+    }
+
+    // Preview
+    const sender = (String(t.last_preview_sender || "").toLowerCase() === "admin") ? "Support" : "You";
+    const preview = String(t.last_preview || "").trim();
+    const previewLine = preview ? (sender + ": " + preview) : "No messages yet";
+
+    // Status chip
+    const st = String(t.status || "").toUpperCase();
+    const statusChip = st ? `<span class="chip ${st==="CLOSED" ? "status-closed":"status-open"}">${esc(st)}</span>` : "";
+
+    const row = document.createElement("div");
+    row.className = "trow" + (isActive ? " active" : "");
+    row.innerHTML = `
+      <span class="dot ${t.unread ? "unread":""}"></span>
+      <div class="tmeta">
+        <div class="tline1">
+          <div class="tctx">${esc(title)}</div>
+          <div class="twhen">${esc(fmtWhenRel(t.last_message_at))}</div>
+        </div>
+        ${subtitle ? `<div style="margin-top:4px;font-size:12px;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(subtitle)}</div>` : ""}
+        <div style="margin-top:6px;font-size:12px;color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          ${esc(previewLine)}
+        </div>
+        <div class="tline2" style="margin-top:8px;">
+          ${statusChip}
+        </div>
+      </div>
+    `;
+    row.onclick = () => openThread(tid);
+    box.appendChild(row);
+  });
+}
+
+
+function renderChat(thread, messages){
+const chat = $("chat");
+const list = $("chatList");
+if(list) list.innerHTML = "";
+  setBanner("", "");
+  setRefBox("");
+  setRefHelp("");
+
+
+  if(!thread){
+list.innerHTML = '<div class="hint">Select a thread to view messages.</div>';
+    $("chatLabel").textContent = "Select a thread";
+    $("chatSub").textContent = "";
+    setComposerEnabled(false);
+    return;
+  }
+
+  const ctx = String(thread.context_type || "general").toLowerCase();
+  const courseTitle = String(thread.course_title || "").trim();
+
+  // Title (human)
+  let title = "Support";
+  if (ctx === "course") title = (courseTitle || "Course") + " Support";
+  else if (ctx === "question") title = "Question Discussion";
+
+  // Subtitle (human)
+  let subtitle = "Ask anything about QAcademy.";
+  if (ctx === "course") subtitle = "Course support";
+  else if (ctx === "question") subtitle = courseTitle ? ("From " + courseTitle + " quiz") : "Course support";
+
+  $("chatLabel").textContent = title;
+  $("chatSub").textContent = subtitle;
+
+
+if(String(thread.context_type || "").toLowerCase() === "question"){
+  const rt = thread.ref_text ? String(thread.ref_text) : "";
+  if(rt){
+    setRefBox("Reference:\n" + rt);
+
+    setRefHelp(
+      "Type your feedback below.\n" +
+      "You can report an issue or share something positive.\n" +
+      "Please mention what part (stem or option) you're referring to, and what you think should change (or what you liked)."
+    );
+  }
+}
+
+
+  (messages || []).forEach(m => {
+    const who = (m.sender_type || "").toLowerCase() === "user" ? "user" : "admin";
+    const row = document.createElement("div");
+    row.className = "msg " + (who === "user" ? "user" : "admin");
+    row.innerHTML = `
+      <div class="bubble">
+        ${esc(m.body_text)}
+        <div class="meta">${esc(who.toUpperCase())} • ${esc(fmtWhen(m.created_at))}</div>
+      </div>
+    `;
+list.appendChild(row);
+  });
+
+  if(isThreadClosed(thread)){
+    setBanner("closed", "🔒 This conversation has been closed by support. You can send a new message when it’s reopened.");
+    setComposerEnabled(false);
+  }else{
+    setComposerEnabled(true);
+  }
+
+  chat.scrollTop = chat.scrollHeight;
+  recomputeSendEnabled();
+}
+
+async function loadThreads(){
+  showErr("threadsErr", "");
+  setStatus("Loading threads…", true);
+  
+  // Use inline button loader for refresh if it was triggered by button
+  const btn = $("btnRefresh");
+  const oldText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spin"></span>`;
+
+  const t = token();
+  if(!t){
+    setStatus("Not logged in", false);
+    location.href = QA.LOGIN_URL;
+    return;
+  }
+
+  try{
+    const res = await postForm({ action:"thread.list", token:t, limit:"80" });
+    if(!res.ok){
+      setStatus("Error", false);
+      showErr("threadsErr", "Threads failed: " + (res.error || "unknown"));
+      return;
+    }
+    STATE.threads = res.threads || [];
+    renderThreads();
+    setStatus("Ready", true);
+  }catch(e){
+    setStatus("Error", false);
+    showErr("threadsErr", "Threads failed: network error");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = oldText;
+  }
+}
+
+async function openThread(threadId){
+  showErr("chatErr", "");
+  const t = token();
+  if(!t){ location.href = QA.LOGIN_URL; return; }
+
+  if(STATE.busyOpen) return;
+  STATE.busyOpen = true;
+
+  STATE.activeThreadId = threadId;
+  renderThreads();
+  setStatus("Opening…", true);
+  setGlobalLoader(true, "Opening conversation...");
+
+  try{
+    const res = await postForm({
+      action:"thread.open",
+      token:t,
+      thread_id: threadId,
+      open_limit:"400"
+    });
+
+    if(!res.ok){
+      setStatus("Error", false);
+      showErr("chatErr", "Open failed: " + (res.error || "unknown"));
+      return;
+    }
+
+    STATE.activeThread = res.thread || null;
+    renderChat(res.thread, res.messages || []);
+    setStatus("Ready", true);
+    
+    setView("chat");
+    syncChatBackVisibility();
+
+
+    markThreadReadLocally(threadId);
+    updateThreadFromOpenLocally(res.thread);
+    renderThreads();
+
+  } catch(e){
+    setStatus("Error", false);
+    showErr("chatErr", "Open failed: network error");
+  } finally {
+    STATE.busyOpen = false;
+    setGlobalLoader(false);
+  }
+}
+
+async function sendMessage(){
+  showErr("chatErr", "");
+  const t = token();
+  if(!t){ location.href = QA.LOGIN_URL; return; }
+  if(!STATE.activeThreadId){
+    showErr("chatErr", "Select a thread first.");
+    return;
+  }
+
+  if(STATE.activeThread && isThreadClosed(STATE.activeThread)){
+    showErr("chatErr", "This thread is closed. You can’t send a message here.");
+    return;
+  }
+
+  if(STATE.busySend) return;
+
+  const box = $("msgBox");
+  const v = validateOutboundMessage(box.value);
+  if(!v.ok){
+    showErr("chatErr", v.error);
+    return;
+  }
+
+  STATE.busySend = true;
+
+  const sendBtn = $("btnSend");
+  sendBtn.disabled = true;
+  $("msgBox").disabled = true;
+  sendBtn.innerHTML = `<span class="spin"></span> Sending…`;
+  setStatus("Sending…", true);
+
+  try{
+    const res = await postForm({
+      action:"message.send",
+      token:t,
+      thread_id: STATE.activeThreadId,
+      body_text: v.value
+    });
+
+    if(!res.ok){
+      setStatus("Error", false);
+      showErr("chatErr", "Send failed: " + (res.error || "unknown"));
+      return;
+    }
+
+    box.value = "";
+    await openThread(STATE.activeThreadId);
+    setStatus("Ready", true);
+
+  } catch(e){
+    setStatus("Error", false);
+    showErr("chatErr", "Send failed: network error");
+  } finally {
+    sendBtn.innerHTML = `Send`;
+    $("msgBox").disabled = false;
+    STATE.busySend = false;
+    recomputeSendEnabled();
+  }
+}
+
+async function ensureFromQuery(){
+  const t = token();
+  if(!t) return;
+
+  const q = qs();
+  const context = (q.get("context_type") || q.get("context") || "").toLowerCase();
+  if(!context) return;
+
+  const payload = { action:"thread.ensure", token:t, context_type: context };
+
+  const refText = getRefTextFromQuery();
+  if(refText) payload.ref_text = refText;
+
+  if(context === "course" || context === "question"){
+    payload.course_id = q.get("course_id") || q.get("cid") || "";
+  }
+  if(context === "question"){
+    payload.question_id = q.get("question_id") || q.get("qid") || "";
+    payload.attempt_id  = q.get("attempt_id")  || q.get("aid") || "";
+    payload.quiz_id     = q.get("quiz_id")     || q.get("quiz") || "";
+  }
+
+  setStatus("Preparing thread…", true);
+  setGlobalLoader(true, "Preparing your conversation...");
+
+  try{
+    const res = await postForm(payload);
+    if(res.ok && res.thread_id){
+      await loadThreads();
+      await openThread(res.thread_id);
+    }else if(res && !res.ok){
+      showErr("chatErr", "Thread ensure failed: " + (res.error || "unknown"));
+    }
+  }catch(e){
+    showErr("chatErr", "Thread ensure failed: network error");
+  } finally {
+    setGlobalLoader(false);
+  }
+}
+
+async function ensureGeneralFromEmpty(){
+  const t = token();
+  if(!t){ location.href = QA.LOGIN_URL; return; }
+  setStatus("Creating…", true);
+  setGlobalLoader(true, "Creating new message...");
+
+  try{
+    const res = await postForm({ action:"thread.ensure", token:t, context_type:"general" });
+    if(res.ok && res.thread_id){
+      await loadThreads();
+      await openThread(res.thread_id);
+    }else{
+      setStatus("Error", false);
+      showErr("chatErr", "Create failed: " + (res.error || "unknown"));
+    }
+  }catch(e){
+    setStatus("Error", false);
+    showErr("chatErr", "Create failed: network error");
+  } finally {
+    setGlobalLoader(false);
+  }
+}
+
+/* ===========================
+   Boot
+=========================== */
+$("btnBack").href = QA.BACK_URL;
+
+$("btnRefresh").onclick = loadThreads;
+
+$("btnNewGeneral").onclick = async () => {
+  const t = token();
+  if(!t){ location.href = QA.LOGIN_URL; return; }
+  
+  const btn = $("btnNewGeneral");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spin"></span> Creating…`;
+
+  try {
+    await ensureGeneralFromEmpty();
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `New message`;
+  }
+};
+
+$("btnSend").onclick = sendMessage;
+  
+$("btnChatBack").onclick = () => {
+  setView("threads");
+};
+  
+
+$("msgBox").addEventListener("keydown", (e)=>{
+  if(e.key === "Enter" && (e.ctrlKey || e.metaKey)){
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+$("msgBox").addEventListener("input", ()=>{
+  recomputeSendEnabled();
+});
+
+(async function init(){
+  setGlobalLoader(true, "Checking session...");
+  setStatus("Checking session…", true);
+  
+  setView("threads");
+  syncChatBackVisibility();
+  window.addEventListener("resize", syncChatBackVisibility);
+
+  
+  if(!token()){
+    setStatus("Not logged in", false);
+    location.href = QA.LOGIN_URL;
+    return;
+  }
+  
+  try {
+    await loadThreads();
+    await ensureFromQuery();
+    setStatus("Ready", true);
+  } catch(e) {
+    setStatus("Initialization Error", false);
+  } finally {
+    setGlobalLoader(false);
+  }
+})();
+</script>
+</body>
+</html>
