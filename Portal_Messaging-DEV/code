@@ -1,0 +1,1530 @@
+/** ============================================================
+ * QAcademy Portal — Messaging Service (PortalMessaging)
+ * Single-file WebApp providing messaging endpoints.
+ * Auth is delegated to PortalAuthv2 via verify(token).
+ * Data stored in SPREADSHEET_ID tabs: threads, messages (+ reads users/products/subscriptions/courses).
+ * ============================================================ */
+
+/* ========= CONFIG ========= */
+const BUILD = 'msg-v1-2025-12-18-patched';
+
+// Your Portal DB Spreadsheet ID (same one used by PortalAuthv2)
+const SPREADSHEET_ID = '1Aq0IaPOjC1Vo4bQb8aP0S0bO5EaeUx_4oYUlnJ2g2vc';
+
+// PortalAuthv2 WebApp URL (same as QA_CONFIG.AUTH_URL in your frontend)
+const AUTH_URL = 'https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec';
+
+// Sheet names (in SPREADSHEET_ID)
+const SH_USERS         = 'users';
+const SH_PRODUCTS      = 'products';
+const SH_SUBSCRIPTIONS = 'subscriptions';
+const SH_COURSES       = 'courses';
+const SH_PROGRAMS      = 'programs';
+const SH_THREADS       = 'threads';
+const SH_MESSAGES      = 'messages';
+
+// Limits
+const MSG_MAX_LEN = 2000;
+const BULK_MAX_RECIPIENTS = 200;
+const LIST_LIMIT_DEFAULT = 50;
+const OPEN_LIMIT_DEFAULT = 300; // max messages returned per open
+
+// Rate-limits (soft)
+const RL_SEND_PER_MIN_USER = 20;
+const RL_SEND_PER_MIN_ADMIN = 60;
+const RL_BULK_PER_10MIN_ADMIN = 5;
+
+/* ========= HTTP ========= */
+function doGet(e){
+  const a = String((e && e.parameter && e.parameter.action) || '').trim().toLowerCase();
+  if (a === 'health') return _json({ ok:true, service:'QAcademyMessaging', build:BUILD, now:_iso(new Date()) });
+  return _json({ ok:true, service:'QAcademyMessaging', build:BUILD, now:_iso(new Date()) });
+}
+
+function doPost(e){
+  try{
+    const p = (e && e.parameter) || {};
+    let body = {};
+    try { body = JSON.parse((e.postData && e.postData.contents) || '{}'); } catch(_) { body = {}; }
+
+    let action = String((p.action || body.action || '')).trim().toLowerCase();
+    if (!action) return _json({ ok:false, error:'missing_action' });
+
+    // Common inputs
+    const token = String((p.token || body.token || '')).trim();
+
+    // Thread/message inputs
+    const thread_id    = String((p.thread_id || body.thread_id || '')).trim();
+    const context_type = String((p.context_type || body.context_type || '')).trim();
+    const course_id    = String((p.course_id || body.course_id || '')).trim();
+    const quiz_id      = String((p.quiz_id || body.quiz_id || '')).trim();
+    const attempt_id   = String((p.attempt_id || body.attempt_id || '')).trim();
+    const question_id  = String((p.question_id || body.question_id || '')).trim();
+    const ref_text     = String((p.ref_text || body.ref_text || '')).trim();
+    const body_text    = (p.body_text || body.body_text || '');
+
+    // Add near other common inputs (top of doPost):
+    const bulk_context_type = String((p.bulk_context_type || body.bulk_context_type || p.context_type || body.context_type || '')).trim();
+    const bulk_course_id    = String((p.bulk_course_id    || body.bulk_course_id    || p.course_id    || body.course_id    || '')).trim();
+    const bulk_ref_text     = String((p.bulk_ref_text     || body.bulk_ref_text     || p.ref_text     || body.ref_text     || '')).trim();
+    const all_active = _toBool(p.all_active ?? body.all_active ?? false);
+    const include_inactive = _toBool(p.include_inactive ?? body.include_inactive ?? false);
+
+    // ✅ NEW: force single-recipient mode for admin.bulk.send
+    const force_single = _toBool(p.force_single ?? body.force_single ?? false);
+
+    // Admin list filters
+    const status          = String((p.status || body.status || '')).trim();
+    const unread_only     = String((p.unread_only || body.unread_only || '')).trim();
+    const query           = String((p.query || body.query || '')).trim();
+    const context_type_f  = String((p.context_type || body.context_type || '')).trim(); // PATCH: admin list filter wiring
+    const limit_str       = String((p.limit || body.limit || '')).trim();
+    const limit           = _toInt(limit_str, LIST_LIMIT_DEFAULT);
+
+    // Bulk fields
+    const subject = String((p.subject || body.subject || '')).trim();
+
+    const program_ids        = (p.program_ids        ?? body.program_ids        ?? []);
+    const course_ids         = (p.course_ids         ?? body.course_ids         ?? []);
+    const product_ids        = (p.product_ids        ?? body.product_ids        ?? []);
+    const subscription_kinds = (p.subscription_kinds ?? body.subscription_kinds ?? []);
+    const cohort_ids         = (p.cohort_ids         ?? body.cohort_ids         ?? []);
+    const level_ids          = (p.level_ids          ?? body.level_ids          ?? []);
+    const user_ids           = (p.user_ids           ?? body.user_ids           ?? []);
+
+    // Ensure sheets exist (cheap check; creates headers if missing)
+    _ensureMessagingSheets_();
+
+    // ----- USER endpoints -----
+    if (action === 'thread.ensure') {
+      const ctx = _verifyViaAuth_(token);
+      if (!ctx.ok) return _json(ctx);
+      if (!ctx.user || !ctx.user.user_id) return _json({ ok:false, error:'user_missing' });
+      if (!_toBool(ctx.user_active)) return _json({ ok:false, error:'user_inactive' });
+
+      return _json(_threadEnsure_(ctx, {
+        context_type,
+        course_id,
+        quiz_id,
+        attempt_id,
+        question_id,
+        ref_text
+      }));
+    }
+
+    if (action === 'thread.list') {
+      const ctx = _verifyViaAuth_(token);
+      if (!ctx.ok) return _json(ctx);
+      if (!ctx.user || !ctx.user.user_id) return _json({ ok:false, error:'user_missing' });
+      if (!_toBool(ctx.user_active)) return _json({ ok:false, error:'user_inactive' });
+
+      return _json(_threadListUser_(ctx, limit));
+    }
+
+    if (action === 'thread.open') {
+      const ctx = _verifyViaAuth_(token);
+      if (!ctx.ok) return _json(ctx);
+      if (!ctx.user || !ctx.user.user_id) return _json({ ok:false, error:'user_missing' });
+      if (!_toBool(ctx.user_active)) return _json({ ok:false, error:'user_inactive' });
+      if (!thread_id) return _json({ ok:false, error:'missing_thread_id' });
+
+      return _json(_threadOpenUser_(ctx, thread_id, _toInt(String(p.open_limit || body.open_limit || ''), OPEN_LIMIT_DEFAULT)));
+    }
+
+    if (action === 'message.send') {
+      const ctx = _verifyViaAuth_(token);
+      if (!ctx.ok) return _json(ctx);
+      if (!ctx.user || !ctx.user.user_id) return _json({ ok:false, error:'user_missing' });
+      if (!_toBool(ctx.user_active)) return _json({ ok:false, error:'user_inactive' });
+
+      return _json(_messageSendUser_(ctx, thread_id, body_text));
+    }
+
+    if (action === 'message.unread.count') {
+      const ctx = _verifyViaAuth_(token);
+      if (!ctx.ok) return _json(ctx);
+      if (!ctx.user || !ctx.user.user_id) return _json({ ok:false, error:'user_missing' });
+      if (!_toBool(ctx.user_active)) return _json({ ok:false, error:'user_inactive' });
+
+      return _json(_unreadCountUser_(ctx));
+    }
+
+    // ----- ADMIN endpoints -----
+    if (action.startsWith('admin.')) {
+      const ctx = _verifyViaAuth_(token);
+      if (!ctx.ok) return _json(ctx);
+      if (!ctx.user || !ctx.user.user_id) return _json({ ok:false, error:'user_missing' });
+      if (!_toBool(ctx.user_active)) return _json({ ok:false, error:'user_inactive' });
+      if (!ctx.is_admin) return _json({ ok:false, error:'forbidden' });
+
+      if (action === 'admin.user.search')
+        return _json(_adminUserSearch_(ctx, query, limit));
+
+      if (action === 'admin.thread.list')
+        return _json(_adminThreadList_(ctx, { status, unread_only, query, limit, context_type: context_type_f })); // PATCH
+
+      if (action === 'admin.thread.open')
+        return _json(_adminThreadOpen_(ctx, thread_id, _toInt(String(p.open_limit || body.open_limit || ''), OPEN_LIMIT_DEFAULT)));
+
+      if (action === 'admin.scope.meta')
+        return _json(_adminScopeMeta_(ctx));
+
+
+      if (action === 'admin.thread.reply')
+        return _json(_adminThreadReply_(ctx, thread_id, body_text));
+
+      if (action === 'admin.thread.close')
+        return _json(_adminThreadSetStatus_(ctx, thread_id, 'closed'));
+
+      if (action === 'admin.thread.reopen')
+        return _json(_adminThreadSetStatus_(ctx, thread_id, 'open'));
+
+      if (action === 'admin.bulk.send') {
+        return _json(_adminBulkSend_(ctx, {
+          subject,
+          body_text,
+          program_ids, course_ids, product_ids, subscription_kinds, cohort_ids, level_ids, user_ids,
+          context_type: bulk_context_type,
+          course_id: bulk_course_id,
+          ref_text: bulk_ref_text,
+          all_active,
+          include_inactive,
+          // ✅ NEW
+          force_single
+        }));
+      }
+
+      return _json({ ok:false, error:'unknown_action' });
+    }
+
+    return _json({ ok:false, error:'unknown_action' });
+  } catch(err){
+    return _json({ ok:false, error:String(err && (err.stack || err)) });
+  }
+}
+
+/* ========= AUTH DELEGATION ========= */
+
+/**
+ * Calls PortalAuthv2 verify(token) and returns:
+ * {
+ *   ok, user, flags, is_admin, user_active
+ * }
+ */
+function _verifyViaAuth_(token){
+  token = String(token || '').trim();
+  if (!token) return { ok:false, error:'missing_token' };
+
+  // Cache verify results briefly to reduce latency
+  const cache = CacheService.getScriptCache();
+  const ck = 'vfy:' + _sha256Short_(token);
+  const cached = cache.get(ck);
+  if (cached) {
+    try { return JSON.parse(cached); } catch(_) {}
+  }
+
+  let res;
+  try{
+    const url = AUTH_URL + '?action=verify&token=' + encodeURIComponent(token);
+    const r = UrlFetchApp.fetch(url, { method:'get', muteHttpExceptions:true });
+    const txt = r.getContentText() || '';
+    res = JSON.parse(txt);
+  } catch(e){
+    return { ok:false, error:'auth_verify_failed', note:String(e) };
+  }
+
+  if (!res || res.ok !== true) {
+    return { ok:false, error:(res && res.error) ? res.error : 'invalid_token' };
+  }
+
+  const user = res.user || {};
+  const flags = res.flags || {};
+
+  // PATCH: user_active should NOT always become true
+  const hasActive = Object.prototype.hasOwnProperty.call(user, 'active');
+  const user_active = hasActive ? _toBool(user.active) : true;
+
+  const out = {
+    ok: true,
+    user: user,
+    flags: flags,
+    is_admin: !!flags.is_admin,
+    user_active: user_active
+  };
+
+  // Cache 30 seconds
+  try { cache.put(ck, JSON.stringify(out), 30); } catch(_) {}
+  return out;
+}
+
+/* ========= DOMAIN: THREAD ENSURE ========= */
+
+function _threadEnsure_(ctx, args){
+  const user_id = String(ctx.user.user_id || '').trim();
+  const context_type = String(args.context_type || '').trim().toLowerCase();
+  const course_id    = String(args.course_id || '').trim();
+  const quiz_id      = String(args.quiz_id || '').trim();
+  const attempt_id   = String(args.attempt_id || '').trim();
+  const question_id  = String(args.question_id || '').trim();
+  const ref_text     = String(args.ref_text || '').trim();
+
+  const allowed = { general:1, course:1, question:1 };
+  if (!allowed[context_type]) return { ok:false, error:'invalid_context_type' };
+
+  if (context_type === 'course' && !course_id) return { ok:false, error:'missing_course_id' };
+  if (context_type === 'question') {
+    if (!course_id) return { ok:false, error:'missing_course_id' };
+    if (!question_id) return { ok:false, error:'missing_question_id' };
+  }
+
+  const nowIso = _iso(new Date());
+  const threads = _sheetObjs_(SH_THREADS);
+
+  // Reuse rules: general/course reuse open; question always create new
+  if (context_type !== 'question') {
+    for (let i = threads.rows.length - 1; i >= 0; i--){
+      const r = threads.rows[i];
+      if (String(r.user_id || '') !== user_id) continue;
+      if (String(r.status || '').toLowerCase() !== 'open') continue;
+      if (String(r.context_type || '').toLowerCase() !== context_type) continue;
+
+      if (context_type === 'course' && String(r.course_id || '') !== course_id) continue;
+
+      // PATCH: refresh context fields when reusing an open thread (prevents stale ref_text)
+      const patch = {};
+      if (ref_text && String(r.ref_text || '') !== ref_text) patch.ref_text = ref_text;
+      if (quiz_id && String(r.quiz_id || '') !== quiz_id) patch.quiz_id = quiz_id;
+      if (attempt_id && String(r.attempt_id || '') !== attempt_id) patch.attempt_id = attempt_id;
+      if (question_id && String(r.question_id || '') !== question_id) patch.question_id = question_id;
+      if (Object.keys(patch).length) _updateThreadSummary_(threads, i, patch);
+
+      return { ok:true, thread_id: String(r.thread_id || ''), created:false };
+    }
+  }
+
+  const thread_id_new = _id_('THR');
+
+  const obj = {
+    thread_id: thread_id_new,
+    user_id: user_id,
+    status: 'open',
+    context_type: context_type,
+    bulk_batch_id: '',
+    course_id: course_id,
+    quiz_id: quiz_id,
+    attempt_id: attempt_id,
+    question_id: question_id,
+    ref_text: ref_text,
+    created_at: nowIso,
+    last_message_at: nowIso,
+    last_sender: 'user'
+  };
+
+  _appendObj_(threads.sh, threads.headers, obj);
+
+  return { ok:true, thread_id: thread_id_new, created:true };
+}
+
+/* ========= DOMAIN: USER LIST/OPEN/SEND ========= */
+
+function _threadListUser_(ctx, limit){
+  limit = Math.max(1, Math.min(_toInt(limit, LIST_LIMIT_DEFAULT), 200));
+  const user_id = String(ctx.user.user_id || '').trim();
+
+  const threads = _sheetObjs_(SH_THREADS);
+  const msgs = _sheetObjs_(SH_MESSAGES);
+
+  // Course titles map
+  const courseTitleById = _getCourseTitleMap_();
+
+  // 1) Get all threads for this user
+  const userThreads = threads.rows.filter(r => String(r.user_id||'') === user_id);
+
+  // If no threads, return quickly
+  if (!userThreads.length){
+    return { ok:true, threads: [] };
+  }
+
+  const threadIdSet = new Set(userThreads.map(r => String(r.thread_id||'')).filter(Boolean));
+
+  // 2) Compute:
+  // - unreadByThread: if any message has read_by_user=false
+  // - lastMsgByThread: latest message per thread (by created_at lexical ISO)
+  const unreadByThread = new Set();
+  const lastMsgByThread = {}; // tid -> { created_at, sender_type, body_text }
+
+  for (const m of msgs.rows){
+    const tid = String(m.thread_id||'');
+    if (!threadIdSet.has(tid)) continue;
+
+    if (_toBool(m.read_by_user) === false){
+      unreadByThread.add(tid);
+    }
+
+    const created = String(m.created_at||'');
+    if (!created) continue;
+
+    const cur = lastMsgByThread[tid];
+    if (!cur || created.localeCompare(cur.created_at) > 0){
+      lastMsgByThread[tid] = {
+        created_at: created,
+        sender_type: String(m.sender_type||'').toLowerCase(),
+        body_text: String(m.body_text||'')
+      };
+    }
+  }
+
+  // 3) Sort threads by last_message_at desc (existing behavior)
+  userThreads.sort((a,b) => String(b.last_message_at||'').localeCompare(String(a.last_message_at||'')));
+
+  // 4) Build enriched output (USER-SAFE)
+  const out = [];
+  for (const t of userThreads.slice(0, limit)){
+    const tid = String(t.thread_id||'');
+    const course_id = String(t.course_id||'').trim();
+
+    const lm = lastMsgByThread[tid] || null;
+    const sender = lm && lm.sender_type ? lm.sender_type : String(t.last_sender||'').toLowerCase();
+    const preview = lm ? _previewText_(lm.body_text, 90) : '';
+
+    out.push({
+      thread_id: tid,
+      status: String(t.status||'open'),
+      context_type: String(t.context_type||'general'),
+      course_id: course_id, // kept internally for open/ensure logic, but frontend will display title
+      course_title: course_id ? (courseTitleById[course_id] || '') : '',
+      last_message_at: String(t.last_message_at||''),
+      last_preview_sender: (sender === 'admin' ? 'admin' : 'user'),
+      last_preview: preview,
+      unread: unreadByThread.has(tid)
+    });
+  }
+
+  return { ok:true, threads: out };
+}
+
+function _threadOpenUser_(ctx, thread_id, open_limit){
+  const user_id = String(ctx.user.user_id || '').trim();
+  thread_id = String(thread_id || '').trim();
+  if (!thread_id) return { ok:false, error:'missing_thread_id' };
+
+  open_limit = Math.max(1, Math.min(_toInt(open_limit, OPEN_LIMIT_DEFAULT), 800));
+
+  const threads = _sheetObjs_(SH_THREADS);
+  const msgs = _sheetObjs_(SH_MESSAGES);
+  const courseTitleById = _getCourseTitleMap_();
+
+  const t = threads.rows.find(r => String(r.thread_id||'') === thread_id);
+  if (!t) return { ok:false, error:'thread_not_found' };
+  const cid = String(t.course_id || '').trim();
+  const course_title = cid ? (courseTitleById[cid] || '') : '';
+  if (String(t.user_id||'') !== user_id) return { ok:false, error:'forbidden' };
+
+  // Mark all messages read_by_user = TRUE
+  _markRead_(msgs, thread_id, 'user');
+
+  // Return messages for this thread, sorted by created_at asc
+  const items = msgs.rows
+    .filter(m => String(m.thread_id||'') === thread_id)
+    .sort((a,b) => String(a.created_at||'').localeCompare(String(b.created_at||'')))
+    .slice(-open_limit)
+    .map(m => ({
+      message_id: String(m.message_id||''),
+      sender_type: String(m.sender_type||''),
+      sender_id: String(m.sender_id||''),
+      body_text: String(m.body_text||''),
+      created_at: String(m.created_at||'')
+    }));
+
+  return {
+    ok:true,
+    thread: {
+      thread_id: String(t.thread_id||''),
+      status: String(t.status||'open'),
+      context_type: String(t.context_type||'general'),
+      bulk_batch_id: String(t.bulk_batch_id||''),
+      course_id: String(t.course_id||''),
+      course_title: course_title,
+      quiz_id: String(t.quiz_id||''),
+      attempt_id: String(t.attempt_id||''),
+      question_id: String(t.question_id||''),
+      ref_text: String(t.ref_text||''),
+      created_at: String(t.created_at||''),
+      last_message_at: String(t.last_message_at||''),
+      last_sender: String(t.last_sender||'')
+    },
+    messages: items
+  };
+}
+
+function _messageSendUser_(ctx, thread_id, body_text){
+  const user_id = String(ctx.user.user_id || '').trim();
+  thread_id = String(thread_id || '').trim();
+
+  if (!thread_id) return { ok:false, error:'missing_thread_id' };
+
+  // rate limit
+  const rl = _rlHit_('sendU:' + user_id, 60, RL_SEND_PER_MIN_USER);
+  if (!rl.ok) return { ok:false, error:'rate_limited' };
+
+  const text = _sanitizeText_(body_text);
+  if (!text) return { ok:false, error:'empty_message' };
+  if (text.length > MSG_MAX_LEN) return { ok:false, error:'message_too_long' };
+
+  const threads = _sheetObjs_(SH_THREADS);
+  const msgs = _sheetObjs_(SH_MESSAGES);
+
+  const idx = threads.rows.findIndex(r => String(r.thread_id||'') === thread_id);
+  if (idx < 0) return { ok:false, error:'thread_not_found' };
+
+  const t = threads.rows[idx];
+  if (String(t.user_id||'') !== user_id) return { ok:false, error:'forbidden' };
+  if (String(t.status||'').toLowerCase() !== 'open') return { ok:false, error:'thread_closed' };
+
+  const nowIso = _iso(new Date());
+  const msg_id = _id_('MSG');
+
+  const m = {
+    message_id: msg_id,
+    thread_id: thread_id,
+    sender_type: 'user',
+    sender_id: user_id,
+    body_text: text,
+    created_at: nowIso,
+    read_by_user: true,
+    read_by_admin: false
+  };
+  _appendObj_(msgs.sh, msgs.headers, m);
+
+  // Update thread summary
+  _updateThreadSummary_(threads, idx, { last_message_at: nowIso, last_sender: 'user' });
+
+  return { ok:true, message_id: msg_id, thread_id: thread_id };
+}
+
+function _unreadCountUser_(ctx){
+  const user_id = String(ctx.user.user_id || '').trim();
+
+  const threads = _sheetObjs_(SH_THREADS);
+  const msgs = _sheetObjs_(SH_MESSAGES);
+
+  // 1) Get all threads for this user
+  const userThreads = threads.rows.filter(r => String(r.user_id||'') === user_id);
+  const threadIdSet = new Set(userThreads.map(r => String(r.thread_id||'')));
+
+  // 2) Count threads that have at least one unread ADMIN -> USER message
+  const unreadThreads = new Set();
+  for (const m of msgs.rows){
+    const tid = String(m.thread_id||'');
+    if (!threadIdSet.has(tid)) continue;
+
+    // only admin messages matter for "new messages" on the user's dashboard
+    if (String(m.sender_type||'').toLowerCase() !== 'admin') continue;
+
+    if (_toBool(m.read_by_user) === false) unreadThreads.add(tid);
+  }
+
+  return { ok:true, new_threads: unreadThreads.size };
+}
+
+/* ========= DOMAIN: ADMIN ========= */
+
+function _adminThreadList_(ctx, filters){
+  const limit = Math.max(1, Math.min(_toInt(filters.limit, LIST_LIMIT_DEFAULT), 300));
+  const q = String(filters.query||'').trim().toLowerCase();
+  const wantStatus  = String(filters.status||'').trim().toLowerCase();
+  const wantContext = String(filters.context_type||'').trim().toLowerCase(); // now wired
+  const unreadOnly  = _toBool(filters.unread_only);
+
+  const threads = _sheetObjs_(SH_THREADS);
+  const msgs = _sheetObjs_(SH_MESSAGES);
+
+  // Unread threads for admin = any message with read_by_admin === false
+  const unreadByThread = new Set();
+  for (const m of msgs.rows){
+    if (_toBool(m.read_by_admin) === false) unreadByThread.add(String(m.thread_id||''));
+  }
+
+  let rows = threads.rows.slice();
+
+  if (wantStatus)  rows = rows.filter(r => String(r.status||'').toLowerCase() === wantStatus);
+  if (wantContext) rows = rows.filter(r => String(r.context_type||'').toLowerCase() === wantContext);
+  if (unreadOnly)  rows = rows.filter(r => unreadByThread.has(String(r.thread_id||'')));
+
+  if (q) {
+    rows = rows.filter(r => {
+      const uid = String(r.user_id||'').toLowerCase();
+      const tid = String(r.thread_id||'').toLowerCase();
+      const cid = String(r.course_id||'').toLowerCase();
+      const qid = String(r.question_id||'').toLowerCase();
+      const rt  = String(r.ref_text||'').toLowerCase();
+      return uid.includes(q) || tid.includes(q) || cid.includes(q) || qid.includes(q) || rt.includes(q);
+    });
+  }
+
+  rows.sort((a,b) => String(b.last_message_at||'').localeCompare(String(a.last_message_at||'')));
+
+  const out = rows.slice(0, limit).map(t => {
+    const tid = String(t.thread_id||'');
+    const threadObj = {
+      thread_id: tid,
+      user_id: String(t.user_id||''),
+      status: String(t.status||'open'),
+      context_type: String(t.context_type||'general'),
+      bulk_batch_id: String(t.bulk_batch_id||''),
+      course_id: String(t.course_id||''),
+      quiz_id: String(t.quiz_id||''),
+      attempt_id: String(t.attempt_id||''),
+      question_id: String(t.question_id||''),
+      ref_text: String(t.ref_text||''),               // keep for search + admin UI
+      created_at: String(t.created_at||''),           // safe for admin
+      last_message_at: String(t.last_message_at||''),
+      last_sender: String(t.last_sender||''),
+      unread: unreadByThread.has(tid)
+    };
+
+    // Add owner_name/owner_email/owner_label for admin UI
+    _enrichThreadWithOwner_(threadObj);
+
+    return threadObj;
+  });
+
+  return { ok:true, threads: out };
+}
+
+
+function _adminThreadOpen_(ctx, thread_id, open_limit){
+  thread_id = String(thread_id || '').trim();
+  if (!thread_id) return { ok:false, error:'missing_thread_id' };
+
+  open_limit = Math.max(1, Math.min(_toInt(open_limit, OPEN_LIMIT_DEFAULT), 800));
+
+  const threads = _sheetObjs_(SH_THREADS);
+  const msgs = _sheetObjs_(SH_MESSAGES);
+
+  const t = threads.rows.find(r => String(r.thread_id||'') === thread_id);
+  if (!t) return { ok:false, error:'thread_not_found' };
+
+  _markRead_(msgs, thread_id, 'admin');
+
+  const items = msgs.rows
+    .filter(m => String(m.thread_id||'') === thread_id)
+    .sort((a,b) => String(a.created_at||'').localeCompare(String(b.created_at||'')))
+    .slice(-open_limit)
+    .map(m => ({
+      message_id: String(m.message_id||''),
+      sender_type: String(m.sender_type||''),
+      sender_id: String(m.sender_id||''),
+      body_text: String(m.body_text||''),
+      created_at: String(m.created_at||'')
+    }));
+
+  const threadObj = {
+    thread_id: String(t.thread_id||''),
+    user_id: String(t.user_id||''),
+    status: String(t.status||'open'),
+    context_type: String(t.context_type||'general'),
+    bulk_batch_id: String(t.bulk_batch_id||''),
+    course_id: String(t.course_id||''),
+    quiz_id: String(t.quiz_id||''),
+    attempt_id: String(t.attempt_id||''),
+    question_id: String(t.question_id||''),
+    ref_text: String(t.ref_text||''),
+    created_at: String(t.created_at||''),
+    last_message_at: String(t.last_message_at||''),
+    last_sender: String(t.last_sender||'')
+  };
+
+  _enrichThreadWithOwner_(threadObj);
+
+  return {
+    ok:true,
+    thread: threadObj,
+    messages: items
+  };
+
+}
+
+function _adminThreadReply_(ctx, thread_id, body_text){
+  const admin_id = String(ctx.user.user_id || '').trim();
+  thread_id = String(thread_id || '').trim();
+  if (!thread_id) return { ok:false, error:'missing_thread_id' };
+
+  const rl = _rlHit_('sendA:' + admin_id, 60, RL_SEND_PER_MIN_ADMIN);
+  if (!rl.ok) return { ok:false, error:'rate_limited' };
+
+  const text = _sanitizeText_(body_text);
+  if (!text) return { ok:false, error:'empty_message' };
+  if (text.length > MSG_MAX_LEN) return { ok:false, error:'message_too_long' };
+
+  const threads = _sheetObjs_(SH_THREADS);
+  const msgs = _sheetObjs_(SH_MESSAGES);
+
+  const idx = threads.rows.findIndex(r => String(r.thread_id||'') === thread_id);
+  if (idx < 0) return { ok:false, error:'thread_not_found' };
+
+  const t = threads.rows[idx];
+  if (String(t.status||'').toLowerCase() !== 'open') return { ok:false, error:'thread_closed' };
+
+  const nowIso = _iso(new Date());
+  const msg_id = _id_('MSG');
+
+  const m = {
+    message_id: msg_id,
+    thread_id: thread_id,
+    sender_type: 'admin',
+    sender_id: admin_id,
+    body_text: text,
+    created_at: nowIso,
+    read_by_user: false,
+    read_by_admin: true
+  };
+  _appendObj_(msgs.sh, msgs.headers, m);
+
+  _updateThreadSummary_(threads, idx, { last_message_at: nowIso, last_sender: 'admin' });
+
+  return { ok:true, message_id: msg_id, thread_id: thread_id };
+}
+
+function _adminThreadSetStatus_(ctx, thread_id, status){
+  thread_id = String(thread_id || '').trim();
+  status = String(status || '').trim().toLowerCase();
+  if (!thread_id) return { ok:false, error:'missing_thread_id' };
+  if (status !== 'open' && status !== 'closed') return { ok:false, error:'invalid_status' };
+
+  const threads = _sheetObjs_(SH_THREADS);
+  const idx = threads.rows.findIndex(r => String(r.thread_id||'') === thread_id);
+  if (idx < 0) return { ok:false, error:'thread_not_found' };
+
+  _updateThreadSummary_(threads, idx, { status: status });
+
+  return { ok:true, thread_id: thread_id, status: status };
+}
+
+/* ========= DOMAIN: ADMIN SCOPE META (suggestions) =========
+   Returns available scope values based on actual sheet data:
+   1) programs.program_ids
+   2) courses.course_id
+   3) products.product_id
+   4) products.kind
+   5) users.cohort
+   6) users.level
+*/
+function _adminScopeMeta_(ctx){
+  if (!ctx || !ctx.is_admin) return { ok:false, error:'forbidden' };
+
+  const cache = CacheService.getScriptCache();
+  const ck = 'msg:scope_meta:v2';
+  const cached = cache.get(ck);
+  if (cached){
+    try { return JSON.parse(cached); } catch(_) {}
+  }
+
+  const warnings = [];
+
+  function uniqSorted_(arr){
+    const out = Array.from(new Set((arr||[]).map(x => String(x||'').trim()).filter(Boolean)));
+    out.sort((a,b)=>a.localeCompare(b));
+    return out;
+  }
+
+  // NEW: fetch values using primary header OR fallbacks
+  function colValuesFlex_(sheetName, headerCandidates){
+    try{
+      const shObj = _sheetObjs_(sheetName);
+      const headers = shObj.headers || [];
+      if (!headers.length) return [];
+
+      // pick the first candidate that exists
+      let picked = "";
+      for (const h of headerCandidates){
+        if (headers.indexOf(h) >= 0){ picked = h; break; }
+      }
+
+      if (!picked){
+        warnings.push('missing_col:' + sheetName + '.(' + headerCandidates.join('|') + ')');
+        return [];
+      }
+
+      return shObj.rows.map(r => r[picked]);
+    }catch(e){
+      warnings.push('missing_sheet:' + sheetName);
+      return [];
+    }
+  }
+
+  // PROGRAM IDS (supports single id per row or CSV per row)
+  let program_ids = [];
+  const progVals = colValuesFlex_(SH_PROGRAMS, ['program_ids','program_id','id']);
+  for (const v of progVals){
+    const s = String(v||'').trim();
+    if (!s) continue;
+    const parts = s.split(',').map(x=>String(x||'').trim()).filter(Boolean);
+    program_ids.push(...parts);
+  }
+  program_ids = uniqSorted_(program_ids);
+
+  // COURSE IDS
+  const course_ids = uniqSorted_(
+    colValuesFlex_(SH_COURSES, ['course_id','course_ids','id','course','code'])
+  );
+
+  // PRODUCT IDS
+  const product_ids = uniqSorted_(
+    colValuesFlex_(SH_PRODUCTS, ['product_id','product_ids','id','product'])
+  );
+
+  // SUBSCRIPTION KINDS
+  const subscription_kinds = uniqSorted_(
+    colValuesFlex_(SH_PRODUCTS, ['kind','subscription_kind','subscription_kinds','type'])
+      .map(x=>String(x||'').toUpperCase().trim())
+      .filter(Boolean)
+  );
+
+  // COHORT / LEVEL
+  const cohort_ids = uniqSorted_(colValuesFlex_(SH_USERS, ['cohort','cohort_id','cohort_ids']));
+  const level_ids  = uniqSorted_(colValuesFlex_(SH_USERS, ['level','level_id','level_ids']));
+
+  const out = {
+    ok:true,
+    build: BUILD,
+    programs: { program_ids },
+    courses:  { course_ids },
+    products: { product_ids, subscription_kinds },
+    users:    { cohort_ids, level_ids },
+    warnings
+  };
+
+  try { cache.put(ck, JSON.stringify(out), 600); } catch(_) {}
+  return out;
+}
+
+
+function _adminUserSearch_(ctx, query, limit){
+  const q = String(query || '').trim().toLowerCase();
+  limit = Math.max(1, Math.min(_toInt(limit, 10), 50)); // allow a bit more for admin
+
+  // Small guard: avoid returning huge lists on empty queries
+  if (!q || q.length < 2){
+    return { ok:true, users: [] };
+  }
+
+  const usersSh = _sheetObjs_(SH_USERS);
+  const rows = usersSh.rows || [];
+
+  function scoreMatch_(hay){
+    hay = String(hay || '').trim().toLowerCase();
+    if (!hay) return 0;
+    if (hay === q) return 100;
+    if (hay.startsWith(q)) return 80;
+    if (hay.includes(q)) return 50;
+    return 0;
+  }
+
+  const out = [];
+  for (const u of rows){
+    const user_id = String(u.user_id || '').trim();
+    const email   = String(u.email || '').trim();
+    const name    = String(u.name || u.full_name || '').trim(); // supports either header
+    const program_id = String(u.program_id || '').trim();
+
+    const isActive = _toBool(u.active) === true;
+
+    const score = Math.max(
+      scoreMatch_(user_id),
+      scoreMatch_(email),
+      scoreMatch_(name),
+      scoreMatch_(program_id)
+    );
+
+    if (score <= 0) continue;
+
+    out.push({
+      score,
+      user_id,
+      name,
+      email,
+      program_id,
+      active: isActive,
+      status: isActive ? "ACTIVE" : "INACTIVE"
+    });
+  }
+
+  // Sort best matches first, then ACTIVE above INACTIVE, then user_id
+  out.sort((a,b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (a.active !== b.active) return (b.active ? 1 : 0) - (a.active ? 1 : 0);
+    return String(a.user_id).localeCompare(String(b.user_id));
+  });
+
+  return {
+    ok:true,
+    users: out.slice(0, limit).map(x => ({
+      user_id: x.user_id,
+      name: x.name,
+      email: x.email,
+      program_id: x.program_id,
+      active: x.active,
+      status: x.status
+    }))
+  };
+}
+
+/* ========= DOMAIN: ADMIN BULK SEND ========= */
+
+/* 3) Patch _adminBulkSend_ to use general/course threads (NO admin_bulk)
+   - Also supports "send to one user" (admin-initiated) by passing user_ids with 1 entry.
+*/
+
+function _adminBulkSend_(ctx, payload){
+  const admin_id = String(ctx.user.user_id || '').trim();
+  const text = _sanitizeText_(payload.body_text);
+  const subject = String(payload.subject||'').trim();
+
+  if (!text) return { ok:false, error:'empty_message' };
+  if (text.length > MSG_MAX_LEN) return { ok:false, error:'message_too_long' };
+
+  // NEW: flags
+  const all_active = _toBool(payload.all_active);
+  const include_inactive = _toBool(payload.include_inactive);
+
+  // ✅ NEW: hard single-recipient override
+  const force_single = _toBool(payload.force_single);
+
+  // Normalize scope arrays FIRST (handles URL-encoded comma strings)
+  const scope = {
+    program_ids: _normArr_(payload.program_ids),
+    course_ids: _normArr_(payload.course_ids),
+    product_ids: _normArr_(payload.product_ids),
+    subscription_kinds: _normArr_(payload.subscription_kinds),
+    cohort_ids: _normArr_(payload.cohort_ids),
+    level_ids: _normArr_(payload.level_ids),
+    user_ids: _normArr_(payload.user_ids)
+  };
+
+  // SAFETY: prevent accidental "send to everyone"
+  // Patch: allow if all_active === true
+  const hasAnyScope =
+    scope.program_ids.length ||
+    scope.course_ids.length ||
+    scope.product_ids.length ||
+    scope.subscription_kinds.length ||
+    scope.cohort_ids.length ||
+    scope.level_ids.length ||
+    scope.user_ids.length;
+
+  if (!hasAnyScope && !all_active) {
+    return { ok:false, error:'missing_scope' };
+  }
+
+  // Single-user detection (after normalization)
+  const isSingleUser =
+    (scope.user_ids.length === 1) &&
+    !scope.program_ids.length &&
+    !scope.course_ids.length &&
+    !scope.product_ids.length &&
+    !scope.subscription_kinds.length &&
+    !scope.cohort_ids.length &&
+    !scope.level_ids.length &&
+    !all_active; // if all_active true, treat as bulk
+
+  // Rate-limit: single user uses admin send limiter; otherwise bulk limiter
+  if (isSingleUser || (force_single && scope.user_ids.length)) {
+    const rlA = _rlHit_('sendA:' + admin_id, 60, RL_SEND_PER_MIN_ADMIN);
+    if (!rlA.ok) return { ok:false, error:'rate_limited' };
+  } else {
+    const rlB = _rlHit_('bulk:' + admin_id, 600, RL_BULK_PER_10MIN_ADMIN);
+    if (!rlB.ok) return { ok:false, error:'rate_limited' };
+  }
+
+  // Thread context
+  let context_type = String(payload.context_type || 'general').trim().toLowerCase();
+  let course_id    = String(payload.course_id || '').trim();
+  const ref_text   = String(payload.ref_text || '').trim();
+
+  if (!context_type) context_type = 'general';
+  if (context_type !== 'general' && context_type !== 'course') {
+    return { ok:false, error:'invalid_context_type' };
+  }
+  if (context_type === 'course' && !course_id) return { ok:false, error:'missing_course_id' };
+
+  // Resolve recipients
+  let recipients = [];
+
+  // ✅ HARD SINGLE-RECIPIENT OVERRIDE:
+  // If force_single=true and one-or-more user_ids provided, send ONLY to those user_ids.
+  if (force_single && scope.user_ids.length) {
+    recipients = Array.from(new Set(scope.user_ids)).filter(Boolean);
+  } else if (all_active) {
+    // all_active: pull from users directly
+    const users = _sheetObjs_(SH_USERS).rows || [];
+    const base = include_inactive ? users : users.filter(u => _toBool(u.active) === true);
+    recipients = base.map(u => String(u.user_id||'').trim()).filter(Boolean);
+
+    // If someone also typed user_ids, union them in (useful for “all + extra”)
+    for (const uid of scope.user_ids) if (uid) recipients.push(uid);
+
+    // De-dupe
+    recipients = Array.from(new Set(recipients));
+  } else {
+    const resolved = _resolveRecipients_(scope, { include_inactive: include_inactive });
+    if (!resolved.ok) return resolved;
+    recipients = resolved.user_ids || [];
+  }
+
+  if (recipients.length === 0) return { ok:false, error:'no_recipients' };
+  if (recipients.length > BULK_MAX_RECIPIENTS) {
+    return { ok:false, error:'too_many_recipients', resolved_count: recipients.length };
+  }
+
+  const bulk_batch_id = 'BULK_' + _isoCompact_(new Date()) + '_' + _rand4_();
+  const nowIso = _iso(new Date());
+
+  const threads = _sheetObjs_(SH_THREADS);
+  const msgs = _sheetObjs_(SH_MESSAGES);
+
+  let created_threads = 0;
+  let reused_threads = 0;
+
+  for (const uid of recipients){
+    const ensured = _ensureThreadForUser_(threads, uid, {
+      context_type,
+      course_id,
+      ref_text,
+      bulk_batch_id,
+      created_by:'admin',
+      nowIso
+    });
+    if (!ensured.ok) continue;
+
+    if (ensured.created) created_threads++;
+    else reused_threads++;
+
+    const msg_id = _id_('MSG');
+    const m = {
+      message_id: msg_id,
+      thread_id: ensured.thread_id,
+      sender_type: 'admin',
+      sender_id: admin_id,
+      body_text: (subject ? ('[' + subject + ']\n' + text) : text),
+      created_at: nowIso,
+      read_by_user: false,
+      read_by_admin: true
+    };
+    _appendObj_(msgs.sh, msgs.headers, m);
+
+    const idx = _findThreadIndexById_(threads, ensured.thread_id);
+    if (idx >= 0) _updateThreadSummary_(threads, idx, { last_message_at: nowIso, last_sender:'admin' });
+  }
+
+  return {
+    ok:true,
+    bulk_batch_id,
+    resolved_count: recipients.length,
+    created_threads,
+    reused_threads,
+    context_type,
+    course_id,
+    all_active: all_active,
+    include_inactive: include_inactive,
+    force_single: force_single
+  };
+}
+
+/* ========= SCOPE RESOLUTION ========= */
+
+function _resolveRecipients_(scope, opts){
+  opts = opts || {};
+  const include_inactive = !!opts.include_inactive;
+  // AND across fields, OR within each field; user_ids is union override.
+  // Sources:
+  // users: user_id, program_id, cohort, level, active (TRUE/FALSE)
+  // subscriptions: user_id, product_id, status (ACTIVE/EXPIRED), start_utc, expires_utc
+  // products: product_id, kind (PAID/TRIAL/FREE), courses_included
+  // courses scope uses entitlement: active subscription -> product -> courses_included contains course_id
+
+  const users = _sheetObjs_(SH_USERS).rows;
+  const subs = _sheetObjs_(SH_SUBSCRIPTIONS).rows;
+  const prods = _sheetObjs_(SH_PRODUCTS).rows;
+
+  const prodById = new Map(prods.map(p => [String(p.product_id||''), p]));
+  const activeSubs = subs.filter(s => String(s.status||'').toUpperCase() === 'ACTIVE');
+
+  // Build helper maps
+  const userHasActiveProduct = new Map(); // user_id -> Set(product_id)
+  for (const s of activeSubs){
+    const uid = String(s.user_id||'');
+    const pid = String(s.product_id||'');
+    if (!uid || !pid) continue;
+    if (!userHasActiveProduct.has(uid)) userHasActiveProduct.set(uid, new Set());
+    userHasActiveProduct.get(uid).add(pid);
+  }
+
+  const userHasKind = new Map(); // user_id -> Set(kind)
+  for (const [uid, setP] of userHasActiveProduct.entries()){
+    const ks = new Set();
+    for (const pid of setP){
+      const pr = prodById.get(pid);
+      const k = pr ? String(pr.kind||'').toUpperCase().trim() : '';
+      if (k) ks.add(k);
+    }
+    userHasKind.set(uid, ks);
+  }
+
+  const userHasCourse = new Map(); // user_id -> Set(course_id) from active products.courses_included
+  for (const [uid, setP] of userHasActiveProduct.entries()){
+    const cs = new Set();
+    for (const pid of setP){
+      const pr = prodById.get(pid);
+      const incl = pr ? String(pr.courses_included||'') : '';
+      _splitList_(incl).forEach(c => { if (c) cs.add(c); });
+    }
+    userHasCourse.set(uid, cs);
+  }
+
+  // Filters to apply (AND)
+  const filters = [];
+
+  if (scope.program_ids.length) {
+    const want = new Set(scope.program_ids);
+    filters.push(u => want.has(String(u.program_id||'').trim()));
+  }
+  if (scope.cohort_ids.length) {
+    const want = new Set(scope.cohort_ids);
+    filters.push(u => want.has(String(u.cohort||'').trim()));
+  }
+  if (scope.level_ids.length) {
+    const want = new Set(scope.level_ids);
+    filters.push(u => want.has(String(u.level||'').trim()));
+  }
+  if (scope.product_ids.length) {
+    const want = new Set(scope.product_ids);
+    filters.push(u => {
+      const setP = userHasActiveProduct.get(String(u.user_id||'')) || new Set();
+      for (const pid of setP) if (want.has(pid)) return true;
+      return false;
+    });
+  }
+  if (scope.subscription_kinds.length) {
+    const want = new Set(scope.subscription_kinds.map(x => String(x).toUpperCase().trim()));
+    filters.push(u => {
+      const ks = userHasKind.get(String(u.user_id||'')) || new Set();
+      for (const k of ks) if (want.has(k)) return true;
+      return false;
+    });
+  }
+  if (scope.course_ids.length) {
+    const want = new Set(scope.course_ids);
+    filters.push(u => {
+      const cs = userHasCourse.get(String(u.user_id||'')) || new Set();
+      for (const c of cs) if (want.has(c)) return true;
+      return false;
+    });
+  }
+
+  // Apply AND filters to users; always require user.active == TRUE
+  let base = include_inactive ? users.slice() : users.filter(u => _toBool(u.active) === true);
+
+  for (const fn of filters){
+    base = base.filter(fn);
+  }
+
+  const setOut = new Set(base.map(u => String(u.user_id||'').trim()).filter(Boolean));
+
+  // Union override user_ids (even if they don't match filters)
+  for (const uid of scope.user_ids){
+    if (uid) setOut.add(uid);
+  }
+
+  // Final: keep only active users (unless include_inactive)
+  let final = Array.from(setOut);
+  if (!include_inactive) {
+    const activeSet = new Set(users.filter(u => _toBool(u.active) === true).map(u => String(u.user_id||'').trim()));
+    final = final.filter(uid => activeSet.has(uid));
+  }
+
+  return { ok:true, user_ids: final };
+}
+
+/* ========= STORAGE HELPERS ========= */
+
+function _ensureMessagingSheets_(){
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+
+  // threads
+  let sh = ss.getSheetByName(SH_THREADS);
+  if (!sh) sh = ss.insertSheet(SH_THREADS);
+  const th = _headers_(sh);
+  if (th.length === 0) {
+    sh.getRange(1,1,1,13).setValues([[
+      'thread_id','user_id','status','context_type','bulk_batch_id','course_id','quiz_id','attempt_id','question_id',
+      'ref_text',
+      'created_at','last_message_at','last_sender'
+    ]]);
+  }
+
+  // messages
+  let sh2 = ss.getSheetByName(SH_MESSAGES);
+  if (!sh2) sh2 = ss.insertSheet(SH_MESSAGES);
+  const mh = _headers_(sh2);
+  if (mh.length === 0) {
+    sh2.getRange(1,1,1,8).setValues([[
+      'message_id','thread_id','sender_type','sender_id','body_text','created_at','read_by_user','read_by_admin'
+    ]]);
+  }
+}
+
+function _sheetObjs_(sheetName){
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sh = ss.getSheetByName(sheetName);
+  if (!sh) throw new Error('missing_sheet:' + sheetName);
+
+  const headers = _headers_(sh);
+  const lastRow = sh.getLastRow();
+  if (headers.length === 0) return { sh, headers:[], rows:[] };
+  if (lastRow <= 1) return { sh, headers, rows:[] };
+
+  const values = sh.getRange(2,1,lastRow-1,headers.length).getValues();
+  const rows = values.map(r => _rowToObj_(headers, r));
+  return { sh, headers, rows };
+}
+
+function _headers_(sh){
+  const lastCol = sh.getLastColumn();
+  if (lastCol <= 0) return [];
+
+  const raw = sh.getRange(1,1,1,lastCol).getValues()[0];
+
+  // PATCH: don’t collapse columns; keep alignment stable.
+  // - Trim strings
+  // - Replace internal empty headers with placeholder names (col_#)
+  // - Drop only trailing empties
+  const h = raw.map(x => String(x||'').trim());
+  let end = h.length;
+  while (end > 0 && !h[end-1]) end--;
+  const out = [];
+  for (let i=0;i<end;i++){
+    out.push(h[i] ? h[i] : ('col_' + (i+1)));
+  }
+  return out;
+}
+
+function _rowToObj_(headers, row){
+  const o = {};
+  for (let i=0;i<headers.length;i++){
+    o[headers[i]] = row[i];
+  }
+  return o;
+}
+
+function _appendObj_(sh, headers, obj){
+  const row = headers.map(h => (obj[h] !== undefined ? obj[h] : ''));
+  sh.appendRow(row);
+}
+
+function _updateThreadSummary_(threads, idx, patch){
+  const sh = threads.sh;
+  const headers = threads.headers;
+  const rowIndex = idx + 2; // because data starts at row 2
+
+  const current = threads.rows[idx] || {};
+  const next = Object.assign({}, current, patch);
+
+  const row = headers.map(h => (next[h] !== undefined ? next[h] : ''));
+  sh.getRange(rowIndex, 1, 1, headers.length).setValues([row]);
+
+  threads.rows[idx] = next;
+}
+
+function _findThreadIndexById_(threads, thread_id){
+  for (let i=0;i<threads.rows.length;i++){
+    if (String(threads.rows[i].thread_id||'') === thread_id) return i;
+  }
+  return -1;
+}
+
+function _markRead_(msgs, thread_id, who){
+  const sh = msgs.sh;
+  const headers = msgs.headers;
+
+  const readKey = (who === 'admin') ? 'read_by_admin' : 'read_by_user';
+
+  const colIdx = headers.indexOf(readKey);
+  const threadIdx = headers.indexOf('thread_id');
+  if (colIdx < 0 || threadIdx < 0) return;
+
+  const lastRow = sh.getLastRow();
+  if (lastRow <= 1) return;
+
+  const dataRange = sh.getRange(2,1,lastRow-1,headers.length);
+  const values = dataRange.getValues();
+
+  let changed = false;
+  for (let i=0;i<values.length;i++){
+    const tid = String(values[i][threadIdx]||'');
+    if (tid !== thread_id) continue;
+
+    const cur = _toBool(values[i][colIdx]);
+    if (cur === false) {
+      values[i][colIdx] = true;
+      changed = true;
+    }
+  }
+  if (changed) dataRange.setValues(values);
+}
+
+/* 2) Add a new helper: ensure thread for ANY user (admin or user flows)
+   - Reuse OPEN general/course
+   - Question always creates new (kept, though admin-init likely uses general/course)
+*/
+
+function _ensureThreadForUser_(threadsSheetObj, user_id, args){
+  const context_type = String(args.context_type || 'general').trim().toLowerCase();
+  const course_id    = String(args.course_id || '').trim();
+  const quiz_id      = String(args.quiz_id || '').trim();
+  const attempt_id   = String(args.attempt_id || '').trim();
+  const question_id  = String(args.question_id || '').trim();
+  const ref_text     = String(args.ref_text || '').trim();
+  const bulk_batch_id= String(args.bulk_batch_id || '').trim();
+  const created_by   = String(args.created_by || 'user').trim().toLowerCase(); // 'admin' | 'user'
+  const nowIso       = String(args.nowIso || _iso(new Date()));
+
+  const allowed = { general:1, course:1, question:1 };
+  if (!allowed[context_type]) return { ok:false, error:'invalid_context_type' };
+
+  if (context_type === 'course' && !course_id) return { ok:false, error:'missing_course_id' };
+  if (context_type === 'question') {
+    if (!course_id) return { ok:false, error:'missing_course_id' };
+    if (!question_id) return { ok:false, error:'missing_question_id' };
+  }
+
+  // Reuse rules: general/course reuse open; question always new
+  if (context_type !== 'question') {
+    for (let i = threadsSheetObj.rows.length - 1; i >= 0; i--){
+      const r = threadsSheetObj.rows[i];
+      if (String(r.user_id||'') !== String(user_id||'')) continue;
+      if (String(r.status||'').toLowerCase() !== 'open') continue;
+      if (String(r.context_type||'').toLowerCase() !== context_type) continue;
+      if (context_type === 'course' && String(r.course_id||'') !== course_id) continue;
+
+      // Optional traceability stamp (does NOT change thread type)
+      const patch = {};
+      if (bulk_batch_id) patch.bulk_batch_id = bulk_batch_id;
+
+      // If admin is initiating with a new ref_text etc, you MAY keep this off.
+      // Keeping it on is fine; it won’t break user UI.
+      if (ref_text && String(r.ref_text||'') !== ref_text) patch.ref_text = ref_text;
+      if (quiz_id && String(r.quiz_id||'') !== quiz_id) patch.quiz_id = quiz_id;
+      if (attempt_id && String(r.attempt_id||'') !== attempt_id) patch.attempt_id = attempt_id;
+      if (question_id && String(r.question_id||'') !== question_id) patch.question_id = question_id;
+
+      if (Object.keys(patch).length) _updateThreadSummary_(threadsSheetObj, i, patch);
+      return { ok:true, thread_id:String(r.thread_id||''), created:false };
+    }
+  }
+
+  const thread_id_new = _id_('THR');
+
+  const obj = {
+    thread_id: thread_id_new,
+    user_id: String(user_id||''),
+    status: 'open',
+    context_type: context_type,
+    bulk_batch_id: bulk_batch_id || '',
+    course_id: course_id,
+    quiz_id: quiz_id,
+    attempt_id: attempt_id,
+    question_id: question_id,
+    ref_text: ref_text,
+    created_at: nowIso,
+    last_message_at: nowIso,
+    last_sender: (created_by === 'admin' ? 'admin' : 'user')
+  };
+
+  _appendObj_(threadsSheetObj.sh, threadsSheetObj.headers, obj);
+  // keep local snapshot in sync (important for later _findThreadIndexById_)
+  threadsSheetObj.rows.push(obj);
+
+  return { ok:true, thread_id: thread_id_new, created:true };
+}
+
+/* ========= OWNER ENRICH (human-readable thread owner) ========= */
+
+function _getUserMapById_(){
+  // Cache for 60s to reduce sheet reads
+  const cache = CacheService.getScriptCache();
+  const ck = 'msg:user_map:v1';
+  const cached = cache.get(ck);
+  if (cached){
+    try { return JSON.parse(cached); } catch(_) {}
+  }
+
+  let map = {};
+  try{
+    const users = _sheetObjs_(SH_USERS);
+    for (const r of (users.rows || [])){
+      const uid = String(r.user_id || '').trim();
+      if (!uid) continue;
+
+      const name = String(r.name || r.full_name || '').trim();
+      const email = String(r.email || '').trim();
+      const program_id = String(r.program_id || '').trim();
+
+      map[uid] = { user_id: uid, name, email, program_id };
+    }
+  }catch(_){
+    map = {};
+  }
+
+  try { cache.put(ck, JSON.stringify(map), 60); } catch(_) {}
+  return map;
+}
+
+function _enrichThreadWithOwner_(threadObj){
+  // Mutates the object: adds owner_name/owner_email/owner_label
+  if (!threadObj) return threadObj;
+
+  const uid = String(threadObj.user_id || '').trim();
+  if (!uid){
+    threadObj.owner_name = '';
+    threadObj.owner_email = '';
+    threadObj.owner_label = '';
+    return threadObj;
+  }
+
+  const map = _getUserMapById_();
+  const u = map[uid] || null;
+
+  const name = u ? String(u.name || '').trim() : '';
+  const email = u ? String(u.email || '').trim() : '';
+  const program_id = u ? String(u.program_id || '').trim() : '';
+
+  // owner_label: best single-line identifier for admin UI
+  // Example: "Ama Mensah • ama@gmail.com • RN"
+  const parts = [];
+  if (name) parts.push(name);
+  if (email) parts.push(email);
+  if (program_id) parts.push(program_id);
+
+  threadObj.owner_name = name;
+  threadObj.owner_email = email;
+  threadObj.owner_label = parts.join(' • ');
+
+  return threadObj;
+}
+
+
+/* ========= UTIL ========= */
+
+/* ========= COURSES LOOKUP (for user display) ========= */
+
+function _getCourseTitleMap_(){
+  // Cache 5 minutes to reduce sheet reads
+  const cache = CacheService.getScriptCache();
+  const ck = 'courses:title_map:v1';
+  const cached = cache.get(ck);
+  if (cached){
+    try { return JSON.parse(cached); } catch(_) {}
+  }
+
+  let map = {};
+  try{
+    const courses = _sheetObjs_(SH_COURSES); // uses existing helper
+    // Expected headers include: course_id, title
+    for (const r of courses.rows){
+      const id = String(r.course_id || '').trim();
+      const title = String(r.title || '').trim();
+      if (id && title) map[id] = title;
+    }
+  }catch(_){
+    map = {};
+  }
+
+  try { cache.put(ck, JSON.stringify(map), 300); } catch(_) {}
+  return map;
+}
+
+function _previewText_(s, maxLen){
+  maxLen = Math.max(20, Math.min(parseInt(maxLen || 90, 10) || 90, 200));
+  let t = String(s || '').trim();
+  if (!t) return '';
+  // collapse whitespace/newlines
+  t = t.replace(/\s+/g, ' ').trim();
+  if (t.length <= maxLen) return t;
+  return t.slice(0, maxLen - 1).trim() + '…';
+}
+
+function _json(obj){
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function _sanitizeText_(x){
+  let s = String(x || '');
+  s = s.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  s = s.trim();
+  return s;
+}
+
+function _toInt(x, def){
+  const n = parseInt(String(x||''), 10);
+  return isNaN(n) ? def : n;
+}
+
+function _toBool(x){
+  if (typeof x === 'boolean') return x;
+  const s = String(x||'').trim().toLowerCase();
+  if (s === 'true' || s === '1' || s === 'yes') return true;
+  if (s === 'false' || s === '0' || s === 'no' || s === '') return false;
+  return !!x;
+}
+
+function _iso(d){
+  return new Date(d).toISOString();
+}
+
+function _isoCompact_(d){
+  const s = new Date(d).toISOString();
+  return s.replace(/[-:]/g,'').replace('.000Z','Z').replace('T','_');
+}
+
+function _id_(prefix){
+  return String(prefix || 'ID') + '_' + Utilities.getUuid().replace(/-/g,'').slice(0,16).toUpperCase();
+}
+
+function _rand4_(){
+  return Math.random().toString(16).slice(2,6).toUpperCase();
+}
+
+function _splitList_(s){
+  return String(s||'')
+    .split(/[,\s]+/)
+    .map(x => String(x||'').trim())
+    .filter(Boolean);
+}
+
+function _normArr_(v){
+  if (Array.isArray(v)) return v.map(x => String(x||'').trim()).filter(Boolean);
+  const s = String(v||'').trim();
+  if (!s) return [];
+  return s.split(',').map(x => String(x||'').trim()).filter(Boolean);
+}
+
+function _sha256Short_(s){
+  const raw = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(s||''), Utilities.Charset.UTF_8);
+  return raw.map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('').slice(0,24);
+}
+
+function _rlHit_(key, windowSec, maxHits){
+  try{
+    const cache = CacheService.getScriptCache();
+    const k = 'rl:' + key;
+    const cur = parseInt(cache.get(k) || '0', 10) || 0;
+    if (cur >= maxHits) return { ok:false };
+    cache.put(k, String(cur + 1), Math.max(5, windowSec));
+    return { ok:true };
+  } catch(e){
+    return { ok:true }; // fail-open
+  }
+}
