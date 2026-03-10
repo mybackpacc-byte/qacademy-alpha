@@ -1,0 +1,1733 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Teacher Results</title>
+
+<style>
+  :root{
+    --brand:#0b7a75;
+    --muted:#859998;
+    --ink:#1f2a28;
+    --bg:#f6f8f7;
+    --card:#ffffff;
+    --line:rgba(0,0,0,.08);
+    --soft:rgba(0,0,0,.04);
+    --danger:#b42318;
+    --ok:#027a48;
+    --warn:#b45309;
+
+    --radius:16px;
+    --shadow:0 10px 30px rgba(0,0,0,.08);
+    --pageMax:1400px;
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  }
+
+  .qa-app{
+    min-height:100vh;
+    width:100vw;
+    position:relative;
+    left:50%;
+    right:50%;
+    margin-left:-50vw;
+    margin-right:-50vw;
+  }
+
+  a{color:var(--brand);text-decoration:none}
+
+  .topbar{
+    position:sticky; top:0; z-index:30;
+    background:rgba(246,248,247,.92);
+    backdrop-filter:saturate(1.2) blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .topbar-inner{
+    max-width:var(--pageMax);
+    margin:0 auto;
+    padding:14px 14px;
+    display:flex;
+    gap:12px;
+    align-items:center;
+    justify-content:space-between;
+  }
+
+  .brand{display:flex; align-items:center; gap:10px; min-width:240px;}
+  .logo{
+    width:38px; height:38px; border-radius:12px;
+    background:linear-gradient(135deg, rgba(11,122,117,.18), rgba(133,153,152,.10));
+    border:1px solid rgba(11,122,117,.25);
+    display:grid; place-items:center;
+    box-shadow:0 10px 20px rgba(11,122,117,.10);
+    color:var(--brand);
+    font-weight:900;
+    letter-spacing:.2px;
+  }
+  .brand h1{font-size:16px; margin:0; line-height:1.1}
+  .brand .sub{font-size:12px; color:rgba(31,42,40,.7)}
+
+  .actions{display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:flex-end;}
+
+  .btn{
+    border:1px solid var(--line);
+    background:var(--card);
+    color:var(--ink);
+    padding:10px 12px;
+    border-radius:12px;
+    cursor:pointer;
+    font-weight:750;
+    font-size:13px;
+    display:inline-flex;
+    gap:8px;
+    align-items:center;
+  }
+  .btn:hover{background:rgba(255,255,255,.92)}
+  .btn.primary{
+    background:var(--brand);
+    border-color:rgba(11,122,117,.35);
+    color:#fff;
+  }
+  .btn.primary:hover{filter:brightness(.98)}
+  .btn.danger{
+    border-color:rgba(180,35,24,.25);
+    color:var(--danger);
+    background:rgba(180,35,24,.04);
+  }
+  .btn.danger:hover{background:rgba(180,35,24,.06)}
+  .btn.ghost{
+    background:transparent;
+    border-color:transparent;
+  }
+  .btn.ghost:hover{background:rgba(0,0,0,.04); border-color:var(--line)}
+  .btn[disabled]{opacity:.55; cursor:not-allowed}
+
+  .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:6px 10px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:var(--card);
+    font-size:12px;
+    color:rgba(31,42,40,.75);
+    white-space:nowrap;
+  }
+  .chip strong{color:var(--ink)}
+  .chip.ok{border-color:rgba(2,122,72,.22); background:rgba(2,122,72,.06); color:rgba(2,122,72,.95)}
+  .chip.warn{border-color:rgba(245,158,11,.25); background:rgba(245,158,11,.07); color:rgba(146,64,14,.95)}
+  .chip.bad{border-color:rgba(180,35,24,.25); background:rgba(180,35,24,.06); color:rgba(180,35,24,.95)}
+  .chip.mini{padding:4px 8px; font-size:11px}
+
+  .container{max-width:var(--pageMax); margin:0 auto; padding:14px;}
+
+  .grid{
+    display:grid;
+    grid-template-columns: 380px 1fr;
+    gap:14px;
+    align-items:start;
+  }
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+
+  .panel-header{
+    padding:12px 12px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    gap:10px;
+    align-items:center;
+    justify-content:space-between;
+    background:linear-gradient(180deg, rgba(11,122,117,.05), rgba(255,255,255,0));
+  }
+  .panel-header h2{margin:0;font-size:14px}
+  .panel-body{padding:12px}
+
+  .muted{color:rgba(31,42,40,.68); font-size:12px}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+
+  .field{display:flex; flex-direction:column; gap:6px; margin-bottom:10px;}
+  .label{font-size:12px; color:rgba(31,42,40,.78); font-weight:800}
+  .input, .select{
+    width:100%;
+    padding:10px 10px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    outline:none;
+    background:#fff;
+    color:var(--ink);
+    font-size:13px;
+  }
+  .input:focus, .select:focus{
+    border-color:rgba(11,122,117,.35);
+    box-shadow:0 0 0 3px rgba(11,122,117,.10);
+  }
+
+  .hr{height:1px; background:var(--line); margin:12px 0}
+
+  .tabs{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;}
+  .tab{
+    padding:8px 10px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    cursor:pointer;
+    font-size:12px;
+    font-weight:800;
+  }
+  .tab.active{
+    background:rgba(11,122,117,.10);
+    border-color:rgba(11,122,117,.30);
+    color:var(--brand);
+  }
+
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+  }
+  @media (max-width:1100px){ .stats{grid-template-columns:repeat(2,1fr)} }
+  .stat{
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:10px;
+    background:linear-gradient(180deg,#fff,rgba(246,248,247,.85));
+  }
+  .stat .k{font-size:12px;color:rgba(31,42,40,.72);font-weight:800}
+  .stat .v{margin-top:6px;font-size:18px;font-weight:950}
+  .stat .s{margin-top:4px;font-size:12px;color:rgba(31,42,40,.68)}
+
+  .table-wrap{
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:auto;
+    background:#fff;
+  }
+  table{
+    width:100%;
+    border-collapse:separate;
+    border-spacing:0;
+    min-width:980px;
+  }
+  th, td{
+    padding:10px 10px;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+    font-size:13px;
+  }
+  th{
+    position:sticky;
+    top:0;
+    background:#fff;
+    z-index:1;
+    text-align:left;
+    font-size:12px;
+    color:rgba(31,42,40,.72);
+    font-weight:900;
+    white-space:nowrap;
+  }
+  tr:hover td{background:rgba(0,0,0,.01)}
+
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:5px 9px;border-radius:999px;border:1px solid var(--line);
+    background:#fff;font-size:12px;white-space:nowrap;font-weight:850;
+  }
+  .pill.ok{border-color:rgba(2,122,72,.25);background:rgba(2,122,72,.06);color:rgba(2,122,72,.95)}
+  .pill.warn{border-color:rgba(245,158,11,.25);background:rgba(245,158,11,.07);color:rgba(146,64,14,.95)}
+  .pill.bad{border-color:rgba(180,35,24,.25);background:rgba(180,35,24,.06);color:rgba(180,35,24,.95)}
+
+  .row{display:flex;gap:10px;align-items:center}
+  .row.wrap{flex-wrap:wrap}
+  .between{justify-content:space-between}
+
+  /* Drawer */
+  .drawer-backdrop{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,.35);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:120;
+    padding:12px;
+  }
+  .drawer{
+    width:min(var(--pageMax), 100%);
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:18px 18px 0 0;
+    box-shadow:0 -20px 50px rgba(0,0,0,.18);
+    max-height:92vh;
+    overflow:auto;
+  }
+  .drawer-head{
+    position:sticky; top:0;
+    background:rgba(255,255,255,.92);
+    backdrop-filter:saturate(1.2) blur(10px);
+    border-bottom:1px solid var(--line);
+    padding:12px;
+    display:flex;gap:10px;align-items:center;justify-content:space-between;
+  }
+  .drawer-body{padding:12px}
+
+  .qCard{
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:10px;
+    background:rgba(0,0,0,.01);
+    margin-bottom:10px;
+    break-inside:avoid;
+  }
+  .opt{
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:8px 10px;
+    margin-top:8px;
+    background:#fff;
+  }
+  .opt.good{border-color:rgba(2,122,72,.25);background:rgba(2,122,72,.05)}
+  .opt.bad{border-color:rgba(180,35,24,.25);background:rgba(180,35,24,.05)}
+
+  @media (max-width: 980px){
+    .grid{grid-template-columns:1fr}
+    table{min-width:860px}
+    .brand{min-width:auto}
+  }
+  /* =========================
+   * Print Root (Option A)
+   * ========================= */
+  #printRoot{ display:none; }
+
+  #printRoot .print-page{
+    max-width:100%;
+    padding:0;
+    margin:0;
+  }
+  #printRoot .print-h1{
+    font-size:18px;
+    font-weight:950;
+    margin:0;
+  }
+  #printRoot .print-sub{
+    margin-top:4px;
+    font-size:12px;
+    color:rgba(31,42,40,.72);
+  }
+  #printRoot .print-meta{
+    margin-top:4px;
+    font-size:12px;
+    color:rgba(31,42,40,.72);
+  }
+  #printRoot .print-hr{
+    height:1px;
+    background:#e5e7eb;
+    margin:10px 0;
+  }
+
+  @media print{
+    @page{ margin: 12mm; }
+
+    body{ background:#fff !important; }
+
+    /* Hide EVERYTHING by default */
+    body *{ visibility:hidden !important; }
+
+    /* Show only printRoot */
+    #printRoot, #printRoot *{ visibility:visible !important; }
+    #printRoot{
+      display:block !important;
+      position:static !important;
+      width:100% !important;
+      margin:0 !important;
+      left:auto !important;
+      right:auto !important;
+    }
+
+    /* Make sure UI layers never leak into print */
+    .qa-app{ display:none !important; }
+    .drawer-backdrop{ display:none !important; }
+
+    /* Print-friendly containers */
+    #printRoot .table-wrap{
+      overflow:visible !important;
+      border:none !important;
+    }
+
+    /* Print-friendly table */
+    #printRoot table{
+      min-width:0 !important;
+      width:100% !important;
+      border-collapse:collapse !important;
+    }
+    #printRoot th, #printRoot td{
+      font-size:12px !important;
+      padding:6px 6px !important;
+      border:1px solid #e5e7eb !important;
+      vertical-align:top !important;
+    }
+    #printRoot th{
+      position:static !important;
+      background:#fff !important;
+    }
+    #printRoot thead{ display:table-header-group; }
+
+    /* Avoid splitting cards/rows */
+    #printRoot .qCard,
+    #printRoot .opt,
+    #printRoot tr{
+      break-inside:avoid !important;
+      page-break-inside:avoid !important;
+    }
+
+    /* Remove effects that can print as blocks */
+    #printRoot *{
+      box-shadow:none !important;
+      filter:none !important;
+      backdrop-filter:none !important;
+    }
+  }
+</style>
+</head>
+
+<body>
+<div class="qa-app">
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="logo">QA</div>
+        <div>
+          <h1>Teacher Results</h1>
+          <div class="sub" id="subline">Checking access…</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <span class="chip" id="chipPlan" style="display:none"><strong>Plan</strong> <span id="planText"></span></span>
+        <span class="chip" id="chipUser" style="display:none"><strong id="userName">Teacher</strong> <span id="userEmail" class="muted"></span></span>
+
+        <button class="btn" id="btnRefresh">↻ Refresh</button>
+        <button class="btn danger" id="btnSignOut" title="Sign out">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="grid">
+
+      <!-- Left: selectors -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Report scope</h2>
+          <span class="chip mini" id="scopeChip">—</span>
+        </div>
+
+        <div class="panel-body">
+          <div class="field">
+            <div class="label">Class</div>
+            <select class="select" id="selClass"></select>
+          </div>
+
+          <div class="field">
+            <div class="label">Quiz</div>
+            <select class="select" id="selQuiz"></select>
+          </div>
+
+          <div class="field">
+            <div class="label">Roster</div>
+            <select class="select" id="selRoster">
+              <option value="0">Active members only</option>
+              <option value="1">Include removed members</option>
+            </select>
+            <div class="muted" style="margin-top:6px">Uses class members as the roster, so you get NOT_STARTED rows too.</div>
+          </div>
+
+          <div class="field">
+            <div class="label">Sort marksheet</div>
+            <select class="select" id="selSort">
+              <option value="name_asc">Name A→Z</option>
+              <option value="score_desc">Score high→low</option>
+              <option value="score_asc">Score low→high</option>
+              <option value="status_asc">Status</option>
+            </select>
+          </div>
+
+          <!-- NEW: status + date filters -->
+          <div class="field">
+            <div class="label">Status filter</div>
+            <select class="select" id="selStatus">
+              <option value="ANY">All</option>
+              <option value="SUBMITTED" selected>Submitted only</option>
+              <option value="IN_PROGRESS">In progress</option>
+              <option value="NOT_STARTED">Not started</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <div class="label">Date from (optional)</div>
+            <input class="input" id="dateFrom" type="date" />
+          </div>
+
+          <div class="field">
+            <div class="label">Date to (optional)</div>
+            <input class="input" id="dateTo" type="date" />
+          </div>
+
+          <button class="btn primary" id="btnLoad" style="width:100%;justify-content:center">Load report</button>
+
+          <div class="hr"></div>
+
+          <div class="muted" id="hintBox">
+            This page uses your saved token (same as other Teacher pages).<br/>
+            If you see “Missing token”, open from the portal after login.
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="muted">
+            Premium features (gated by plan):
+            <br/>• CSV export
+            <br/>• Advanced analytics (later)
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: report -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2 id="reportTitle">Report</h2>
+          <div class="row wrap" style="gap:8px">
+            <span class="chip mini" id="headlineChip">Headline: —</span>
+            <button class="btn" id="btnPrintSummary">🖨 Print summary</button>
+            <button class="btn" id="btnExportCsv" disabled>⬇ Export CSV</button>
+          </div>
+        </div>
+
+        <div class="panel-body">
+          <div class="stats">
+            <div class="stat"><div class="k">Roster</div><div class="v" id="sRoster">—</div><div class="s" id="sRosterSub">—</div></div>
+            <div class="stat"><div class="k">Submitted</div><div class="v" id="sSubmitted">—</div><div class="s" id="sSubmittedSub">—</div></div>
+            <div class="stat"><div class="k">Average</div><div class="v" id="sAvg">—</div><div class="s" id="sAvgSub">—</div></div>
+            <div class="stat"><div class="k">Pass rate</div><div class="v" id="sPass">—</div><div class="s" id="sPassSub">—</div></div>
+          </div>
+
+          <div class="tabs">
+            <div class="tab active" data-tab="marks">Marksheet</div>
+            <div class="tab" data-tab="items">Item analysis</div>
+          </div>
+
+          <div id="tabMarks" style="margin-top:12px">
+            <div class="row between wrap" style="margin-bottom:10px">
+              <div class="row wrap">
+                <input class="input" id="qMarks" placeholder="Search name / identifiers / quiz fields / user_id…" style="width:320px" />
+                <span class="chip mini" id="countChip">0</span>
+              </div>
+              <div class="row wrap">
+                <button class="btn" id="btnLoadMore" style="display:none">Load more</button>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table>
+                <thead><tr id="marksHead"></tr></thead>
+                <tbody id="marksBody"></tbody>
+              </table>
+            </div>
+
+            <div class="muted" id="marksHint" style="margin-top:10px">—</div>
+          </div>
+
+          <div id="tabItems" style="display:none;margin-top:12px">
+            <div class="row between wrap" style="margin-bottom:10px">
+              <div class="row wrap">
+                <input class="input" id="qItems" placeholder="Search topic / stem preview…" style="width:280px" />
+                <span class="chip mini" id="scanChip">Scanned: —</span>
+              </div>
+              <div class="row wrap">
+                <button class="btn" id="btnRefreshItems">↻ Refresh items</button>
+              </div>
+            </div>
+
+            <div class="table-wrap">
+              <table style="min-width:980px">
+                <thead>
+                  <tr>
+                    <th>#</th><th>Topic</th><th>% Correct</th><th>Correct</th>
+                    <th>Attempts</th><th>Wrong</th><th>Blank</th><th>Common wrong</th>
+                    <th>Flags</th><th>Preview</th><th></th>
+                  </tr>
+                </thead>
+                <tbody id="itemsBody"></tbody>
+              </table>
+            </div>
+
+            <div class="muted" id="itemsHint" style="margin-top:10px">—</div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Drawer -->
+<div class="drawer-backdrop" id="drawerBackdrop">
+  <div class="drawer">
+    <div class="drawer-head">
+      <div>
+        <div style="font-weight:950" id="drawerTitle">Details</div>
+        <div class="muted" id="drawerSub"></div>
+      </div>
+      <div class="row wrap">
+        <button class="btn" id="btnPrint">🖨 Print</button>
+        <button class="btn danger" id="btnClose">Close</button>
+      </div>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </div>
+</div>
+
+<!-- Print Root (Option A) -->
+<div id="printRoot" aria-hidden="true"></div>
+
+<script>
+/** =============================
+ * CONFIG
+ * ============================= */
+const API_URL = 'https://script.google.com/macros/s/AKfycbz54M_jWoRq4cOC2gUQeRhd55AeEJ5vnELJ0gkBSodO58fr7WGa9jwk6JNwPptf8p8X/exec'; // <-- replace once
+
+/** =============================
+ * State
+ * ============================= */
+const S = {
+  token: '',
+  teacher: null,
+  plan: 'FREE',
+  classes: [],
+  quizzes: [],
+
+  class_id: '',
+  teacher_quiz_id: '',
+  class_title: '',
+  quiz_title: '',
+
+  headline_rule: '',
+  grade_bands_json: '',
+  grade_bands_obj: null,
+
+  pass_threshold_pct: 50,
+  score_display_policy: 'PCT_ONLY',
+
+  // schemas (ordered + labeled)
+  class_fields: [],     // [{key,label,...}]
+  quiz_fields: [],      // [{key,label,...}]
+
+  cursor: '0',
+  next_cursor: '',
+
+  roster_rows: [],
+  roster_rows_filtered: [],
+
+  itemsLoaded: false,
+  items: [],
+  snapshotsById: {},
+
+  attemptsCache: null,
+  print_payload: null
+};
+
+const el = (id)=>document.getElementById(id);
+const esc = (s)=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+/** =============================
+ * Print Root (Option A)
+ * ============================= */
+function setPrintPayload(title, sub, html){
+  S.print_payload = {
+    title: String(title||'').trim(),
+    sub: String(sub||'').trim(),
+    html: String(html||'')
+  };
+}
+
+function buildPrintDoc(payload){
+  const now = new Date().toLocaleString();
+  return `
+    <div class="print-page">
+      <div class="print-h1">${esc(payload.title||'')}</div>
+      ${payload.sub ? `<div class="print-sub">${esc(payload.sub)}</div>` : ``}
+      <div class="print-meta">Printed: ${esc(now)}</div>
+      <div class="print-hr"></div>
+      ${payload.html || ''}
+    </div>
+  `;
+}
+
+function printFromPayload(){
+  if (!S.print_payload || !String(S.print_payload.html||'').trim()){
+    alert('Nothing to print yet. Open a summary, attempt, or item first.');
+    return;
+  }
+  el('printRoot').innerHTML = buildPrintDoc(S.print_payload);
+  window.print();
+}
+
+window.addEventListener('afterprint', ()=>{
+  const pr = el('printRoot');
+  if (pr) pr.innerHTML = '';
+});
+
+function qsParam(name){
+  const u = new URL(location.href);
+  return (u.searchParams.get(name) || '').trim();
+}
+function getToken(){
+  const tUrl = qsParam('token');
+  if (tUrl) return tUrl;
+  try{ return (localStorage.getItem('qa_token') || '').trim(); }catch(_){ return ''; }
+}
+function setToken(t){
+  S.token = String(t||'').trim();
+  try{
+    if (S.token) localStorage.setItem('qa_token', S.token);
+    else localStorage.removeItem('qa_token');
+  }catch(_){}
+}
+function safeJsonParse(s, fallback){
+  try{
+    if (typeof s === 'object') return s;
+    const t = String(s||'').trim();
+    if (!t) return fallback;
+    return JSON.parse(t);
+  }catch(_){ return fallback; }
+}
+function fmtIso(iso){
+  const s = String(iso||'').trim();
+  if (!s) return '—';
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  return d.toLocaleString(undefined, {year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+function pillStatus(st){
+  const u = String(st||'').toUpperCase();
+  if (u==='SUBMITTED' || u==='TIMED_OUT') return `<span class="pill ok">${esc(u)}</span>`;
+  if (u==='IN_PROGRESS') return `<span class="pill warn">${esc(u)}</span>`;
+  if (u==='NOT_STARTED') return `<span class="pill">${esc(u)}</span>`;
+  return `<span class="pill">${esc(u||'—')}</span>`;
+}
+
+/** =============================
+ * Score display policy
+ * ============================= */
+function scorePolicy(){
+  const p = String(S.score_display_policy || 'PCT_ONLY').toUpperCase();
+  return p || 'PCT_ONLY';
+}
+function policyShowRaw(p){ return p === 'RAW_ONLY' || p === 'RAW_AND_PCT'; }
+function policyShowPct(p){ return p === 'PCT_ONLY' || p === 'RAW_AND_PCT'; }
+
+function fmtRaw(score){
+  if (!score) return '';
+  const a = score.score_marks, b = score.total_marks;
+  if (a == null || b == null) return '';
+  return `${a}/${b}`;
+}
+function fmtPct(score){
+  if (!score) return '';
+  if (score.percent == null) return '';
+  return `${Math.round(Number(score.percent))}%`;
+}
+function fmtScore(score, policy){
+  const p = String(policy || scorePolicy()).toUpperCase();
+  if (p === 'HIDE') return '—';
+
+  const raw = fmtRaw(score);
+  const pct = fmtPct(score);
+
+  if (p === 'RAW_ONLY') return raw || '—';
+  if (p === 'PCT_ONLY') return pct || '—';
+
+  if (raw && pct) return `${raw} • ${pct}`;
+  return raw || pct || '—';
+}
+function passFailFromPct(pct){
+  const n = Number(pct);
+  if (!isFinite(n)) return '';
+  const thr = isFinite(Number(S.pass_threshold_pct)) ? Number(S.pass_threshold_pct) : 50;
+  return (n >= thr) ? 'PASS' : 'FAIL';
+}
+
+function gradeLabelFromBands(bandsObj, percent){
+  const p0 = Number(percent);
+  const p = isFinite(p0) ? Math.max(0, Math.min(100, p0)) : 0;
+  const bands = (bandsObj && Array.isArray(bandsObj.bands)) ? bandsObj.bands : [];
+  if (!bands.length) return '';
+  let label = String(bands[0].label||'').trim();
+  for (let i=0;i<bands.length;i++){
+    const b = bands[i]||{};
+    const min = Number(b.min_pct);
+    const lab = String(b.label||'').trim();
+    if (!lab || !isFinite(min)) continue;
+    if (p >= min) label = lab;
+    else break;
+  }
+  return label;
+}
+
+function labelOrKey(f){
+  const k = String(f?.key||'').trim();
+  const l = String(f?.label||'').trim();
+  return l || k || '';
+}
+function keyOf(f){
+  return String(f?.key||'').trim();
+}
+function buildDisplayLabel(prefix, f, used){
+  const base = labelOrKey(f);
+  const k = keyOf(f);
+  let name = base ? `${prefix}${base}` : `${prefix}${k||'field'}`;
+  if (used[name.toLowerCase()]) {
+    name = `${prefix}${base} (${k||'key'})`;
+  }
+  used[name.toLowerCase()] = true;
+  return name;
+}
+function fieldsSummary(fieldsObj, schema){
+  const o = fieldsObj || {};
+  const fs = (schema||[]).slice(0,4).map(f=>{
+    const k = keyOf(f);
+    const lab = labelOrKey(f);
+    const v = (k && (k in o)) ? String(o[k]||'').trim() : '';
+    if (!v) return '';
+    return `${lab}: ${v}`;
+  }).filter(Boolean);
+  return fs.join(' • ');
+}
+
+/** =============================
+ * API
+ * ============================= */
+async function apiPost(params){
+  if (!API_URL || API_URL.indexOf('YOUR_') !== -1) throw new Error('API_URL_not_configured');
+
+  const p = new URLSearchParams();
+  Object.keys(params||{}).forEach(k=>{
+    const v = params[k];
+    if (v === undefined || v === null) return;
+    if (typeof v === 'object') p.append(k, JSON.stringify(v));
+    else p.append(k, String(v));
+  });
+
+  const res = await fetch(API_URL, {
+    method:'POST',
+    body:p,
+    headers:{
+      'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8',
+      'Accept':'application/json'
+    },
+    credentials:'omit'
+  });
+
+  const text = await res.text();
+  let obj=null;
+  try{ obj = JSON.parse(text); }catch(_){ obj=null; }
+
+  if (!obj || obj.ok !== true){
+    const xStatus = res.headers.get('X-Status-Code');
+    const status = xStatus ? parseInt(xStatus,10) : res.status;
+    const err = (obj && (obj.error || obj.detail || obj.reason)) || ('http_' + status);
+    const e = new Error(err);
+    e.status = status;
+    e.payload = obj;
+    throw e;
+  }
+  return obj;
+}
+
+/** =============================
+ * Auth / bootstrap
+ * ============================= */
+async function verifyTeacher(){
+  const sub = el('subline');
+  sub.textContent = 'Checking access…';
+
+  const t = getToken();
+  if (!t){
+    sub.textContent = 'Missing token (please sign in).';
+    return false;
+  }
+  setToken(t);
+
+  try{
+    const v = await apiPost({ action:'teacher.verify', token:S.token });
+    S.teacher = v.teacher || null;
+    S.plan = (S.teacher && S.teacher.plan_type) ? String(S.teacher.plan_type).toUpperCase() : 'FREE';
+
+    el('chipUser').style.display = '';
+    el('userName').textContent = (v.user && v.user.name) ? v.user.name : 'Teacher';
+    el('userEmail').textContent = (v.user && v.user.email) ? (' • ' + v.user.email) : '';
+
+    el('chipPlan').style.display = '';
+    el('planText').textContent = S.plan;
+
+    el('btnExportCsv').disabled = (S.plan !== 'PREMIUM');
+
+    sub.textContent = 'Ready';
+    return true;
+  }catch(err){
+    sub.textContent = 'Access denied.';
+    return false;
+  }
+}
+
+async function loadFilters(){
+  const cls = await apiPost({ action:'teacher.classes.list', token:S.token, status:'ACTIVE', include_counts:'true', limit:'200' });
+  S.classes = Array.isArray(cls.items) ? cls.items : [];
+
+  const selC = el('selClass');
+  selC.innerHTML = `<option value="">Select class…</option>` +
+    S.classes.map(c=>`<option value="${esc(c.class_id)}">${esc(c.title||'Untitled')}</option>`).join('');
+
+  S.quizzes = [];
+  const selQ = el('selQuiz');
+  selQ.innerHTML = `<option value="">Select class first…</option>`;
+  selQ.disabled = true;
+}
+
+async function loadQuizzesForClass(class_id, { preselect_quiz_id='' } = {}){
+  const selQ = el('selQuiz');
+  selQ.disabled = true;
+  selQ.innerHTML = `<option value="">Loading quizzes…</option>`;
+
+  if (!class_id){
+    S.quizzes = [];
+    selQ.innerHTML = `<option value="">Select class first…</option>`;
+    return;
+  }
+
+  const res = await apiPost({
+    action:'teacher.class.quizzes.list',
+    token:S.token,
+    class_id: class_id,
+    status: 'PUBLISHED'
+  });
+
+  S.quizzes = Array.isArray(res.items) ? res.items : [];
+
+  selQ.innerHTML = `<option value="">Select quiz…</option>` +
+    S.quizzes.map(q=>`<option value="${esc(q.teacher_quiz_id)}">${esc(q.title||'Untitled')}</option>`).join('');
+
+  selQ.disabled = false;
+
+  if (preselect_quiz_id){
+    const hit = S.quizzes.find(x => x.teacher_quiz_id === preselect_quiz_id);
+    if (hit) selQ.value = preselect_quiz_id;
+  }
+}
+
+function setScopeUI(){
+  const cls = S.classes.find(x=>x.class_id===S.class_id);
+  const qz = S.quizzes.find(x=>x.teacher_quiz_id===S.teacher_quiz_id);
+  S.class_title = cls ? (cls.title||'') : '';
+  S.quiz_title = qz ? (qz.title||'') : '';
+
+  el('scopeChip').textContent = S.class_title ? S.class_title : (S.class_id || '—');
+  el('reportTitle').textContent = S.quiz_title ? `Report — ${S.quiz_title}` : 'Report';
+}
+
+/** =============================
+ * Render helpers
+ * ============================= */
+function applyMarksFilter(){
+  const q = String(el('qMarks').value||'').trim().toLowerCase();
+  const all = S.roster_rows || [];
+  let out = all;
+
+  if (q){
+    out = all.filter(r=>{
+      const name = String(r.display_name||'').toLowerCase();
+      const uid = String(r.user_id||'').toLowerCase();
+      const mfj = String(r.member_fields_json||'').toLowerCase();
+      const qfj = String(r.headline_fields_json||'').toLowerCase();
+      const grade = String(r.grade_label||'').toLowerCase();
+      const pf = String(r.pass_fail||'').toLowerCase();
+      return name.includes(q) || uid.includes(q) || mfj.includes(q) || qfj.includes(q) || grade.includes(q) || pf.includes(q);
+    });
+  }
+  S.roster_rows_filtered = out;
+  renderMarksheet();
+}
+
+function renderMarksheet(){
+  const rows = S.roster_rows_filtered || [];
+
+  const classFields = Array.isArray(S.class_fields) ? S.class_fields : [];
+  const quizFields  = Array.isArray(S.quiz_fields) ? S.quiz_fields : [];
+
+  const pol = scorePolicy();
+  const showRaw = policyShowRaw(pol);
+  const showPct = policyShowPct(pol);
+
+  const head = el('marksHead');
+  head.innerHTML = '';
+
+  const cols = [
+    {k:'name', label:'Name'},
+    ...classFields.map(f=>({k:'cf_'+keyOf(f), label: labelOrKey(f), fieldKey:keyOf(f), group:'class'})),
+    ...quizFields.map(f=>({k:'qf_'+keyOf(f), label: labelOrKey(f), fieldKey:keyOf(f), group:'quiz'})),
+    {k:'status', label:'Status'},
+    {k:'attempts', label:'Attempts'},
+    ...(showRaw ? [{k:'raw', label:'Score'}] : []),
+    ...(showPct ? [{k:'pct', label:'%'}] : []),
+    {k:'pass', label:'Pass'},
+    {k:'grade', label:'Grade'},
+    {k:'submitted', label:'Submitted'},
+    {k:'actions', label:''}
+  ];
+
+  cols.forEach(c=>{
+    const th = document.createElement('th');
+    th.textContent = c.label;
+    head.appendChild(th);
+  });
+
+  const body = el('marksBody');
+  body.innerHTML = '';
+
+  if (!rows.length){
+    body.innerHTML = `<tr><td colspan="${cols.length}" class="muted">No rows.</td></tr>`;
+    el('countChip').textContent = '0';
+    return;
+  }
+
+  rows.forEach(r=>{
+    const tr = document.createElement('tr');
+
+    cols.forEach(c=>{
+      const td = document.createElement('td');
+
+      if (c.k==='name'){
+        const qs = fieldsSummary(r.headline_fields || {}, quizFields);
+        td.innerHTML = `
+          <div style="font-weight:950">${esc(r.display_name||'—')}</div>
+          <div class="muted mono">${esc(r.user_id||'')}</div>
+          ${qs ? `<div class="muted">${esc(qs)}</div>` : ``}
+        `;
+      }
+      else if (c.group==='class'){
+        const mf = r.member_fields || {};
+        const v = c.fieldKey ? (mf[c.fieldKey] || '') : '';
+        td.textContent = v ? String(v) : '—';
+      }
+      else if (c.group==='quiz'){
+        const hf = r.headline_fields || {};
+        const v = c.fieldKey ? (hf[c.fieldKey] || '') : '';
+        td.textContent = v ? String(v) : '—';
+      }
+      else if (c.k==='status'){
+        td.innerHTML = pillStatus(r.status);
+      }
+      else if (c.k==='attempts'){
+        td.textContent = String(r.attempts_used ?? '0');
+      }
+      else if (c.k==='raw'){
+        td.textContent = fmtRaw(r.headline_score) || '—';
+      }
+      else if (c.k==='pct'){
+        td.textContent = fmtPct(r.headline_score) || '—';
+      }
+      else if (c.k==='pass'){
+        const sc = r.headline_score || null;
+        const pct = sc && sc.percent!=null ? Number(sc.percent) : NaN;
+        const pf = String(r.pass_fail || passFailFromPct(pct) || '').trim();
+        td.innerHTML = pf
+          ? `<span class="pill ${pf==='PASS'?'ok':'bad'}">${esc(pf)}</span>`
+          : `<span class="muted">—</span>`;
+      }
+      else if (c.k==='grade'){
+        const gl = String(r.grade_label||'').trim();
+        td.innerHTML = gl
+          ? `<span class="pill ${gl.toLowerCase().includes('fail')?'bad':'ok'}">${esc(gl)}</span>`
+          : `<span class="muted">—</span>`;
+      }
+      else if (c.k==='submitted'){
+        td.textContent = r.submitted_at ? fmtIso(r.submitted_at) : '—';
+      }
+      else if (c.k==='actions'){
+        const aid = String(r.headline_attempt_id||'').trim();
+        td.innerHTML = `
+          <div class="row wrap">
+            <button class="btn" data-act="attempts" data-user="${esc(r.user_id)}">Attempts</button>
+            ${aid ? `<button class="btn primary" data-act="view" data-attempt="${esc(aid)}">View</button>` : ``}
+          </div>
+        `;
+      }
+
+      tr.appendChild(td);
+    });
+
+    body.appendChild(tr);
+  });
+
+  el('countChip').textContent = String(rows.length);
+  el('marksHint').textContent = `${(S.roster_rows||[]).length} loaded • ${rows.length} shown`;
+}
+
+function renderItems(){
+  const q = String(el('qItems').value||'').trim().toLowerCase();
+  const items = (S.items||[]).filter(it=>{
+    if (!q) return true;
+    return String(it.topic||'').toLowerCase().includes(q) || String(it.stem_preview||'').toLowerCase().includes(q);
+  });
+
+  const body = el('itemsBody');
+  body.innerHTML = '';
+
+  if (!items.length){
+    body.innerHTML = `<tr><td colspan="11" class="muted">No items.</td></tr>`;
+    return;
+  }
+
+  items.forEach(it=>{
+    const cd = it.common_distractor ? `${it.common_distractor.option} (${it.common_distractor.pct}%)` : '—';
+    const flags = (it.flags||[]).map(f=>`<span class="pill warn">${esc(f)}</span>`).join(' ') || '<span class="muted">—</span>';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${esc(it.position||'')}</td>
+      <td>${esc(it.topic||'')}</td>
+      <td><b>${esc(String(it.pct_correct ?? 0))}%</b></td>
+      <td><span class="pill ok">${esc(it.correct||'')}</span></td>
+      <td>${esc(String(it.attempts ?? 0))}</td>
+      <td>${esc(String(it.wrong_count ?? 0))}</td>
+      <td>${esc(String(it.blank_count ?? 0))}</td>
+      <td>${esc(cd)}</td>
+      <td>${flags}</td>
+      <td>${esc(it.stem_preview||'')}</td>
+      <td><button class="btn" data-act="item" data-qid="${esc(it.quiz_item_id||'')}">View</button></td>
+    `;
+    body.appendChild(tr);
+  });
+
+  el('itemsHint').textContent = `Items: ${(S.items||[]).length}`;
+}
+
+/** =============================
+ * Load report
+ * ============================= */
+async function loadReport({append=false}={}){
+  const class_id = String(el('selClass').value||'').trim();
+  const teacher_quiz_id = String(el('selQuiz').value||'').trim();
+  if (!class_id || !teacher_quiz_id){
+    el('subline').textContent = 'Select class and quiz.';
+    return;
+  }
+
+  S.class_id = class_id;
+  S.teacher_quiz_id = teacher_quiz_id;
+  setScopeUI();
+
+  const include_removed = (String(el('selRoster').value)==='1') ? '1' : '0';
+  const sort = String(el('selSort').value||'name_asc');
+
+  // NEW: filters
+  const status = String(el('selStatus').value || 'ANY').trim().toUpperCase();
+
+  const df = String(el('dateFrom').value || '').trim(); // YYYY-MM-DD
+  const dt = String(el('dateTo').value || '').trim();
+
+  const date_from = df ? `${df}T00:00:00.000Z` : '';
+  const date_to   = dt ? `${dt}T23:59:59.999Z` : '';
+
+  let cursor = append ? (S.next_cursor || '') : '0';
+  if (!cursor) cursor = '0';
+
+  el('btnLoad').disabled = true;
+  el('btnLoad').textContent = append ? 'Loading more…' : 'Loading…';
+  el('subline').textContent = 'Loading report…';
+
+  try{
+    const [sum, list] = await Promise.all([
+      apiPost({ action:'teacher.results.summary', token:S.token, teacher_quiz_id, class_id, include_removed, date_from, date_to }),
+      apiPost({ action:'teacher.results.list', token:S.token, teacher_quiz_id, class_id, include_removed, sort, cursor, limit:'200', status, date_from, date_to })
+    ]);
+
+    // headline + grade bands + policy
+    S.headline_rule = String(list.headline_rule || '');
+    S.grade_bands_json = String((list.quiz && list.quiz.grade_bands_json) || '');
+    S.grade_bands_obj = safeJsonParse(S.grade_bands_json, null);
+
+    S.score_display_policy = String((list.quiz && list.quiz.score_display_policy) || 'PCT_ONLY').toUpperCase();
+    // backend patch will provide list.quiz.pass_threshold_pct; until then fallback to summary
+    const pt = (list.quiz && (list.quiz.pass_threshold_pct != null)) ? Number(list.quiz.pass_threshold_pct) : Number(sum.pass_threshold_pct);
+    S.pass_threshold_pct = isFinite(pt) ? pt : 50;
+
+    // schemas (labels + order)
+    S.class_fields = Array.isArray(list.class_fields) ? list.class_fields : [];
+    S.quiz_fields  = Array.isArray(list.quiz_fields) ? list.quiz_fields : [];
+
+    el('headlineChip').textContent = `Headline: ${S.headline_rule || '—'}`;
+
+    // Summary cards
+    el('sRoster').textContent = String(sum.roster_total ?? '0');
+    el('sRosterSub').textContent = `${sum.not_started_count ?? 0} not started`;
+    el('sSubmitted').textContent = String(sum.submitted_count ?? '0');
+    el('sSubmittedSub').textContent = `${sum.in_progress_count ?? 0} in progress`;
+
+    const pol = scorePolicy();
+    const showPct = policyShowPct(pol);
+
+    el('sAvg').textContent = showPct ? `${sum.avg_pct ?? 0}%` : '—';
+    el('sAvgSub').textContent = showPct ? `Median ${sum.median_pct ?? 0}%` : `Hidden by policy (${pol})`;
+
+    el('sPass').textContent = showPct ? `${sum.pass_rate_pct ?? 0}%` : '—';
+    el('sPassSub').textContent = showPct ? `Pass ≥ ${S.pass_threshold_pct}%` : `Pass threshold hidden`;
+
+    // marks rows
+    const rows = Array.isArray(list.rows) ? list.rows : [];
+    if (!append) S.roster_rows = rows.slice();
+    else S.roster_rows = (S.roster_rows||[]).concat(rows);
+
+    S.next_cursor = String(list.next_cursor || '');
+    el('btnLoadMore').style.display = S.next_cursor ? '' : 'none';
+
+    applyMarksFilter();
+
+    // reset items cache when changing report
+    if (!append){
+      S.itemsLoaded = false;
+      S.items = [];
+      S.snapshotsById = {};
+      el('scanChip').textContent = 'Scanned: —';
+      el('itemsBody').innerHTML = `<tr><td colspan="11" class="muted">Open the Item analysis tab to load.</td></tr>`;
+      el('itemsHint').textContent = '—';
+    }
+
+    el('subline').textContent = 'Ready';
+  }catch(err){
+    el('subline').textContent = 'Load failed.';
+    console.error(err);
+    alert(`Load failed: ${err.message || err}`);
+  }finally{
+    el('btnLoad').disabled = false;
+    el('btnLoad').textContent = 'Load report';
+  }
+}
+
+async function loadItems({force=false}={}){
+  if (!S.class_id || !S.teacher_quiz_id) return;
+  if (S.itemsLoaded && !force) return;
+
+  el('subline').textContent = 'Loading item analysis…';
+  el('itemsBody').innerHTML = `<tr><td colspan="11" class="muted">Loading…</td></tr>`;
+
+  try{
+    const [items, snaps] = await Promise.all([
+      apiPost({ action:'teacher.results.items', token:S.token, teacher_quiz_id:S.teacher_quiz_id, class_id:S.class_id, attempt_limit:'4000' }),
+      apiPost({ action:'teacher.quiz.items.list', token:S.token, teacher_quiz_id:S.teacher_quiz_id })
+    ]);
+
+    S.items = Array.isArray(items.items) ? items.items : [];
+    el('scanChip').textContent = `Scanned: ${items.scanned_attempts ?? 0}${items.truncated ? ' (truncated)' : ''}`;
+
+    S.snapshotsById = {};
+    (snaps.items||[]).forEach(s=>{
+      const id = String(s.quiz_item_id||'').trim();
+      if (id) S.snapshotsById[id] = s;
+    });
+
+    S.itemsLoaded = true;
+    renderItems();
+    el('subline').textContent = 'Ready';
+  }catch(err){
+    console.error(err);
+    el('itemsBody').innerHTML = `<tr><td colspan="11" class="muted">Failed: ${esc(err.message||String(err))}</td></tr>`;
+    el('subline').textContent = 'Load failed.';
+  }
+}
+
+/** =============================
+ * Drawer
+ * ============================= */
+function showDrawer(){ el('drawerBackdrop').style.display = 'flex'; }
+function closeDrawer(){ el('drawerBackdrop').style.display = 'none'; el('drawerBody').innerHTML = ''; }
+
+async function openAttempts(user_id){
+  el('drawerTitle').textContent = 'Attempts';
+  el('drawerSub').textContent = `User: ${user_id}`;
+  el('drawerBody').innerHTML = '<div class="muted">Loading attempts…</div>';
+  showDrawer();
+
+  try{
+    if (!S.attemptsCache){
+      const res = await apiPost({
+        action:'teacher.attempts.list',
+        token:S.token,
+        teacher_quiz_id:S.teacher_quiz_id,
+        class_id:S.class_id,
+        status:'ANY',
+        limit:'300'
+      });
+      S.attemptsCache = Array.isArray(res.items) ? res.items : [];
+    }
+
+    const list = (S.attemptsCache||[]).filter(a=>String(a.user_id||'')===String(user_id));
+    list.sort((a,b)=>(Number(a.attempt_no||0) - Number(b.attempt_no||0)));
+
+    const html = `
+      <div class="table-wrap">
+        <table style="min-width:860px">
+          <thead>
+            <tr>
+              <th>Attempt</th><th>Status</th><th>Submitted</th><th>Score</th><th>Grade</th><th>Quiz fields</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${list.map(a=>{
+              const score = a.score || null;
+              const pct = score && score.percent!=null ? Number(score.percent) : null;
+              const gl = (pct!=null && isFinite(pct) && S.grade_bands_obj) ? gradeLabelFromBands(S.grade_bands_obj, pct) : '';
+
+              const cfJson = a.candidate_fields_json || a.custom_fields_json || '';
+              const cfObj = safeJsonParse(cfJson, null);
+              const fields = (cfObj && cfObj.fields && typeof cfObj.fields==='object') ? cfObj.fields : (cfObj && typeof cfObj==='object' ? cfObj : {});
+              const qsum = fieldsSummary(fields, S.quiz_fields);
+
+              return `
+                <tr>
+                  <td>${esc(a.attempt_no||'')}</td>
+                  <td>${pillStatus(a.status)}</td>
+                  <td>${fmtIso(a.submitted_at || a.updated_at || '')}</td>
+                  <td>${esc(fmtScore(score))}</td>
+                  <td>${gl ? `<span class="pill ${gl.toLowerCase().includes('fail')?'bad':'ok'}">${esc(gl)}</span>` : `<span class="muted">—</span>`}</td>
+                  <td>${qsum ? esc(qsum) : '<span class="muted">—</span>'}</td>
+                  <td><button class="btn primary" data-act="viewAttempt" data-attempt="${esc(a.attempt_id)}">View</button></td>
+                </tr>
+              `;
+            }).join('') || `<tr><td colspan="7" class="muted">No attempts found.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    `;
+    el('drawerBody').innerHTML = html;
+    setPrintPayload(
+      'Attempts list',
+      `${S.class_title || S.class_id} • ${S.quiz_title || S.teacher_quiz_id} • User: ${user_id}`,
+      el('drawerBody').innerHTML
+    );
+  }catch(err){
+    el('drawerBody').innerHTML = `<div class="pill bad">Failed: ${esc(err.message||String(err))}</div>`;
+  }
+}
+
+async function openAttempt(attempt_id){
+  el('drawerTitle').textContent = 'Attempt view';
+  el('drawerSub').textContent = attempt_id;
+  el('drawerBody').innerHTML = '<div class="muted">Loading attempt…</div>';
+  showDrawer();
+
+  try{
+    const obj = await apiPost({ action:'teacher.attempt.get', token:S.token, attempt_id });
+
+    const attempt = obj.attempt || {};
+    const score = obj.score || null;
+    const pct = score && score.percent!=null ? Number(score.percent) : null;
+    const gl = (pct!=null && isFinite(pct) && S.grade_bands_obj) ? gradeLabelFromBands(S.grade_bands_obj, pct) : '';
+
+    const cfJson = obj.candidate_fields_json || attempt.candidate_fields_json || attempt.custom_fields_json || '';
+    const cfObj = safeJsonParse(cfJson, null);
+    const fields = (cfObj && cfObj.fields && typeof cfObj.fields==='object') ? cfObj.fields : (cfObj && typeof cfObj==='object' ? cfObj : {});
+    const qsum = fieldsSummary(fields, S.quiz_fields);
+
+    const review = obj.review_items || [];
+    const byId = {};
+    review.forEach(x=>{ byId[String(x.quiz_item_id||'').trim()] = x; });
+
+    const items = obj.items || [];
+
+    const header = `
+      <div class="qCard">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-weight:950">Score: ${esc(fmtScore(score))} ${gl ? ` • ${esc(gl)}` : ''}</div>
+            <div class="muted">Status: ${esc(String(attempt.status||''))} • Started: ${esc(attempt.started_at||'—')} • Submitted: ${esc(attempt.submitted_at||'—')}</div>
+            ${qsum ? `<div class="muted"><b>Quiz fields:</b> ${esc(qsum)}</div>` : ``}
+          </div>
+          <div class="muted mono">Attempt: ${esc(attempt.attempt_id||'')}</div>
+        </div>
+      </div>
+    `;
+
+    const qHtml = items.map((it, idx)=>{
+      const rid = String(it.quiz_item_id||'').trim();
+      const r = byId[rid] || {};
+      const chosen = String(r.chosen||'').trim().toUpperCase();
+      const correct = String(r.correct||'').trim().toUpperCase();
+
+      const opts = (it.options||[]).map(o=>{
+        const key = String(o.key||'').toUpperCase();
+        const text = String(o.text||'');
+        let cls = 'opt';
+        if (key===correct) cls += ' good';
+        if (key===chosen && chosen && chosen!==correct) cls += ' bad';
+        if (key===chosen && chosen===correct) cls += ' good';
+
+        return `
+          <div class="${cls}">
+            <b>${esc(key)}.</b> ${esc(text)}
+            ${key===chosen ? `<span class="pill warn" style="margin-left:8px">Selected</span>`:''}
+            ${key===correct ? `<span class="pill ok" style="margin-left:8px">Correct</span>`:''}
+          </div>
+        `;
+      }).join('');
+
+      const rationale = String(r.rationale||'').trim();
+
+      return `
+        <div class="qCard">
+          <div style="font-weight:950;margin-bottom:6px">Q${idx+1}. ${esc(it.stem||'')}</div>
+          <div class="muted">Marks: ${esc(String(it.marks||1))} • Subject: ${esc(it.subject||'')}</div>
+          ${opts}
+          ${rationale ? `<div class="hr"></div><div class="muted"><b>Rationale:</b> ${esc(rationale)}</div>`:''}
+        </div>
+      `;
+    }).join('');
+
+    el('drawerBody').innerHTML = header + qHtml;
+    setPrintPayload(
+      'Student attempt',
+      `${S.class_title || S.class_id} • ${S.quiz_title || S.teacher_quiz_id} • ${attempt_id}`,
+      el('drawerBody').innerHTML
+    );
+  }catch(err){
+    el('drawerBody').innerHTML = `<div class="pill bad">Failed: ${esc(err.message||String(err))}</div>`;
+  }
+}
+
+function openItem(quiz_item_id){
+  const qid = String(quiz_item_id||'').trim();
+  const snap = S.snapshotsById[qid] || null;
+  const it = (S.items||[]).find(x=>String(x.quiz_item_id||'').trim()===qid) || null;
+
+  el('drawerTitle').textContent = 'Item details';
+  el('drawerSub').textContent = it ? `Q${it.position||''}` : qid;
+
+  const optCounts = (it && it.option_counts) ? it.option_counts : {};
+  const countsLine = ['A','B','C','D','E','F'].map(L=>`${L}:${optCounts[L] ?? 0}`).join('  ');
+  const flags = (it && it.flags) ? it.flags : [];
+
+  const snapHtml = snap ? `
+    <div class="qCard">
+      <div style="font-weight:950;margin-bottom:6px">${esc(snap.snap_stem||'')}</div>
+      ${['A','B','C','D','E','F'].map(L=>{
+        const t = String(snap['snap_option_'+L.toLowerCase()]||'').trim();
+        if (!t) return '';
+        const good = (String(snap.snap_correct||'').trim().toUpperCase()===L);
+        return `<div class="opt ${good?'good':''}"><b>${esc(L)}.</b> ${esc(t)} ${good?'<span class="pill ok" style="margin-left:8px">Correct</span>':''}</div>`;
+      }).join('')}
+      ${String(snap.snap_rationale||'').trim() ? `<div class="hr"></div><div class="muted"><b>Rationale:</b> ${esc(snap.snap_rationale)}</div>`:''}
+    </div>
+  ` : `<div class="muted">Snapshot not found.</div>`;
+
+  el('drawerBody').innerHTML = `
+    <div class="qCard">
+      <div class="row wrap">
+        <span class="pill ok">Correct: ${esc(it?.correct||'')}</span>
+        <span class="pill">Attempts: ${esc(String(it?.attempts ?? 0))}</span>
+        <span class="pill">Wrong: ${esc(String(it?.wrong_count ?? 0))}</span>
+        <span class="pill">Blank: ${esc(String(it?.blank_count ?? 0))}</span>
+        <span class="pill">Accuracy: ${esc(String(it?.pct_correct ?? 0))}%</span>
+      </div>
+      <div class="hr"></div>
+      <div class="muted"><b>Option counts (canonical):</b> <span class="mono">${esc(countsLine)}</span></div>
+      <div class="muted" style="margin-top:6px"><b>Flags:</b> ${flags.length ? flags.map(f=>`<span class="pill warn">${esc(f)}</span>`).join(' ') : '—'}</div>
+    </div>
+    ${snapHtml}
+  `;
+  setPrintPayload(
+    'Item analysis',
+    `${S.class_title || S.class_id} • ${S.quiz_title || S.teacher_quiz_id} • ${el('drawerSub').textContent || ''}`,
+    el('drawerBody').innerHTML
+  );
+  showDrawer();
+}
+
+/** =============================
+ * CSV export (client-side; Premium gated)
+ * ============================= */
+function exportCsv(){
+  if (S.plan !== 'PREMIUM'){
+    alert('CSV export is Premium.');
+    return;
+  }
+
+  const rows = S.roster_rows_filtered || [];
+  const classFields = Array.isArray(S.class_fields) ? S.class_fields : [];
+  const quizFields  = Array.isArray(S.quiz_fields) ? S.quiz_fields : [];
+
+  const pol = scorePolicy();
+  const showRaw = policyShowRaw(pol);
+  const showPct = policyShowPct(pol);
+
+  const used = {};
+  const header = [
+    'display_name',
+    ...classFields.map(f=>buildDisplayLabel('class_', f, used)),
+    ...quizFields.map(f=>buildDisplayLabel('quiz_', f, used)),
+    'status','attempts_used',
+    ...(showRaw ? ['score_marks','total_marks'] : []),
+    ...(showPct ? ['percent'] : []),
+    'pass_fail','grade_label',
+    'submitted_at','user_id','headline_attempt_id'
+  ];
+
+  const lines = [header.join(',')];
+
+  rows.forEach(r=>{
+    const mf = r.member_fields || {};
+    const hf = r.headline_fields || {};
+    const sc = r.headline_score || {};
+
+    const pf = String(r.pass_fail || passFailFromPct(sc.percent) || '').trim();
+
+    const vals = [
+      r.display_name||'',
+      ...classFields.map(f=> mf[keyOf(f)] || ''),
+      ...quizFields.map(f=> hf[keyOf(f)] || ''),
+      r.status||'',
+      r.attempts_used ?? '',
+      ...(showRaw ? [sc.score_marks ?? '', sc.total_marks ?? ''] : []),
+      ...(showPct ? [sc.percent ?? ''] : []),
+      pf,
+      r.grade_label||'',
+      r.submitted_at||'',
+      r.user_id||'',
+      r.headline_attempt_id||''
+    ].map(v=>{
+      const s = String(v ?? '');
+      if (s.includes('"')||s.includes(',')||s.includes('\n')) return `"${s.replace(/"/g,'""')}"`;
+      return s;
+    });
+
+    lines.push(vals.join(','));
+  });
+
+  const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `marksheet_${(S.class_title||S.class_id||'class').replace(/[^a-z0-9_-]+/gi,'_')}_${(S.quiz_title||S.teacher_quiz_id||'quiz').replace(/[^a-z0-9_-]+/gi,'_')}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** =============================
+ * UI wiring
+ * ============================= */
+function bindUI(){
+  el('btnRefresh').onclick = async ()=>{
+    const ok = await verifyTeacher();
+    if (!ok) return;
+    await loadFilters();
+
+    const cid = qsParam('class_id');
+    const qid = qsParam('teacher_quiz_id');
+    if (cid) {
+      el('selClass').value = cid;
+      await loadQuizzesForClass(cid, { preselect_quiz_id: qid });
+    }
+  };
+
+  el('btnSignOut').onclick = ()=>{
+    setToken('');
+    alert('Signed out (token cleared).');
+    setTimeout(()=>location.reload(), 200);
+  };
+
+  el('btnLoad').onclick = async ()=>{
+    S.attemptsCache = null;
+    await loadReport({append:false});
+  };
+
+  el('btnLoadMore').onclick = async ()=>{
+    await loadReport({append:true});
+  };
+
+  el('qMarks').addEventListener('input', ()=>applyMarksFilter());
+  el('qItems').addEventListener('input', ()=>renderItems());
+
+  el('btnRefreshItems').onclick = async ()=>{
+    await loadItems({force:true});
+  };
+
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.onclick = async ()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      const key = t.getAttribute('data-tab');
+      el('tabMarks').style.display = (key==='marks') ? '' : 'none';
+      el('tabItems').style.display = (key==='items') ? '' : 'none';
+      if (key === 'items') await loadItems({force:false});
+    };
+  });
+
+  el('selClass').addEventListener('change', async ()=>{
+    const class_id = String(el('selClass').value||'').trim();
+    S.attemptsCache = null;
+    el('selQuiz').value = '';
+    await loadQuizzesForClass(class_id);
+
+    S.class_id = class_id;
+    S.teacher_quiz_id = '';
+    setScopeUI();
+  });
+
+  el('marksBody').addEventListener('click', async (e)=>{
+    const b = e.target.closest('button');
+    if (!b) return;
+    const act = b.getAttribute('data-act');
+    if (act==='attempts'){
+      await openAttempts(b.getAttribute('data-user'));
+    }else if (act==='view'){
+      await openAttempt(b.getAttribute('data-attempt'));
+    }
+  });
+
+  el('itemsBody').addEventListener('click', (e)=>{
+    const b = e.target.closest('button');
+    if (!b) return;
+    const act = b.getAttribute('data-act');
+    if (act==='item'){
+      openItem(b.getAttribute('data-qid'));
+    }
+  });
+
+  el('drawerBody').addEventListener('click', async (e)=>{
+    const b = e.target.closest('button');
+    if (!b) return;
+    const act = b.getAttribute('data-act');
+    if (act==='viewAttempt'){
+      await openAttempt(b.getAttribute('data-attempt'));
+    }
+  });
+
+  el('btnClose').onclick = closeDrawer;
+  el('drawerBackdrop').addEventListener('click', (e)=>{
+    if (e.target === el('drawerBackdrop')) closeDrawer();
+  });
+
+  el('btnPrint').onclick = ()=>printFromPayload();
+
+  el('btnPrintSummary').onclick = ()=>{
+    el('drawerTitle').textContent = 'Print summary';
+    el('drawerSub').textContent = `${S.class_title || S.class_id} • ${S.quiz_title || S.teacher_quiz_id}`;
+
+    const rows = S.roster_rows_filtered || [];
+    const classFields = Array.isArray(S.class_fields) ? S.class_fields : [];
+    const quizFields  = Array.isArray(S.quiz_fields) ? S.quiz_fields : [];
+
+    const pol = scorePolicy();
+    const showRaw = policyShowRaw(pol);
+    const showPct = policyShowPct(pol);
+
+    const headArr = [
+      'Name',
+      ...classFields.map(f=>labelOrKey(f)),
+      ...quizFields.map(f=>labelOrKey(f)),
+      'Status','Attempts',
+      ...(showRaw ? ['Score'] : []),
+      ...(showPct ? ['%'] : []),
+      'Pass','Grade'
+    ];
+
+    const head = headArr.map(x=>`<th>${esc(x)}</th>`).join('');
+
+    const body = rows.map(r=>{
+      const mf = r.member_fields || {};
+      const hf = r.headline_fields || {};
+      const gl = String(r.grade_label||'').trim();
+
+      const sc = r.headline_score || {};
+      const pf = String(r.pass_fail || passFailFromPct(sc.percent) || '').trim();
+
+      return `<tr>
+        <td>${esc(r.display_name||'')}</td>
+        ${classFields.map(f=>`<td>${esc(mf[keyOf(f)]||'')}</td>`).join('')}
+        ${quizFields.map(f=>`<td>${esc(hf[keyOf(f)]||'')}</td>`).join('')}
+        <td>${esc(String(r.status||''))}</td>
+        <td>${esc(String(r.attempts_used ?? '0'))}</td>
+        ${showRaw ? `<td>${esc(fmtRaw(r.headline_score) || '—')}</td>` : ``}
+        ${showPct ? `<td>${esc(fmtPct(r.headline_score) || '—')}</td>` : ``}
+        <td>${esc(pf||'')}</td>
+        <td>${esc(gl||'')}</td>
+      </tr>`;
+    }).join('');
+
+    const colCount = headArr.length;
+
+    el('drawerBody').innerHTML = `
+      <div class="qCard">
+        <div style="font-weight:950">Headline rule: ${esc(S.headline_rule||'—')}</div>
+        <div class="muted">Rows: ${rows.length} • Policy: ${esc(scorePolicy())} • Pass threshold: ${policyShowPct(scorePolicy()) ? esc(String(S.pass_threshold_pct)) + '%' : 'hidden'}</div>
+      </div>
+      <div class="table-wrap">
+        <table style="min-width:1100px">
+          <thead><tr>${head}</tr></thead>
+          <tbody>${body || `<tr><td colspan="${colCount}" class="muted">No rows.</td></tr>`}</tbody>
+        </table>
+      </div>
+    `;
+    setPrintPayload(
+      'Marksheet summary',
+      `${S.class_title || S.class_id} • ${S.quiz_title || S.teacher_quiz_id}`,
+      el('drawerBody').innerHTML
+    );
+    showDrawer();
+  };
+
+  el('btnExportCsv').onclick = exportCsv;
+}
+
+/** =============================
+ * Init
+ * ============================= */
+(async function init(){
+  bindUI();
+  const ok = await verifyTeacher();
+  if (!ok) return;
+
+  await loadFilters();
+
+  const class_id = qsParam('class_id');
+  const teacher_quiz_id = qsParam('teacher_quiz_id');
+
+  if (class_id){
+    el('selClass').value = class_id;
+    await loadQuizzesForClass(class_id, { preselect_quiz_id: teacher_quiz_id });
+  }
+
+  if (class_id && teacher_quiz_id){
+    await loadReport({append:false});
+  }
+})();
+</script>
+
+</body>
+</html>
