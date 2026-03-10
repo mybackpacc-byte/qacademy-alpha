@@ -1,0 +1,864 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>QAcademy — Payment Confirmation</title>
+<style>
+  :root{--brand:#0b7a75;--muted:#859998;--ink:#1f2a28;--bg:#f6f8f7;--card:#fff;--line:rgba(0,0,0,.08)}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:780px;margin:26px auto;padding:0 14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 24px rgba(0,0,0,.06);padding:16px}
+  h1{margin:0 0 8px;font-size:20px}
+  .sub{color:#51605e;margin:0 0 14px;line-height:1.5}
+  .btn{display:inline-block;margin-top:10px;border:0;border-radius:999px;padding:10px 14px;background:var(--brand);color:#fff;font-weight:800;font-size:14px;cursor:pointer;text-decoration:none}
+  .ghost{background:transparent;color:var(--brand);border:1px solid rgba(11,122,117,.35)}
+  .err{margin-top:10px;color:#8f2727;font-weight:700;font-size:13px;white-space:pre-line}
+  .ok{margin-top:10px;color:#0a6c67;font-weight:700;font-size:13px;white-space:pre-line}
+  .kv{margin-top:10px;font-size:13px;color:#51605e}
+  .kv b{color:#1f2a28}
+  .meta{margin-top:10px;font-size:12px;color:#6b7b7a;line-height:1.4}
+
+  /* compact instructions */
+  .infoBox{
+    margin-top:14px;
+    border-top:1px dashed rgba(0,0,0,.12);
+    padding-top:12px;
+  }
+  .infoTitle{font-size:12px;color:#1f2a28;font-weight:900;margin:0 0 6px}
+  .infoList{margin:0;padding-left:18px;color:#51605e;line-height:1.5}
+  .infoList li{margin:6px 0}
+  .infoList b{color:#1f2a28}
+  .infoList a{color:var(--brand);font-weight:900;text-decoration:none}
+  .infoList a:hover{text-decoration:underline}
+  .supportRow{
+    margin-top:10px;
+    display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+  }
+  .supportRow .btn{margin-top:0}
+  @media(max-width:640px){
+    .supportRow .btn{width:100%;text-align:center}
+  }
+
+  /* mini help (setup-required only) */
+  .helpMini{
+    margin-top:12px;
+    display:none;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    padding:10px 12px;
+    border:1px dashed rgba(0,0,0,.14);
+    border-radius:14px;
+    background:rgba(255,255,255,.62);
+  }
+  .helpMiniBtn{
+    border:0;
+    background:transparent;
+    color:var(--brand);
+    font-weight:1000;
+    padding:0;
+    cursor:pointer;
+    text-decoration:underline;
+    text-underline-offset:3px;
+  }
+  .helpMiniTxt{font-size:12px;color:#51605e}
+  .helpMiniBtn:focus-visible{outline:2px solid rgba(11,122,117,.55);outline-offset:2px;border-radius:8px}
+
+  .qa-loader{position:fixed;inset:0;display:none;place-items:center;background:rgba(246,248,247,.82);backdrop-filter:blur(2px);z-index:9999}
+  .qa-loader.on{display:grid}
+  .spin{width:34px;height:34px;border-radius:50%;border:3px solid rgba(11,122,117,.25);border-top-color:var(--brand);animation:rot 1s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+
+  /* ===== SETUP_REQUIRED form ===== */
+  .setupBox{
+    display:none;
+    margin-top:14px;
+    border:1px solid rgba(0,0,0,.08);
+    background:rgba(0,0,0,.02);
+    border-radius:16px;
+    padding:12px;
+  }
+  .setupTitle{margin:0 0 6px;font-size:14px;font-weight:900;color:#1f2a28}
+  .setupSub{margin:0 0 10px;color:#51605e;font-size:13px;line-height:1.45}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:640px){ .row{grid-template-columns:1fr} }
+  label{display:block;font-size:12px;font-weight:900;color:#445150;margin:10px 0 6px}
+  input{
+    width:100%;
+    padding:12px 12px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:#fff;
+    font-size:14px;
+    outline:none;
+  }
+
+  /* ===== Password layout (mobile: Password → Rules → Confirm) ===== */
+  .pwGrid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    align-items:start;
+    grid-template-areas:
+      "pw pw2"
+      "rules rules";
+  }
+  .pwGrid .pw1{grid-area:pw}
+  .pwGrid .pw2{grid-area:pw2}
+  .pwGrid #pwRules{grid-area:rules;margin-top:0}
+
+  @media(max-width:640px){
+    .pwGrid{
+      grid-template-columns:1fr;
+      grid-template-areas:
+        "pw"
+        "rules"
+        "pw2";
+    }
+  }
+
+  /* Eye toggle */
+  .pwWrap{position:relative}
+  .pwInput{padding-right:46px}
+  .pwToggle{
+    position:absolute;right:10px;top:50%;transform:translateY(-50%);
+    border:0;background:transparent;color:#51605e;cursor:pointer;
+    padding:6px;border-radius:10px;line-height:0;
+  }
+  .pwToggle:hover{background:rgba(0,0,0,.06)}
+  .pwToggle:focus-visible{outline:2px solid rgba(11,122,117,.55);outline-offset:2px}
+
+  input:focus{border-color:rgba(11,122,117,.55);box-shadow:0 0 0 4px rgba(11,122,117,.12)}
+  .hint{font-size:12px;color:#51605e;margin-top:6px;line-height:1.35}
+  .pwRules{
+    margin-top:10px;border:1px solid rgba(0,0,0,.06);background:rgba(255,255,255,.65);
+    border-radius:12px;padding:10px
+  }
+  .pwRulesTitle{font-size:12px;color:#445150;font-weight:1000;margin:0 0 6px}
+  .pwList{margin:0;padding-left:18px;color:#51605e;font-size:12px;line-height:1.45}
+  .pwList li{margin:3px 0}
+  .pwOk{color:#0a6c67;font-weight:900}
+  .pwBad{color:#8f2727;font-weight:900}
+  .setupActions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  .setupBtn{flex:1}
+</style>
+</head>
+<body>
+<div class="qa-loader" id="loader"><div class="spin" aria-label="Loading"></div></div>
+
+<div class="wrap">
+  <div class="card">
+    <h1 id="title">Confirming your payment…</h1>
+    <p class="sub" id="sub">Please keep this page open. We’re verifying your transaction and activating access.</p>
+
+    <div class="kv">Reference: <b id="ref">—</b></div>
+    <div class="kv" id="statusRow" style="display:none">Status: <b id="statusTxt">—</b></div>
+
+    <div class="ok" id="ok"></div>
+    <div class="err" id="err"></div>
+
+    <div id="actions" style="display:none">
+      <a class="btn" id="loginBtn" href="#" rel="noopener">Go to Login</a>
+      <button class="btn ghost" id="retryBtn" type="button">Retry verification</button>
+    </div>
+
+    <!-- ✅ Setup form appears only when status=SETUP_REQUIRED -->
+    <div class="setupBox" id="setupBox">
+      <div class="setupTitle">Finish setup to activate access</div>
+      <p class="setupSub">
+        Your payment is confirmed, but we need to create your account to activate access.
+        This takes under 1 minute.
+      </p>
+
+      <div class="kv">Email: <b id="setupEmailTxt">—</b></div>
+
+      <div class="row">
+        <div>
+          <label>Forename</label>
+          <input id="su_forename" autocomplete="given-name"/>
+        </div>
+        <div>
+          <label>Surname</label>
+          <input id="su_surname" autocomplete="family-name"/>
+        </div>
+      </div>
+
+      <div class="pwGrid">
+        <div class="pw1">
+          <label>Password</label>
+          <div class="pwWrap">
+            <input id="su_password" class="pwInput" type="password" autocomplete="new-password"/>
+            <button class="pwToggle" id="pwToggle1" type="button" aria-label="Show password" aria-pressed="false">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" stroke="currentColor" stroke-width="2"/>
+                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="pwRules" id="pwRules">
+          <div class="pwRulesTitle">Password requirements</div>
+          <ul class="pwList">
+            <li id="rLen">At least 8 characters</li>
+            <li id="rLet">At least 1 letter (A–Z)</li>
+            <li id="rNum">At least 1 number (0–9)</li>
+            <li id="rSpc">At least 1 special character (e.g. ! @ # ?)</li>
+            <li id="rMatch">Passwords must match</li>
+          </ul>
+        </div>
+
+        <div class="pw2">
+          <label>Confirm password</label>
+          <div class="pwWrap">
+            <input id="su_password2" class="pwInput" type="password" autocomplete="new-password"/>
+            <button class="pwToggle" id="pwToggle2" type="button" aria-label="Show password" aria-pressed="false">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" stroke="currentColor" stroke-width="2"/>
+                <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Phone (optional)</label>
+          <input id="su_phone" autocomplete="tel"/>
+          <div class="hint">Optional. Use a WhatsApp / MoMo number if you want.</div>
+        </div>
+        <div></div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Cohort / School / Exam Year (optional)</label>
+          <input id="su_cohort" placeholder="e.g., UCC • 2026 Exams"/>
+          <div class="hint">Enter anything that helps identify your group (school, class, exam year, location).</div>
+        </div>
+        <div>
+          <label>Preferred username (optional)</label>
+          <input id="su_username" placeholder="Leave blank to auto-generate"/>
+          <div class="hint">If it’s taken, try another — or leave blank and we’ll generate one.</div>
+        </div>
+      </div>
+
+      <div class="setupActions">
+        <button class="btn ghost" id="setupCancelBtn" type="button">Not now</button>
+        <button class="btn ghost" id="setupAutoUserBtn" type="button" style="display:none">Auto-generate username</button>
+        <button class="btn setupBtn" id="setupBtn" type="button">Create account & activate</button>
+      </div>
+
+      <div class="err" id="setupErr"></div>
+      <div class="ok" id="setupOk"></div>
+    </div>
+
+    <!-- Setup-only collapsed support trigger -->
+    <div class="helpMini" id="helpMini">
+      <button class="helpMiniBtn" id="helpMiniBtn" type="button">Need help?</button>
+      <div class="helpMiniTxt">Tap to contact support.</div>
+    </div>
+
+    <!-- Full support block (shown only on Activated / Errors / Timeout OR when user expands from Need help) -->
+    <div class="infoBox" id="infoBox" style="display:none">
+      <div class="infoTitle">Payment confirmation — please read</div>
+      <ul class="infoList">
+        <li><b>Screenshot & save this page</b> (make sure the <b>reference</b> shows).</li>
+        <li><b>Activation usually completes within 60 seconds.</b></li>
+        <li>
+          Need help? WhatsApp <b id="waNumTxt">—</b> with <b>your email + reference</b>.<br>
+          <b>If you’re on NMC Licensure 2026 Prep</b>, message us to be <b>added to the Prep group</b> — otherwise, <b>use the link in your email</b> to continue.
+        </li>
+        <li>You can also email us at <b><a id="emailLink" href="#" rel="noopener">support@qacademynurses.com</a></b>.</li>
+        <li id="emailHintLine">We’ve also sent you a <b>confirmation email</b> (check Spam/Promotions).</li>
+      </ul>
+
+      <div class="supportRow" id="supportRow" style="display:none">
+        <a class="btn ghost" id="waBtn" href="#" rel="noopener">WhatsApp support</a>
+        <button class="btn ghost" id="waCopyBtn" type="button">Copy WhatsApp</button>
+        <a class="btn ghost" id="emailBtn" href="#" rel="noopener">Email support</a>
+      </div>
+    </div>
+
+    <div class="meta" id="meta"></div>
+  </div>
+</div>
+
+<script>
+  // ===== CONFIG =====
+  const PAYMENTS_URL = 'https://script.google.com/macros/s/AKfycbyvUw_eEGzHZd0wBsuKDNckQNFXJU-Xhr3T6J8pAuMRlgQbDhVy2nqp9H_QpeUQAI5I/exec';
+  const LOGIN_URL    = '/p/login_23.html';
+
+  // Support (public)
+  const SUPPORT_WA_E164 = '233538132277';
+  const SUPPORT_EMAIL   = 'support@qacademynurses.com';
+
+  // Polling behaviour
+  const POLL_MS = 3000;
+  const MAX_POLLS = 20; // ~60s
+
+  const $ = (id)=>document.getElementById(id);
+  const loaderOn  = ()=>$('loader').classList.add('on');
+  const loaderOff = ()=>$('loader').classList.remove('on');
+
+  const showActions = ()=>{ $('actions').style.display=''; };
+
+  function showLoginBtn(show){
+    const el = $('loginBtn');
+    if(!el) return;
+    el.style.display = show ? '' : 'none';
+  }
+
+  const setErr = (m)=>{ $('err').textContent = m||''; if(m) $('ok').textContent=''; };
+  const setOk  = (m)=>{ $('ok').textContent  = m||''; if(m) $('err').textContent=''; };
+
+  const setSetupErr = (m)=>{ $('setupErr').textContent = m||''; if(m) $('setupOk').textContent=''; };
+  const setSetupOk  = (m)=>{ $('setupOk').textContent = m||''; if(m) $('setupErr').textContent=''; };
+
+  function setStatusLine(st){
+    if(!st){ $('statusRow').style.display='none'; return; }
+    $('statusRow').style.display='';
+    $('statusTxt').textContent = st;
+  }
+
+  function maskRef(ref){
+    if(!ref) return '—';
+    if(ref.length <= 10) return ref;
+    return ref.slice(0,4) + '…' + ref.slice(-4);
+  }
+
+  function getReference(){
+    const qs = new URLSearchParams(location.search);
+    return (
+      (qs.get('reference') || '') ||
+      (qs.get('trxref') || '') ||
+      (qs.get('ref') || '') ||
+      (localStorage.getItem('qa_last_reference') || '')
+    ).trim();
+  }
+
+  function getSetupToken(){
+    const qs = new URLSearchParams(location.search);
+    return (
+      (qs.get('setup') || '') ||
+      (localStorage.getItem('qa_setup_token') || '')
+    ).trim();
+  }
+
+  function waLink(){
+    if(!SUPPORT_WA_E164) return '';
+    const msg = encodeURIComponent('Hi QAcademy Support - I need help with payment confirmation.\nMy email is: ____\nMy reference is: ____');
+    return 'https://wa.me/' + encodeURIComponent(SUPPORT_WA_E164) + '?text=' + msg;
+  }
+
+  // ===== Support modes =====
+  let supportInited = false;
+
+  function initSupport(){
+    if(supportInited) return;
+    supportInited = true;
+
+    const hasWA = !!SUPPORT_WA_E164;
+    const hasEmail = !!SUPPORT_EMAIL;
+    const hasAny = hasWA || hasEmail;
+
+    // If no support configured, keep everything hidden
+    if(!hasAny){
+      $('helpMini').style.display = 'none';
+      $('infoBox').style.display = 'none';
+      return;
+    }
+
+    // Fill info box content (but do not show it here)
+    $('waNumTxt').textContent = hasWA ? ('+' + SUPPORT_WA_E164) : '—';
+    $('emailLink').href = hasEmail ? ('mailto:' + SUPPORT_EMAIL) : '#';
+    $('emailLink').textContent = SUPPORT_EMAIL || '—';
+
+    $('supportRow').style.display = (hasAny) ? '' : 'none';
+
+    if(hasWA){
+      $('waBtn').href = waLink();
+
+      // attach once
+      $('waCopyBtn').addEventListener('click', async ()=>{
+        try{
+          await navigator.clipboard.writeText('+' + SUPPORT_WA_E164);
+          setOk('Copied WhatsApp number successfully');
+          setErr('');
+        } catch(_){
+          setErr('Copy failed. Please copy manually: +' + SUPPORT_WA_E164);
+        }
+      });
+    } else {
+      $('waBtn').style.display = 'none';
+      $('waCopyBtn').style.display = 'none';
+    }
+
+    if(hasEmail){
+      $('emailBtn').href = 'mailto:' + SUPPORT_EMAIL;
+      $('emailBtn').textContent = 'Email support';
+    } else {
+      $('emailBtn').style.display = 'none';
+    }
+
+    // Setup-only expand
+    $('helpMiniBtn').addEventListener('click', ()=>{
+      supportMode('full');
+      try{ $('infoBox').scrollIntoView({ behavior:'smooth', block:'start' }); } catch(_){}
+    });
+  }
+
+  function supportMode(mode){
+    initSupport();
+
+    const infoBox = $('infoBox');
+    const helpMini = $('helpMini');
+
+    // If support isn't configured, stay hidden
+    const hasAny = !!SUPPORT_WA_E164 || !!SUPPORT_EMAIL;
+    if(!hasAny){
+      infoBox.style.display = 'none';
+      helpMini.style.display = 'none';
+      return;
+    }
+
+    if(mode === 'hidden'){
+      infoBox.style.display = 'none';
+      helpMini.style.display = 'none';
+      return;
+    }
+
+    if(mode === 'mini'){
+      infoBox.style.display = 'none';
+      helpMini.style.display = 'flex';
+      return;
+    }
+
+    // full
+    helpMini.style.display = 'none';
+    infoBox.style.display = '';
+  }
+
+  // Use GET to avoid CORS/preflight problems
+  async function getVerify(reference){
+    const url = PAYMENTS_URL + '?action=pay_verify&reference=' + encodeURIComponent(reference) + '&ts=' + Date.now();
+    const r = await fetch(url, { method:'GET' });
+    return await r.json();
+  }
+
+  // POST helper (form-encoded to avoid preflight)
+  async function postAction(payload){
+    const form = new URLSearchParams();
+    Object.keys(payload || {}).forEach(k=>{
+      const v = payload[k];
+      if(v === undefined || v === null) return;
+      form.append(k, String(v));
+    });
+    const r = await fetch(PAYMENTS_URL, { method:'POST', body: form });
+    const txt = await r.text();
+    try{ return JSON.parse(txt); } catch(_){ return { ok:false, error:'bad_json_response', raw: txt.slice(0, 400) }; }
+  }
+
+  function isEmailLikelyValid(email){
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || '');
+  }
+
+  // Password checks
+  function pwChecks(pw, pw2){
+    const s = String(pw||'');
+    return {
+      len: s.length >= 8,
+      let: /[A-Za-z]/.test(s),
+      num: /\d/.test(s),
+      spc: /[^A-Za-z0-9]/.test(s),
+      match: String(pw||'') === String(pw2||'') && s.length > 0
+    };
+  }
+  function paintRule(id, ok){
+    const el = $(id);
+    if(!el) return;
+    el.classList.toggle('pwOk', !!ok);
+    el.classList.toggle('pwBad', !ok);
+  }
+  function updatePwUI(){
+    const p1 = $('su_password').value || '';
+    const p2 = $('su_password2').value || '';
+    const c = pwChecks(p1, p2);
+    paintRule('rLen', c.len);
+    paintRule('rLet', c.let);
+    paintRule('rNum', c.num);
+    paintRule('rSpc', c.spc);
+    paintRule('rMatch', c.match);
+    return c;
+  }
+
+  // ===== Show/Hide password toggles =====
+  const ICON_EYE = `
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" stroke="currentColor" stroke-width="2"/>
+      <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+    </svg>`;
+  const ICON_EYE_OFF = `
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 3l18 18" stroke="currentColor" stroke-width="2"/>
+      <path d="M2 12s3.5-7 10-7c2.1 0 3.9.6 5.3 1.4M22 12s-3.5 7-10 7c-2.1 0-3.9-.6-5.3-1.4" stroke="currentColor" stroke-width="2"/>
+      <path d="M10.5 10.5a3 3 0 0 0 4 4" stroke="currentColor" stroke-width="2"/>
+    </svg>`;
+
+  function wirePwToggle(btnId, inputId){
+    const btn = $(btnId);
+    const inp = $(inputId);
+    if(!btn || !inp) return;
+
+    btn.innerHTML = ICON_EYE;
+
+    btn.addEventListener('click', ()=>{
+      const show = inp.type === 'password';
+      inp.type = show ? 'text' : 'password';
+      btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+      btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      btn.innerHTML = show ? ICON_EYE_OFF : ICON_EYE;
+      inp.focus();
+    });
+  }
+
+  function showSetupBox(show){
+    $('setupBox').style.display = show ? 'block' : 'none';
+  }
+
+  function showAutoUserBtn(show){
+    const b = $('setupAutoUserBtn');
+    if(!b) return;
+    b.style.display = show ? '' : 'none';
+  }
+
+  function normalizeUsername(u){
+    return String(u||'').trim().toLowerCase().replace(/^@+/, '');
+  }
+
+  function interpret(res){
+    const st = String(res && (res.status || '') || '').toUpperCase();
+    const err = String(res && (res.error || res.detail || '') || '').toLowerCase();
+
+    if(res && res.ok && st === 'ACTIVATED'){
+      return { kind:'ok', status:'ACTIVATED', msg:'Payment verified and access activated.\nYou can now log in.' };
+    }
+
+    if(res && res.ok && st === 'SETUP_REQUIRED'){
+      return { kind:'setup', status:'SETUP_REQUIRED', msg:'Payment received. Please finish setup to activate access.' };
+    }
+    if(res && res.ok && (err.includes('user_not_found') || err.includes('setup_required'))){
+      return { kind:'setup', status:'SETUP_REQUIRED', msg:'Payment received. Please finish setup to activate access.' };
+    }
+
+    if(err.includes('payment_not_found')){
+      return { kind:'err', status:'NOT_FOUND', msg:'We couldn’t find that payment reference.\nPlease return to the payment page and try again.' };
+    }
+    if(err.includes('amount_mismatch')){
+      return { kind:'err', status:'AMOUNT_MISMATCH', msg:'Payment amount mismatch.\nPlease contact support with your reference.' };
+    }
+    if(err.includes('paystack_verify_failed') || err.includes('not_success_status')){
+      return { kind:'err', status:'NOT_SUCCESS', msg:'Payment not confirmed as successful yet.\nIf you just paid, wait a moment and we’ll retry.' };
+    }
+    if(err.includes('activation_failed') || err.includes('forbidden')){
+      return { kind:'err', status:'ACTIVATION_FAILED', msg:'Payment was seen, but activation failed.\nPlease contact support with your reference.' };
+    }
+
+    return { kind:'pending', status: st || 'PENDING', msg: (res && res.error) ? ('Still verifying: ' + res.error) : 'Still verifying…' };
+  }
+
+  let pollTimer = null;
+  let polls = 0;
+  let currentRef = '';
+  let lastVerify = null;
+
+  function fillSetupFromVerify(res){
+    const email = (res && (res.email || '')) || localStorage.getItem('qa_last_email') || '';
+    $('setupEmailTxt').textContent = email ? email : '—';
+
+    const phone = (res && (res.phone_number || '')) || localStorage.getItem('qa_last_phone') || '';
+    if(phone && !$('su_phone').value) $('su_phone').value = phone;
+
+    const cohort = (res && (res.cohort || '')) || localStorage.getItem('qa_last_cohort') || '';
+    if(cohort && !$('su_cohort').value) $('su_cohort').value = cohort;
+
+    const username = (res && (res.username || '')) || localStorage.getItem('qa_last_username') || '';
+    if(username && !$('su_username').value) $('su_username').value = username;
+
+    $('emailHintLine').innerHTML = 'After setup, you’ll receive a <b>confirmation email</b> (check Spam/Promotions).';
+  }
+
+  async function verifyFlow({ autoPoll=true }={}){
+    if(pollTimer){ clearTimeout(pollTimer); pollTimer=null; }
+    setErr('');
+    setOk('');
+    setSetupErr('');
+    setSetupOk('');
+    showSetupBox(false);
+    showAutoUserBtn(false);
+
+    // default during verify/pending
+    supportMode('hidden');
+
+    $('loginBtn').href = LOGIN_URL;
+    showLoginBtn(true);
+
+    const reference = getReference();
+    currentRef = reference;
+
+    $('ref').textContent = reference ? reference : '—';
+    $('meta').textContent = reference ? ('Tip: save this reference - ' + maskRef(reference)) : '';
+
+    if(!reference){
+      $('title').textContent = 'Missing payment reference';
+      $('sub').textContent = 'We couldn’t read your transaction reference.';
+      setErr('Missing reference.\nPlease return to the payment page and try again.');
+      setStatusLine('');
+      supportMode('full'); // error state
+      showActions();
+      return;
+    }
+
+    loaderOn();
+    try{
+      const res = await getVerify(reference);
+      lastVerify = res;
+
+      if(res && res.setup_token) localStorage.setItem('qa_setup_token', String(res.setup_token));
+      if(reference) localStorage.setItem('qa_last_reference', reference);
+      if(res && res.email) localStorage.setItem('qa_last_email', String(res.email));
+
+      const out = interpret(res);
+      setStatusLine(out.status);
+
+      if(out.kind === 'ok'){
+        showLoginBtn(true);
+        $('title').textContent = 'Activated';
+        $('sub').textContent = 'Your access is now active.';
+        setOk(out.msg);
+        supportMode('full'); // activated shows full block
+        showActions();
+        return;
+      }
+
+      if(out.kind === 'setup'){
+        $('title').textContent = 'Finish setup to activate';
+        $('sub').textContent = 'Your payment is confirmed. Please complete setup below to activate access.';
+        setErr('');
+        setOk(out.msg);
+
+        fillSetupFromVerify(res);
+        showSetupBox(true);
+
+        supportMode('mini'); // setup shows collapsed "Need help?"
+        showLoginBtn(false);
+        showActions();
+        return;
+      }
+
+      if(out.kind === 'err'){
+        $('title').textContent = 'Verification issue';
+        $('sub').textContent = 'Please use Retry, or contact support if this persists.';
+        setErr(out.msg);
+        supportMode('full'); // errors show full block
+        showActions();
+        return;
+      }
+
+      // pending
+      $('title').textContent = 'Confirming your payment…';
+      $('sub').textContent = 'Please keep this page open. We’re verifying your transaction and activating access.';
+      setErr('Still verifying…');
+      supportMode('hidden');
+
+      if(autoPoll){
+        polls++;
+        if(polls <= MAX_POLLS){
+          pollTimer = setTimeout(()=>verifyFlow({ autoPoll:true }), POLL_MS);
+        } else {
+          $('title').textContent = 'Almost done…';
+          $('sub').textContent = 'If this takes too long, tap Retry. Your payment won’t be lost.';
+          setErr('We couldn’t confirm activation yet.\nTap “Retry verification” in a few seconds.');
+          supportMode('full'); // timeout shows full block
+          showActions();
+        }
+      } else {
+        showActions();
+      }
+
+    } catch(e){
+      $('title').textContent = 'Network issue';
+      $('sub').textContent = 'Please tap Retry.';
+      setErr('Network error.\nTap “Retry verification”.');
+      setStatusLine('NETWORK');
+      supportMode('full'); // error shows full block
+      showActions();
+    } finally{
+      loaderOff();
+    }
+  }
+
+  async function runSetupComplete(){
+    setSetupErr('');
+    setSetupOk('');
+    showAutoUserBtn(false);
+
+    const reference = currentRef || getReference();
+    if(!reference){
+      setSetupErr('Missing reference. Please refresh the page.');
+      supportMode('full');
+      return;
+    }
+
+    const email = (lastVerify && (lastVerify.email || '')) || localStorage.getItem('qa_last_email') || '';
+    if(email && !isEmailLikelyValid(email)){
+      setSetupErr('Email looks invalid. Please contact support with your reference.');
+      supportMode('full');
+      return;
+    }
+
+    const forename = ($('su_forename').value || '').trim();
+    const surname  = ($('su_surname').value || '').trim();
+    const pw1 = $('su_password').value || '';
+    const pw2 = $('su_password2').value || '';
+    const phone = ($('su_phone').value || '').trim();
+
+    const cohort = ($('su_cohort').value || '').trim();
+    const usernameRaw = $('su_username').value || '';
+    const username = normalizeUsername(usernameRaw);
+
+    if(!forename){ setSetupErr('Please enter your forename.'); $('su_forename').focus(); return; }
+    if(!surname){ setSetupErr('Please enter your surname.'); $('su_surname').focus(); return; }
+
+    const c = updatePwUI();
+    if(!pw1){ setSetupErr('Please create a password.'); $('su_password').focus(); return; }
+    if(!c.len){ setSetupErr('Password must be at least 8 characters.'); $('su_password').focus(); return; }
+    if(!c.let){ setSetupErr('Password must include at least one letter.'); $('su_password').focus(); return; }
+    if(!c.num){ setSetupErr('Password must include at least one number.'); $('su_password').focus(); return; }
+    if(!c.spc){ setSetupErr('Password must include at least one special character (e.g. ! @ # ?).'); $('su_password').focus(); return; }
+    if(!c.match){ setSetupErr('Passwords do not match.'); $('su_password2').focus(); return; }
+
+    if(username && /\s/.test(username)){
+      setSetupErr('Username cannot contain spaces. Try another username, or leave it blank to auto-generate.');
+      $('su_username').focus();
+      showAutoUserBtn(true);
+      return;
+    }
+
+    const product_id = (lastVerify && (lastVerify.product_id || '')) || localStorage.getItem('qa_last_product_id') || '';
+    const program_id =
+      (lastVerify && (lastVerify.program_id || '')) ||
+      localStorage.getItem('qa_last_program_id') ||
+      localStorage.getItem('qa_join_program') || '';
+
+    const setup_token = (lastVerify && (lastVerify.setup_token || '')) || getSetupToken() || '';
+
+    $('setupBtn').disabled = true;
+    loaderOn();
+    try{
+      const res = await postAction({
+        action: 'setup_complete',
+        reference: reference,
+        email: email,
+        product_id: product_id,
+        program_id: program_id,
+        phone_number: phone,
+        cohort: cohort,
+        username: username,
+        forename: forename,
+        surname: surname,
+        password: pw1,
+        setup_token: setup_token
+      });
+
+      if(!res || !res.ok){
+        const pe = String((res && (res.portal_error || res.error || res.detail)) || 'setup_failed').toLowerCase();
+
+        if(pe.includes('email_exists')){
+          setSetupOk('We found an existing account for this email. Activating access now…');
+          polls = 0;
+          await verifyFlow({ autoPoll:true });
+          return;
+        }
+
+        if(pe.includes('username_exists')){
+          setSetupErr('That username is already taken. Try another, or leave it blank and we’ll generate one for you.');
+          $('su_username').focus();
+          showAutoUserBtn(true);
+          return;
+        }
+
+        if(pe.includes('invalid_username')){
+          setSetupErr('That username is not allowed. Try a simpler username (no spaces). Or leave it blank to auto-generate.');
+          $('su_username').focus();
+          showAutoUserBtn(true);
+          return;
+        }
+
+        if(pe.includes('password_policy_failed')){
+          setSetupErr('Password policy failed. Please use 8+ chars with letters, numbers and a special character.');
+          return;
+        }
+
+        setSetupErr('Setup failed: ' + (res.portal_error || res.error || res.detail || 'setup_failed') + '\nTap Retry verification if needed, or contact support with your reference.');
+        supportMode('full');
+        return;
+      }
+
+      if(cohort) localStorage.setItem('qa_last_cohort', cohort);
+      if(username) localStorage.setItem('qa_last_username', username);
+
+      setSetupOk('Setup completed. Activating access…');
+      polls = 0;
+      await verifyFlow({ autoPoll:true });
+
+    } catch(e){
+      setSetupErr('Network error. Please try again.');
+      supportMode('full');
+    } finally{
+      $('setupBtn').disabled = false;
+      loaderOff();
+    }
+  }
+
+  $('retryBtn').addEventListener('click', ()=>{
+    polls = 0;
+    verifyFlow({ autoPoll:true });
+  });
+
+  $('setupBtn').addEventListener('click', runSetupComplete);
+
+  $('setupAutoUserBtn').addEventListener('click', async ()=>{
+    $('su_username').value = '';
+    showAutoUserBtn(false);
+    await runSetupComplete();
+  });
+
+  $('setupCancelBtn').addEventListener('click', ()=>{
+    showSetupBox(false);
+    setOk('You can finish setup later using this same reference.');
+    // still keep help collapsed available (setup context)
+    supportMode('mini');
+    showActions();
+  });
+
+  $('su_password').addEventListener('input', updatePwUI);
+  $('su_password2').addEventListener('input', updatePwUI);
+
+  wirePwToggle('pwToggle1', 'su_password');
+  wirePwToggle('pwToggle2', 'su_password2');
+
+  $('su_username').addEventListener('input', ()=>{
+    showAutoUserBtn(false);
+    setSetupErr('');
+  });
+
+  // start
+  supportMode('hidden');
+  verifyFlow({ autoPoll:true });
+</script>
+</body>
+</html>
