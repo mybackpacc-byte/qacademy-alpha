@@ -1,0 +1,1960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Admin Inbox</title>
+<style>
+  :root{
+    --brand:#0b7a75;
+    --muted:#859998;
+    --ink:#0f172a;
+    --bg:#f6f8f7;
+    --card:#ffffff;
+    --line:#e5e7eb;
+    --soft:rgba(0,0,0,.06);
+    --danger:#b91c1c;
+    --warn:#8f2727;
+    --ok:#0a6c67;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+  }
+  .wrap{
+    max-width:1200px;
+    margin:18px auto;
+    padding:0 12px 22px;
+  }
+
+  /* Full Screen Loader Overlay */
+  #globalLoader {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(2px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* ===== Topbar ===== */
+  .topbar{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:10px;
+    flex-wrap:wrap;
+  }
+  .title{
+    font-weight:900;
+    letter-spacing:-.02em;
+    font-size:18px;
+  }
+  .top-actions{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+  .pill{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 10px;
+    border-radius:999px;
+    background:var(--card);
+    border:1px solid var(--line);
+    box-shadow:0 6px 20px var(--soft);
+    color:#334155;
+    font-size:12px;
+    white-space:nowrap;
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background:var(--card);
+    box-shadow:0 6px 20px var(--soft);
+    font-weight:800;
+    cursor:pointer;
+    color:var(--ink);
+    text-decoration:none;
+    user-select:none;
+  }
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{
+    background:var(--brand);
+    border-color:var(--brand);
+    color:#fff;
+  }
+  .btn.primary[disabled],
+  .btn[disabled]{
+    opacity:.65;
+    cursor:not-allowed;
+  }
+  .btn.danger{
+    background:#fff;
+    border-color:#fecaca;
+    color:var(--danger);
+  }
+  .btn.ghost{
+    background:transparent;
+    box-shadow:none;
+  }
+
+  /* ===== Filters Toolbar (TOP) ===== */
+  .filtersBar{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    box-shadow:0 10px 30px var(--soft);
+    padding:10px;
+    margin-bottom:12px;
+  }
+  .filtersRow{
+    display:flex;
+    gap:10px;
+    align-items:flex-end;
+    flex-wrap:wrap;
+  }
+  .filtersRow + .filtersRow{ margin-top:10px; }
+
+  .f{
+    min-width:170px;
+    flex:0 0 auto;
+  }
+  .f.grow{
+    flex:1 1 380px;
+    min-width:240px;
+  }
+  label{
+    font-size:12px;
+    color:#64748b;
+    font-weight:900;
+    display:block;
+    margin-bottom:6px;
+  }
+  select, input{
+    width:100%;
+    padding:10px 10px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    outline:none;
+    font-size:14px;
+    background:#fff;
+  }
+  select:focus, input:focus{
+    border-color: rgba(11,122,117,.55);
+    box-shadow:0 0 0 4px rgba(11,122,117,.12);
+  }
+  .filtersActions{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    justify-content:flex-end;
+    flex-wrap:wrap;
+    margin-left:auto;
+  }
+  .tinyhint{
+    font-size:12px;
+    color:#64748b;
+    margin-top:8px;
+  }
+
+  /* ===== Main Grid ===== */
+  .grid{
+    display:grid;
+    grid-template-columns: 420px 1fr;
+    gap:12px;
+  }
+  @media (max-width: 980px){
+    .grid{ grid-template-columns: 1fr; }
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    box-shadow:0 10px 30px var(--soft);
+    overflow:hidden;
+  }
+
+  /* ===== Threads List (LEFT) ===== */
+  .listHead{
+    padding:12px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .listHead .sub{ font-size:12px; color:#475569; }
+
+  .threads{
+    max-height:72vh;
+    overflow:auto;
+  }
+  @media (max-width: 980px){
+    .threads{ max-height:44vh; }
+  }
+
+  .trow{
+    padding:12px;
+    border-bottom:1px solid var(--line);
+    cursor:pointer;
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+  }
+  .trow:hover{ background:#f8fafc; }
+  .trow.active{ background:#ecfeff; }
+
+  .dot{
+    width:10px;height:10px;border-radius:999px;
+    margin-top:4px;
+    background:transparent;
+    border:1px solid var(--line);
+    flex:0 0 auto;
+  }
+  .dot.unread{ background:var(--brand); border-color:var(--brand); }
+
+  .tmeta{ flex:1; min-width:0; }
+  .tline1{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .tctx{
+    font-weight:900;
+    font-size:13px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .twhen{
+    font-size:11px;
+    color:#64748b;
+    white-space:nowrap;
+    margin-left:10px;
+  }
+  .chips{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    margin-top:6px;
+  }
+  .chip{
+    font-size:11px;
+    padding:4px 8px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#f8fafc;
+    color:#334155;
+    max-width:100%;
+  }
+  .chip.brand{
+    border-color: rgba(11,122,117,.25);
+    background: rgba(11,122,117,.10);
+    color: var(--brand);
+    font-weight:900;
+  }
+  .chip.warn{
+    border-color:#fecaca;
+    background:#fef2f2;
+    color:#b91c1c;
+    font-weight:900;
+  }
+  .chip.status-open{
+    border-color: rgba(10,108,103,.25);
+    background: rgba(10,108,103,.10);
+    color: var(--ok);
+    font-weight:900;
+  }
+  .chip.status-closed{
+    border-color: rgba(143,39,39,.25);
+    background: rgba(143,39,39,.10);
+    color: var(--warn);
+    font-weight:900;
+  }
+
+  /* ===== Chat (RIGHT) ===== */
+  .chatHead{
+    padding:12px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .chatTitle{
+    font-weight:900;
+    font-size:13px;
+    min-width:0;
+    flex:1;
+  }
+  .chatTitle .dim{
+    display:block;
+    font-weight:800;
+    font-size:12px;
+    color:#64748b;
+    white-space:pre-wrap;
+    overflow:visible;
+    text-overflow:clip;
+    word-break:break-word;
+    margin-top:4px;
+  }
+
+  .chat{
+    height:62vh;
+    overflow:auto;
+    padding:12px;
+    background:linear-gradient(180deg,#ffffff,#fbfffe);
+  }
+  @media (max-width: 980px){
+    .chat{ height:52vh; }
+  }
+  .chat .banner{ margin:0 0 10px 0; }
+
+  .msg{
+    display:flex;
+    margin:10px 0;
+  }
+  .bubble{
+    max-width: 85%;
+    padding:10px 12px;
+    border-radius:14px;
+    border:1px solid var(--line);
+    box-shadow:0 8px 18px var(--soft);
+    background:#fff;
+    line-height:1.45;
+    white-space:pre-wrap;
+    word-wrap:break-word;
+  }
+  .msg.admin{ justify-content:flex-end; }
+  .msg.admin .bubble{
+    background:rgba(11,122,117,.10);
+    border-color: rgba(11,122,117,.25);
+  }
+  .meta{
+    font-size:11px;
+    color:#64748b;
+    margin-top:6px;
+  }
+
+  .composer{
+    border-top:1px solid var(--line);
+    padding:10px;
+    display:flex;
+    gap:10px;
+    align-items:flex-end;
+    background:#fff;
+  }
+  textarea{
+    width:100%;
+    min-height:42px;
+    max-height:160px;
+    resize:vertical;
+    border-radius:12px;
+    border:1px solid var(--line);
+    padding:10px 10px;
+    font-family:inherit;
+    font-size:14px;
+    outline:none;
+  }
+  textarea:focus{
+    border-color: rgba(11,122,117,.55);
+    box-shadow:0 0 0 4px rgba(11,122,117,.12);
+  }
+  textarea[disabled]{
+    opacity:.75;
+    background:#f8fafc;
+    cursor:not-allowed;
+  }
+
+  .err{
+    background:#fef2f2;
+    border:1px solid #fecaca;
+    color:var(--danger);
+    padding:10px 12px;
+    border-radius:12px;
+    margin:12px;
+    font-weight:900;
+    font-size:13px;
+  }
+
+  .spin{
+    display:inline-block;
+    width:14px;height:14px;border-radius:50%;
+    border:2px solid rgba(15,23,42,.15);
+    border-top-color: rgba(15,23,42,.6);
+    animation:spin 1s linear infinite;
+  }
+  .spin-large{
+    width:40px;height:40px;
+    border-width:4px;
+    border-top-color: var(--brand);
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .hint{
+    font-size:12px;
+    color:#64748b;
+    padding:10px 12px;
+  }
+
+  .banner{
+    margin:12px;
+    border-radius:12px;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    background:#f8fafc;
+    color:#334155;
+    font-size:13px;
+    font-weight:900;
+    display:none;
+    white-space:pre-wrap;
+    word-wrap:break-word;
+  }
+  .banner.closed{
+    border-color: rgba(143,39,39,.25);
+    background: rgba(143,39,39,.08);
+    color: var(--warn);
+  }
+  .banner.info{
+    border-color: rgba(11,122,117,.25);
+    background: rgba(11,122,117,.08);
+    color: var(--brand);
+  }
+
+  /* ===== Compose (modal) ===== */
+  .composeBody{
+    padding:12px;
+    display:grid;
+    gap:10px;
+  }
+  .row2{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:10px;
+  }
+  @media (max-width: 980px){
+    .row2{ grid-template-columns: 1fr; }
+  }
+  .help{
+    font-size:12px;
+    color:#64748b;
+    line-height:1.45;
+  }
+  .results{
+    border:1px solid var(--line);
+    border-radius:12px;
+    overflow:hidden;
+    background:#fff;
+  }
+  .rrow{
+    padding:10px 10px;
+    border-bottom:1px solid var(--line);
+    cursor:pointer;
+  }
+  .rrow:hover{ background:#f8fafc; }
+  .rrow:last-child{ border-bottom:none; }
+  .rtitle{ font-weight:900; font-size:13px; }
+  .rsub{ font-size:12px; color:#64748b; margin-top:2px; }
+
+  .modalMask{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.45);
+    display:none;
+    align-items:flex-start;
+    justify-content:center;
+    padding:22px 12px;
+    z-index: 9000;
+  }
+  .modal{
+    width:min(900px, 100%);
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    box-shadow:0 25px 80px rgba(0,0,0,.25);
+    overflow:hidden;
+  }
+  .modalHead{
+    padding:12px;
+    border-bottom:1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .modalHead .h{
+    font-weight:900;
+  }
+  .modalFoot{
+    padding:12px;
+    border-top:1px solid var(--line);
+    display:flex;
+    gap:10px;
+    align-items:center;
+    justify-content:flex-end;
+    flex-wrap:wrap;
+    background:#fff;
+  }
+/* === PATCH: make the compose modal scroll properly === */
+.modalMask{
+  overflow:auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal{
+  max-height: calc(100vh - 44px);
+  display:flex;
+  flex-direction:column;
+}
+
+.composeBody{
+  overflow:auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.modalHead,
+.modalFoot{
+  flex: 0 0 auto;
+}
+body.modal-open{ overflow:hidden; }
+
+  /* ===== Fix C: token-aware suggestions for comma-separated scope ===== */
+  .sugBox{
+    margin-top:8px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:#fff;
+    overflow:hidden;
+    max-height:220px;
+    overflow:auto;
+  }
+  .sugItem{
+    padding:10px 10px;
+    border-bottom:1px solid var(--line);
+    cursor:pointer;
+    font-weight:800;
+    font-size:13px;
+    color:#334155;
+  }
+  .sugItem:hover{ background:#f8fafc; }
+  .sugItem:last-child{ border-bottom:none; }
+  .sugMuted{
+    font-weight:700;
+    color:#64748b;
+    font-size:12px;
+  }
+
+  .toggleRow{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    background:#fff;
+  }
+  .toggleRow input[type="checkbox"]{
+    width:auto;
+    padding:0;
+    margin:0;
+  }
+  .toggleRow .tlabel{
+    font-size:13px;
+    font-weight:900;
+    color:#334155;
+    margin:0;
+  }
+  .toggleRow .tsub{
+    font-size:12px;
+    color:#64748b;
+    font-weight:700;
+    margin-left:auto;
+    white-space:nowrap;
+  }
+</style>
+</head>
+<body>
+
+<div id="globalLoader">
+  <div class="spin spin-large"></div>
+  <div id="loaderText" style="font-weight: 800; color: var(--ink);">Please wait...</div>
+</div>
+
+<!-- Desktop compose modal -->
+<div id="composeMask" class="modalMask" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="modal">
+    <div class="modalHead">
+      <div class="h">New message</div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="btn" id="btnComposeCloseDesk" type="button">Close</button>
+      </div>
+    </div>
+
+    <div class="composeBody" id="composeBodyDesk">
+      <div class="help">
+        Target users using scopes (like announcements). For a single user, search by name/email.
+        Manual user_id also works.
+      </div>
+
+      <div class="row2">
+        <div>
+          <label>Audience</label>
+          <select id="cAudience">
+            <option value="single" selected>Single user</option>
+            <option value="all_active">All active users</option>
+            <option value="program">Program</option>
+            <option value="course">Course (entitlement)</option>
+            <option value="product">Product</option>
+            <option value="kind">Subscription kind</option>
+            <option value="cohort">Cohort</option>
+            <option value="level">Level</option>
+          </select>
+        </div>
+        <div>
+          <label>Thread context</label>
+          <select id="cContext">
+            <option value="general" selected>general</option>
+            <option value="course">course</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="toggleRow">
+        <input type="checkbox" id="cIncludeInactive" />
+        <label class="tlabel" for="cIncludeInactive">Include inactive users</label>
+        <span class="tsub">Admin only</span>
+      </div>
+
+      <div id="cCourseWrap" style="display:none;">
+        <label>course_id (required for course context)</label>
+        <input id="cCourseId" list="dlCCourseIds" placeholder="e.g., RN_MED" />
+        <datalist id="dlCCourseIds"></datalist>
+        <div class="help">This sets which thread it lands in (course thread). Not the scope filter.</div>
+      </div>
+
+      <div id="cSingleWrap">
+        <label>Search user (name/email/user_id)</label>
+        <input id="cUserSearch" placeholder="Type then Search…" />
+        <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+          <button class="btn" id="btnUserSearch" type="button">Search</button>
+          <span class="pill" id="pickedUserPill" style="display:none;"></span>
+        </div>
+        <div id="userResults" class="results" style="display:none;margin-top:10px;"></div>
+        <div class="help" style="margin-top:8px;">
+          If search fails, paste user_id below.
+        </div>
+        <label style="margin-top:8px;">user_id (manual fallback)</label>
+        <input id="cUserIdManual" placeholder="USR_..." />
+      </div>
+
+      <div id="cScopeWrap" style="display:none;">
+        <label>Scope values (comma-separated)</label>
+        <input id="cScopeValues" list="dlCScopeValues" placeholder="Start typing… (comma-separated)" />
+        <datalist id="dlCScopeValues"></datalist>
+        <div id="cScopeSug" class="sugBox" style="display:none;"></div>
+        <div class="help" id="cScopeHelp" style="margin-top:6px;"></div>
+      </div>
+
+      <div class="row2">
+        <div>
+          <label>Subject (optional)</label>
+          <input id="cSubject" placeholder="Short title (optional)" />
+        </div>
+        <div>
+          <label>Ref text (optional)</label>
+          <input id="cRefText" placeholder="Optional reference" />
+        </div>
+      </div>
+
+      <div>
+        <label>Message</label>
+        <textarea id="cBody" placeholder="Type your message…"></textarea>
+      </div>
+
+      <div id="composeErr" class="err" style="display:none;"></div>
+      <div class="help" id="composeHint">
+        Tip: If sending to multiple courses, do one course batch at a time (course context), or use general context.
+      </div>
+    </div>
+
+    <div class="modalFoot">
+      <button class="btn" id="btnComposeCancelDesk" type="button">Cancel</button>
+      <button class="btn primary" id="btnComposeSendDesk" type="button">Send</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="title">Admin Inbox</div>
+    <div class="top-actions">
+      <span class="pill" id="qaStatus"><span class="spin"></span> Loading…</span>
+      <a class="btn" id="btnBack" href="/p/dashboard_23.html">← Dashboard</a>
+      <button class="btn" id="btnNew" type="button">New message</button>
+      <button class="btn primary" id="btnRefresh" type="button">Refresh</button>
+    </div>
+  </div>
+
+  <!-- TOP Filters -->
+  <div class="filtersBar">
+    <div class="filtersRow">
+      <div class="f">
+        <label>Status</label>
+        <select id="fStatus">
+          <option value="">All</option>
+          <option value="OPEN" selected>OPEN</option>
+          <option value="CLOSED">CLOSED</option>
+        </select>
+      </div>
+
+      <div class="f">
+        <label>Unread only</label>
+        <select id="fUnread">
+          <option value="">No</option>
+          <option value="true">Yes</option>
+        </select>
+      </div>
+
+      <div class="f">
+        <label>Context</label>
+        <select id="fContext">
+          <option value="">All</option>
+          <option value="general">general</option>
+          <option value="course">course</option>
+          <option value="question">question</option>
+        </select>
+      </div>
+
+      <div class="f">
+        <label>Limit</label>
+        <select id="fLimit">
+          <option value="40">40</option>
+          <option value="80" selected>80</option>
+          <option value="150">150</option>
+        </select>
+      </div>
+
+      <div class="filtersActions">
+        <button class="btn" id="btnClearFilters" type="button">Clear</button>
+        <button class="btn primary" id="btnApplyFilters" type="button">Apply</button>
+      </div>
+    </div>
+
+    <div class="filtersRow">
+      <div class="f grow">
+        <label>Search (owner, user_id, course, question_id, thread_id, ref_text)</label>
+        <input id="fQuery" placeholder="Type and press Enter…" />
+      </div>
+    </div>
+
+    <div class="tinyhint">Tip: keep replies short, clear, and action-based.</div>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="grid">
+
+    <!-- Left: Threads -->
+    <div class="card threads-card">
+      <div class="listHead">
+        <div>
+          <div style="font-weight:900;">Threads</div>
+          <div class="sub" id="threadsSub">—</div>
+        </div>
+      </div>
+
+      <div id="threadsErr" style="display:none;" class="err"></div>
+      <div class="threads" id="threads"></div>
+    </div>
+
+    <!-- Right: Chat -->
+    <div class="card chat-card">
+      <div class="chatHead">
+        <div class="chatTitle">
+          <span id="chatLabel">Select a thread</span>
+          <span class="dim" id="chatSub"></span>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button class="btn danger" id="btnClose" type="button" style="display:none;">Close</button>
+          <button class="btn" id="btnReopen" type="button" style="display:none;">Reopen</button>
+        </div>
+      </div>
+
+      <div id="chatErr" style="display:none;" class="err"></div>
+      <div id="threadBanner" class="banner"></div>
+
+      <div class="chat" id="chat">
+        <div id="refBox" class="banner info" style="display:none;"></div>
+        <div id="refHelp" class="banner" style="display:none;"></div>
+
+        <div id="chatList">
+          <div class="hint">Pick a thread to view messages.</div>
+        </div>
+      </div>
+
+      <div class="composer">
+        <textarea id="msgBox" placeholder="Reply as admin… (Ctrl+Enter to send)"></textarea>
+        <button class="btn primary" id="btnSend" type="button" disabled>Send</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ===========================
+   CONFIG
+=========================== */
+const QA = {
+  MSG_URL: "https://script.google.com/macros/s/AKfycbyyPv8GxEZ4trRpHFVG1IzctDn_1utELw62WBqbJVGmHdRH0PLI5h1jsROsRnA0VGt4/exec",
+  TOKEN_KEY: "qa_token",
+  LOGIN_URL: "/p/login_23.html"
+};
+
+/* ===========================
+   Helpers
+=========================== */
+function $(id){ return document.getElementById(id); }
+function token(){ return localStorage.getItem(QA.TOKEN_KEY) || ""; }
+
+function setGlobalLoader(show, text = "Loading...") {
+  const loader = $("globalLoader");
+  const txt = $("loaderText");
+  if(txt) txt.textContent = text;
+  if(loader) loader.style.display = show ? "flex" : "none";
+}
+
+function fmtWhen(iso){
+  if(!iso) return "";
+  try{
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, {year:"numeric",month:"short",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+  }catch(_){ return iso; }
+}
+
+async function postForm(payload){
+  const body = new URLSearchParams(payload);
+  const r = await fetch(QA.MSG_URL, {
+    method:"POST",
+    headers: {"Content-Type":"application/x-www-form-urlencoded"},
+    body
+  });
+  return await r.json();
+}
+
+function setStatus(txt, ok=true){
+  const el = $("qaStatus");
+  el.innerHTML = ok ? "● " + txt : "⚠ " + txt;
+  el.style.color = ok ? "#0a6c67" : "#b91c1c";
+}
+
+function showErr(id, msg){
+  const el = $(id);
+  if(!el) return;
+  if(!msg){ el.style.display="none"; el.textContent=""; return; }
+  el.style.display="block";
+  el.textContent = msg;
+}
+
+function esc(s){
+  return String(s ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#39;");
+}
+
+function setBanner(kind, msg){
+  const el = $("threadBanner");
+  if(!el) return;
+  if(!msg){
+    el.style.display="none";
+    el.className="banner";
+    el.textContent="";
+    return;
+  }
+  el.style.display="block";
+  el.className="banner " + (kind || "info");
+  el.textContent = msg;
+}
+
+function setRefBox(text){
+  const el = $("refBox");
+  if(!el) return;
+  if(!text){
+    el.style.display = "none";
+    el.textContent = "";
+    return;
+  }
+  el.style.display = "block";
+  el.textContent = text;
+}
+
+function setRefHelp(text){
+  const el = $("refHelp");
+  if(!el) return;
+  if(!text){
+    el.style.display = "none";
+    el.textContent = "";
+    return;
+  }
+  el.style.display = "block";
+  el.textContent = text;
+}
+
+function isThreadClosed(thread){
+  const s = (thread && thread.status ? String(thread.status) : "").toUpperCase();
+  return s === "CLOSED";
+}
+
+function recomputeSendEnabled(){
+  const box = $("msgBox");
+  const btn = $("btnSend");
+  const textOk = !!(box && box.value && box.value.trim());
+  const threadOk = !!STATE.activeThreadId && STATE.activeThread && !isThreadClosed(STATE.activeThread);
+  const canSend = textOk && threadOk && !STATE.busySend;
+  btn.disabled = !canSend;
+}
+
+function setComposerEnabled(enabled, bannerMsg){
+  const box = $("msgBox");
+  const btn = $("btnSend");
+  if(!box || !btn) return;
+  box.disabled = !enabled;
+  if(!enabled){
+    btn.disabled = true;
+  }else{
+    recomputeSendEnabled();
+  }
+  if(!enabled && bannerMsg) setBanner("closed", bannerMsg);
+}
+
+function splitCSV(s){
+  return String(s||"").split(",").map(x=>String(x||"").trim()).filter(Boolean);
+}
+
+function uniq(arr){
+  return Array.from(new Set((arr||[]).map(x=>String(x||"").trim()).filter(Boolean)));
+}
+
+function fillDatalist(datalistId, values){
+  const dl = $(datalistId);
+  if(!dl) return;
+  const items = uniq(values).slice(0, 1500);
+  dl.innerHTML = items.map(v => `<option value="${esc(v)}"></option>`).join("");
+}
+
+function setScopeHelp(elId, text){
+  const el = $(elId);
+  if(!el) return;
+  el.textContent = text || "";
+}
+
+/* ===== Fix C helpers: comma-token aware suggestions ===== */
+function getLastTokenFromCSVInput(raw){
+  const s = String(raw || "");
+  const parts = s.split(",");
+  const last = parts.length ? parts[parts.length - 1] : "";
+  return last.trim();
+}
+
+function replaceLastTokenInCSVInput(raw, newToken){
+  const s = String(raw || "");
+  const parts = s.split(",");
+  if(!parts.length) return newToken;
+
+  parts[parts.length - 1] = " " + String(newToken || "").trim();
+  const joined = parts.map((p,i)=> (i===0 ? p.trim() : p.trim())).join(", ");
+  return joined.replace(/\s+,/g, ",");
+}
+
+function showScopeSug(items, onPick){
+  const box = $("cScopeSug");
+  if(!box) return;
+
+  if(!items || !items.length){
+    box.style.display = "none";
+    box.innerHTML = "";
+    return;
+  }
+
+  box.style.display = "block";
+  box.innerHTML = items.map(v => `
+    <div class="sugItem" data-v="${esc(v)}">
+      ${esc(v)}
+      <div class="sugMuted">Click to insert</div>
+    </div>
+  `).join("");
+
+  box.querySelectorAll(".sugItem").forEach(el=>{
+    el.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      onPick(el.getAttribute("data-v") || "");
+    });
+  });
+}
+
+function hideScopeSug(){
+  const box = $("cScopeSug");
+  if(!box) return;
+  box.style.display = "none";
+  box.innerHTML = "";
+}
+
+function getFilteredScopeSuggestions(audience, typedToken){
+  const all = getScopeValuesForAudience(audience) || [];
+  const q = String(typedToken || "").trim().toLowerCase();
+  if(!q) return all.slice(0, 20);
+
+  const starts = [];
+  const contains = [];
+  for(const v of all){
+    const vv = String(v||"");
+    const l = vv.toLowerCase();
+    if(l.startsWith(q)) starts.push(vv);
+    else if(l.includes(q)) contains.push(vv);
+  }
+  return starts.concat(contains).slice(0, 20);
+}
+
+function hasComma(raw){
+  return String(raw || "").includes(",");
+}
+
+function setNativeDatalistEnabled(enabled){
+  const inp = $("cScopeValues");
+  if(!inp) return;
+  if(enabled){
+    inp.setAttribute("list","dlCScopeValues");
+  }else{
+    inp.removeAttribute("list");
+  }
+}
+
+/* ===== Human-readable helpers (NEW) ===== */
+function ownerLabel(t){
+  const s = (t && (t.owner_label || t.owner_name)) ? String(t.owner_label || t.owner_name).trim() : "";
+  if(s) return s;
+  return t && t.user_id ? String(t.user_id) : "";
+}
+function courseLabel(t){
+  const cid = t && t.course_id ? String(t.course_id).trim() : "";
+  const title = t && t.course_title ? String(t.course_title).trim() : "";
+  if(title && cid) return `${title} (${cid})`;
+  if(title) return title;
+  return cid;
+}
+
+/* ===========================
+   State
+=========================== */
+let STATE = {
+  threads: [],
+  activeThreadId: "",
+  activeThread: null,
+  activeMessages: [],
+  busySend: false,
+  busyLifecycle: false,
+  busyOpen: false,
+  pickedUser: null,
+
+  // scope meta
+  scopeMeta: null,
+  scopeMetaLoadedAt: 0
+};
+
+/* ===========================
+   Scope meta (suggestions)
+=========================== */
+async function loadScopeMeta(force=false){
+  const t = token();
+  if(!t) return;
+
+  const now = Date.now();
+  const hasGoodCache = STATE.scopeMeta && STATE.scopeMeta.ok;
+  const isFresh = hasGoodCache && (now - (STATE.scopeMetaLoadedAt||0) < 10*60*1000);
+  if(isFresh && !force) return;
+
+  try{
+    const res = await postForm({ action:"admin.scope.meta", token:t });
+
+    if(res && res.ok){
+      STATE.scopeMeta = res;
+      STATE.scopeMetaLoadedAt = now;
+
+      const courseIds = (res.courses && Array.isArray(res.courses.course_ids)) ? res.courses.course_ids : [];
+      fillDatalist("dlCCourseIds", courseIds);
+      fillDatalist("dlMCourseIds", courseIds);
+
+      refreshScopeSuggestions();
+      return;
+    }
+
+    STATE.scopeMeta = null;
+    STATE.scopeMetaLoadedAt = 0;
+
+  }catch(_){
+    STATE.scopeMeta = null;
+    STATE.scopeMetaLoadedAt = 0;
+  }
+}
+
+function getScopeValuesForAudience(audience){
+  const m = STATE.scopeMeta;
+  if(!m || !m.ok) return [];
+
+  if(audience === "program") return (m.programs && m.programs.program_ids) ? m.programs.program_ids : [];
+  if(audience === "course")  return (m.courses  && m.courses.course_ids)   ? m.courses.course_ids   : [];
+  if(audience === "product") return (m.products && m.products.product_ids) ? m.products.product_ids : [];
+  if(audience === "kind")    return (m.products && m.products.subscription_kinds) ? m.products.subscription_kinds : [];
+  if(audience === "cohort")  return (m.users    && m.users.cohort_ids) ? m.users.cohort_ids : [];
+  if(audience === "level")   return (m.users    && m.users.level_ids)  ? m.users.level_ids  : [];
+
+  return [];
+}
+
+function refreshScopeSuggestions(){
+  const audience = $("cAudience") ? $("cAudience").value : "single";
+
+  const vals = getScopeValuesForAudience(audience);
+  fillDatalist("dlCScopeValues", vals);
+
+  function hintFor(aud){
+    if(aud === "single") return "";
+    if(aud === "all_active") return "No scope needed. This targets all active users.";
+    const values = getScopeValuesForAudience(aud);
+    const n = values.length;
+    if(!STATE.scopeMeta) return "Suggestions not loaded yet. You can still paste comma-separated IDs.";
+    if(n === 0) return "No values found in Sheets for this scope. Check sheet headers/data.";
+    const sample = values.slice(0, 6).join(", ");
+    return `Available: ${n}. Examples: ${sample}`;
+  }
+  setScopeHelp("cScopeHelp", hintFor(audience));
+}
+
+/* ===========================
+   Render
+=========================== */
+function renderThreads(){
+  const box = $("threads");
+  box.innerHTML = "";
+
+  const list = STATE.threads || [];
+  $("threadsSub").textContent = list.length ? (list.length + " loaded") : "No threads";
+
+  if(!list.length){
+    box.innerHTML = '<div class="hint">No threads match your filters.</div>';
+    return;
+  }
+
+  list.forEach(t => {
+    const tid = t.thread_id;
+    const isActive = tid === STATE.activeThreadId;
+
+    const ctx = (t.context_type || "general").toUpperCase();
+    const chips = [];
+
+    // HUMAN: Owner label (fallback to user_id)
+    const oLabel = ownerLabel(t);
+    if(oLabel) chips.push(`<span class="chip warn">${esc(oLabel)}</span>`);
+
+    // HUMAN: Course title (course_id) if present
+    const cLabel = courseLabel(t);
+    if(cLabel) chips.push(`<span class="chip brand">${esc(cLabel)}</span>`);
+
+    // Keep technical breadcrumbs as small chips (optional)
+    if(t.question_id) chips.push(`<span class="chip">Q: ${esc(t.question_id)}</span>`);
+    if(t.quiz_id) chips.push(`<span class="chip">quiz</span>`);
+    if(t.attempt_id) chips.push(`<span class="chip">attempt</span>`);
+
+    const st = (t.status ? String(t.status) : "").toUpperCase();
+    if(st){
+      chips.push(`<span class="chip ${st==="CLOSED" ? "status-closed":"status-open"}">${esc(st)}</span>`);
+    }
+
+    const row = document.createElement("div");
+    row.className = "trow" + (isActive ? " active" : "");
+    row.innerHTML = `
+      <span class="dot ${t.unread ? "unread":""}"></span>
+      <div class="tmeta">
+        <div class="tline1">
+          <div class="tctx">${esc(ctx)} • ${esc(t.thread_id)}</div>
+          <div class="twhen">${esc(fmtWhen(t.last_message_at))}</div>
+        </div>
+        <div class="chips">${chips.join("")}</div>
+      </div>
+    `;
+    row.onclick = () => openThread(tid);
+    box.appendChild(row);
+  });
+}
+
+function renderChat(){
+  const thread = STATE.activeThread;
+  const messages = STATE.activeMessages || [];
+  const chat = $("chat");
+  const list = $("chatList");
+
+  setBanner("", "");
+  setRefBox("");
+  setRefHelp("");
+  if(list) list.innerHTML = "";
+
+  if(!thread){
+    $("chatLabel").textContent = "Select a thread";
+    $("chatSub").textContent = "";
+    if(list) list.innerHTML = '<div class="hint">Pick a thread to view messages.</div>';
+
+    setComposerEnabled(false);
+    $("btnClose").style.display = "none";
+    $("btnReopen").style.display = "none";
+    return;
+  }
+
+  const ctx = String(thread.context_type || "general").toLowerCase();
+  $("chatLabel").textContent = String((thread.context_type || "general")).toUpperCase();
+
+  const sub = [];
+  const oLabel = ownerLabel(thread);
+  if(oLabel) sub.push("Owner: " + oLabel);
+
+  const cLabel = courseLabel(thread);
+  if(cLabel) sub.push("Course: " + cLabel);
+
+  if(thread.question_id) sub.push("Question: " + String(thread.question_id));
+  $("chatSub").textContent = sub.join("\n");
+
+  if(ctx === "question"){
+    const rt = thread.ref_text ? String(thread.ref_text) : "";
+    if(rt){
+      setRefBox("Reference:\n" + rt);
+      setRefHelp(
+        "Reply with a fix or explanation.\n" +
+        "Mention what part is wrong (stem or option) and what should change."
+      );
+    }
+  }
+
+  const status = String(thread.status || "OPEN").toUpperCase();
+  $("btnClose").style.display  = (status === "OPEN") ? "inline-flex" : "none";
+  $("btnReopen").style.display = (status !== "OPEN") ? "inline-flex" : "none";
+
+  $("btnClose").disabled = STATE.busyLifecycle;
+  $("btnReopen").disabled = STATE.busyLifecycle;
+
+  if(isThreadClosed(thread)){
+    setBanner("closed", "🔒 This thread is CLOSED. Reopen to reply.");
+    setComposerEnabled(false);
+  }else{
+    setBanner("", "");
+    setComposerEnabled(!STATE.busySend);
+  }
+
+  if(!messages.length){
+    if(list) list.innerHTML = '<div class="hint">No messages yet.</div>';
+    return;
+  }
+
+  messages.forEach(m => {
+    const who = (m.sender_type || "").toLowerCase();
+    const row = document.createElement("div");
+    row.className = "msg " + (who === "admin" ? "admin" : "user");
+    row.innerHTML = `
+      <div class="bubble">
+        ${esc(m.body_text)}
+        <div class="meta">${esc((who||"").toUpperCase())} • ${esc(fmtWhen(m.created_at))}</div>
+      </div>
+    `;
+    if(list) list.appendChild(row);
+  });
+
+  chat.scrollTop = chat.scrollHeight;
+  recomputeSendEnabled();
+}
+
+/* ===========================
+   Local thread patching
+=========================== */
+function patchThreadLocally(threadId, patch){
+  const list = STATE.threads || [];
+  for(let i=0;i<list.length;i++){
+    if(list[i].thread_id === threadId){
+      list[i] = Object.assign({}, list[i], patch);
+      break;
+    }
+  }
+}
+function markThreadReadLocally(threadId){ patchThreadLocally(threadId, { unread:false }); }
+function updateThreadLastSeenLocally(thread){
+  if(!thread || !thread.thread_id) return;
+  const lm = thread.last_message_at || thread.updated_at || "";
+  const patch = { unread:false };
+  if(lm) patch.last_message_at = lm;
+  if(thread.status) patch.status = thread.status;
+  patchThreadLocally(thread.thread_id, patch);
+}
+
+/* ===========================
+   Data
+=========================== */
+function currentFilters(){
+  return {
+    status: ($("fStatus").value || "").trim(),
+    unread_only: ($("fUnread").value || "").trim(),
+    context_type: ($("fContext").value || "").trim(),
+    query: ($("fQuery").value || "").trim(),
+    limit: ($("fLimit").value || "80").trim()
+  };
+}
+
+async function loadThreads(){
+  showErr("threadsErr", "");
+  showErr("chatErr", "");
+  setStatus("Loading threads…", true);
+
+  const t = token();
+  if(!t){ location.href = QA.LOGIN_URL; return; }
+
+  const btn = $("btnRefresh");
+  const old = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spin"></span>`;
+
+  try{
+    const f = currentFilters();
+    const res = await postForm({
+      action: "admin.thread.list",
+      token: t,
+      status: f.status,
+      unread_only: f.unread_only,
+      context_type: f.context_type,
+      query: f.query,
+      limit: f.limit
+    });
+
+    if(!res.ok){
+      setStatus("Error", false);
+      showErr("threadsErr", "List failed: " + (res.error || "unknown"));
+      if(String(res.error||"").toLowerCase().includes("forbidden")){
+        $("threads").innerHTML = '<div class="hint"><b>Admin only.</b> Your account is not allowed to view this page.</div>';
+      }
+      return;
+    }
+
+    STATE.threads = res.threads || [];
+    renderThreads();
+    setStatus("Ready", true);
+  }catch(e){
+    setStatus("Error", false);
+    showErr("threadsErr", "List failed: network error");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = old;
+  }
+}
+
+async function openThread(threadId){
+  showErr("chatErr", "");
+  const t = token();
+  if(!t){ location.href = QA.LOGIN_URL; return; }
+
+  if(STATE.busyOpen) return;
+  STATE.busyOpen = true;
+
+  STATE.activeThreadId = threadId;
+  renderThreads();
+  setStatus("Opening…", true);
+  setGlobalLoader(true, "Opening conversation...");
+
+  try{
+    const res = await postForm({
+      action:"admin.thread.open",
+      token:t,
+      thread_id: threadId,
+      open_limit:"600"
+    });
+
+    if(!res.ok){
+      setStatus("Error", false);
+      showErr("chatErr", "Open failed: " + (res.error || "unknown"));
+      return;
+    }
+
+    STATE.activeThread = res.thread || null;
+    STATE.activeMessages = res.messages || [];
+    renderChat();
+    setStatus("Ready", true);
+
+    markThreadReadLocally(threadId);
+    updateThreadLastSeenLocally(res.thread);
+    renderThreads();
+
+  } finally {
+    STATE.busyOpen = false;
+    setGlobalLoader(false);
+  }
+}
+
+async function adminReply(){
+  showErr("chatErr", "");
+  const t = token();
+  if(!t){ location.href = QA.LOGIN_URL; return; }
+  if(!STATE.activeThreadId){
+    showErr("chatErr", "Select a thread first.");
+    return;
+  }
+  if(STATE.activeThread && isThreadClosed(STATE.activeThread)){
+    showErr("chatErr", "Thread is CLOSED. Reopen to reply.");
+    return;
+  }
+  if(STATE.busySend) return;
+
+  const box = $("msgBox");
+  const text = (box.value || "").trim();
+  if(!text) return;
+
+  STATE.busySend = true;
+  $("btnSend").disabled = true;
+  $("msgBox").disabled = true;
+  $("btnSend").innerHTML = `<span class="spin"></span> Sending…`;
+  setStatus("Sending…", true);
+
+  try{
+    const res = await postForm({
+      action:"admin.thread.reply",
+      token:t,
+      thread_id: STATE.activeThreadId,
+      body_text: text
+    });
+
+    $("btnSend").innerHTML = `Send`;
+    STATE.busySend = false;
+
+    if(!res.ok){
+      setStatus("Error", false);
+      $("msgBox").disabled = false;
+      showErr("chatErr", "Reply failed: " + (res.error || "unknown"));
+      renderChat();
+      return;
+    }
+
+    box.value = "";
+    await openThread(STATE.activeThreadId);
+  } catch(e){
+    $("btnSend").innerHTML = `Send`;
+    STATE.busySend = false;
+    $("msgBox").disabled = false;
+    setStatus("Error", false);
+    showErr("chatErr", "Reply failed: network error");
+    renderChat();
+  } finally {
+    recomputeSendEnabled();
+  }
+}
+
+async function adminClose(){
+  showErr("chatErr", "");
+  const t = token();
+  if(!t){ location.href = QA.LOGIN_URL; return; }
+  if(!STATE.activeThreadId) return;
+  if(STATE.busyLifecycle) return;
+
+  STATE.busyLifecycle = true;
+  $("btnClose").disabled = true;
+  $("btnReopen").disabled = true;
+  setStatus("Closing…", true);
+  setGlobalLoader(true, "Closing thread...");
+
+  try{
+    const res = await postForm({
+      action:"admin.thread.close",
+      token:t,
+      thread_id: STATE.activeThreadId
+    });
+
+    if(!res.ok){
+      setStatus("Error", false);
+      showErr("chatErr", "Close failed: " + (res.error || "unknown"));
+      renderChat();
+      return;
+    }
+
+    await openThread(STATE.activeThreadId);
+  } finally {
+    STATE.busyLifecycle = false;
+    setGlobalLoader(false);
+  }
+}
+
+async function adminReopen(){
+  showErr("chatErr", "");
+  const t = token();
+  if(!t){ location.href = QA.LOGIN_URL; return; }
+  if(!STATE.activeThreadId) return;
+  if(STATE.busyLifecycle) return;
+
+  STATE.busyLifecycle = true;
+  $("btnClose").disabled = true;
+  $("btnReopen").disabled = true;
+  setStatus("Reopening…", true);
+  setGlobalLoader(true, "Reopening thread...");
+
+  try{
+    const res = await postForm({
+      action:"admin.thread.reopen",
+      token:t,
+      thread_id: STATE.activeThreadId
+    });
+
+    if(!res.ok){
+      setStatus("Error", false);
+      showErr("chatErr", "Reopen failed: " + (res.error || "unknown"));
+      renderChat();
+      return;
+    }
+
+    await openThread(STATE.activeThreadId);
+  } finally {
+    STATE.busyLifecycle = false;
+    setGlobalLoader(false);
+  }
+}
+
+/* ===========================
+   Compose (desktop only)
+=========================== */
+function showComposeDesktop(show){
+  const mask = $("composeMask");
+  if(!mask) return;
+  mask.style.display = show ? "flex" : "none";
+  mask.setAttribute("aria-hidden", show ? "false" : "true");
+
+  document.body.classList.toggle("modal-open", !!show);
+
+  if(show){
+    const cb = $("composeBodyDesk");
+    if(cb) cb.scrollTop = 0;
+  }
+}
+
+
+function clearComposeErrors(){
+  showErr("composeErr", "");
+}
+
+function setPickedUser(u){
+  STATE.pickedUser = u;
+
+  const pill = $("pickedUserPill");
+  const text = u ? (
+    (u.name ? (u.name + " • ") : "") +
+    (u.email ? (u.email + " • ") : "") +
+    ("user_id: " + u.user_id)
+  ) : "";
+
+  if(pill){
+    pill.style.display = u ? "inline-flex" : "none";
+    pill.textContent = text;
+  }
+}
+
+function syncComposeVisibility(){
+  const audience = $("cAudience").value;
+  const ctx = $("cContext").value;
+
+  const courseWrapD = $("cCourseWrap");
+  const singleWrapD = $("cSingleWrap");
+  const scopeWrapD = $("cScopeWrap");
+
+  const showCourse = (ctx === "course");
+  if(courseWrapD) courseWrapD.style.display = showCourse ? "block" : "none";
+
+  const isSingle = (audience === "single");
+  const isAll = (audience === "all_active");
+  if(singleWrapD) singleWrapD.style.display = isSingle ? "block" : "none";
+
+  const showScope = (!isSingle && !isAll);
+  if(scopeWrapD) scopeWrapD.style.display = showScope ? "block" : "none";
+
+  const helpMap = {
+    program: "Enter program_id(s), e.g., RN,RM,RPHN",
+    course: "Enter course_id(s) for entitlement scope, e.g., RN_MED,GP",
+    product: "Enter product_id(s), e.g., RN_FULL,TRIAL_GP",
+    kind: "Enter kind(s), e.g., PAID,TRIAL,FREE",
+    cohort: "Enter cohort id(s) as stored in users sheet",
+    level: "Enter level id(s) as stored in users sheet"
+  };
+  const help = helpMap[audience] || "";
+  setScopeHelp("cScopeHelp", help);
+
+  refreshScopeSuggestions();
+  hideScopeSug();
+}
+
+async function searchUsers(term){
+  const t = token();
+  if(!t){ location.href = QA.LOGIN_URL; return; }
+
+  const resultsEl = $("userResults");
+  if(!resultsEl) return;
+
+  resultsEl.style.display = "none";
+  resultsEl.innerHTML = "";
+
+  const q = String(term||"").trim();
+  if(!q) return;
+
+  setGlobalLoader(true, "Searching users...");
+  try{
+    const res = await postForm({
+      action: "admin.user.search",
+      token: t,
+      query: q,
+      limit: "10"
+    });
+
+    if(!res.ok){
+      resultsEl.style.display = "block";
+      resultsEl.innerHTML = `<div class="rrow">
+        <div class="rtitle">Search failed</div>
+        <div class="rsub">${esc(res.error || "unknown")}</div>
+      </div>`;
+      return;
+    }
+
+    const items = res.users || [];
+    if(!items.length){
+      resultsEl.style.display = "block";
+      resultsEl.innerHTML = `<div class="rrow">
+        <div class="rtitle">No matches</div>
+        <div class="rsub">Try email, name, or user_id.</div>
+      </div>`;
+      return;
+    }
+
+    resultsEl.style.display = "block";
+    resultsEl.innerHTML = "";
+    items.forEach(u=>{
+      const row = document.createElement("div");
+      row.className = "rrow";
+      const headline = (u.name ? u.name : (u.email ? u.email : u.user_id));
+      row.innerHTML = `
+        <div class="rtitle">${esc(headline || "User")}</div>
+        <div class="rsub">${esc(u.user_id || "")}${u.email ? " • " + esc(u.email) : ""}${u.program_id ? " • " + esc(u.program_id) : ""}</div>
+      `;
+      row.onclick = () => {
+        setPickedUser({ user_id: u.user_id, email: u.email || "", name: u.name || "" });
+        if($("cUserIdManual")) $("cUserIdManual").value = u.user_id || "";
+      };
+      resultsEl.appendChild(row);
+    });
+
+  } finally {
+    setGlobalLoader(false);
+  }
+}
+
+function buildBulkPayload(){
+  const audience = $("cAudience").value;
+  const ctxType = $("cContext").value;
+
+  const subject  = ($("cSubject").value || "");
+  const ref_text = ($("cRefText").value || "");
+  const body_text = ($("cBody").value || "");
+
+  const course_id = (ctxType === "course")
+    ? (($("cCourseId").value || "").trim())
+    : "";
+
+  const scopeValues = ($("cScopeValues").value || "");
+  const list = splitCSV(scopeValues);
+
+  const scope = {
+    program_ids: [],
+    course_ids: [],
+    product_ids: [],
+    subscription_kinds: [],
+    cohort_ids: [],
+    level_ids: [],
+    user_ids: []
+  };
+
+  if(audience === "single"){
+    const picked = STATE.pickedUser && STATE.pickedUser.user_id ? STATE.pickedUser.user_id : "";
+    const manual = ($("cUserIdManual").value || "");
+    const uid = (picked || manual).trim();
+    if(uid) scope.user_ids = [uid];
+  } else if(audience === "all_active"){
+    // flag only
+  } else if(audience === "program"){
+    scope.program_ids = list;
+  } else if(audience === "course"){
+    scope.course_ids = list;
+  } else if(audience === "product"){
+    scope.product_ids = list;
+  } else if(audience === "kind"){
+    scope.subscription_kinds = list;
+  } else if(audience === "cohort"){
+    scope.cohort_ids = list;
+  } else if(audience === "level"){
+    scope.level_ids = list;
+  }
+
+  return {
+    audience: String(audience||"").trim(),
+    subject: String(subject||"").trim(),
+    ref_text: String(ref_text||"").trim(),
+    body_text: String(body_text||"").trim(),
+    context_type: String(ctxType||"general").trim(),
+    course_id: course_id,
+    scope
+  };
+}
+
+function validateBulkPayload(p){
+  if(!p.body_text) return "Message is required.";
+  if(p.context_type === "course" && !p.course_id) return "course_id is required for course context.";
+
+  if(p.audience === "single"){
+    const n = (p.scope.user_ids || []).length;
+    if(n !== 1) return "Pick exactly one user (search or manual user_id).";
+    return "";
+  }
+
+  const hasAnyScope =
+    (p.scope.program_ids.length || p.scope.course_ids.length || p.scope.product_ids.length ||
+     p.scope.subscription_kinds.length || p.scope.cohort_ids.length || p.scope.level_ids.length || p.scope.user_ids.length);
+
+  if(!hasAnyScope && p.audience !== "all_active"){
+    return "Select an audience scope (or choose All active users).";
+  }
+
+  return "";
+}
+
+async function sendBulk(){
+  clearComposeErrors();
+
+  const t = token();
+  if(!t){ location.href = QA.LOGIN_URL; return; }
+
+  const p = buildBulkPayload();
+  const err = validateBulkPayload(p);
+  if(err){
+    showErr("composeErr", err);
+    return;
+  }
+
+  const include_inactive = !!$("cIncludeInactive")?.checked;
+
+  const payload = {
+    action: "admin.bulk.send",
+    token: t,
+
+    subject: p.subject,
+    body_text: p.body_text,
+
+    bulk_ref_text: p.ref_text,
+    bulk_context_type: p.context_type,
+    bulk_course_id: p.course_id,
+
+    all_active: (p.audience === "all_active") ? "true" : "false",
+    include_inactive: include_inactive ? "true" : "false",
+
+    force_single: (p.audience === "single") ? "true" : "false",
+
+    program_ids: (p.scope.program_ids || []).join(","),
+    course_ids: (p.scope.course_ids || []).join(","),
+    product_ids: (p.scope.product_ids || []).join(","),
+    subscription_kinds: (p.scope.subscription_kinds || []).join(","),
+    cohort_ids: (p.scope.cohort_ids || []).join(","),
+    level_ids: (p.scope.level_ids || []).join(","),
+    user_ids: (p.scope.user_ids || []).join(",")
+  };
+
+  setGlobalLoader(true, "Sending...");
+  try{
+    const res = await postForm(payload);
+
+    if(!res.ok){
+      showErr("composeErr", "Send failed: " + (res.error || "unknown"));
+      return;
+    }
+
+    setStatus("Sent", true);
+    showComposeDesktop(false);
+
+    await loadThreads();
+
+    const targetUid = (p.scope.user_ids && p.scope.user_ids[0]) ? p.scope.user_ids[0] : "";
+    if(targetUid && (res.resolved_count === 1 || String(res.resolved_count||"") === "1")){
+      const ctx = String(p.context_type||"general").toLowerCase();
+      const cid = String(p.course_id||"");
+
+      const candidates = (STATE.threads||[])
+        .filter(x => String(x.user_id||"") === targetUid)
+        .filter(x => String(x.context_type||"").toLowerCase() === ctx)
+        .filter(x => (ctx !== "course" ? true : String(x.course_id||"") === cid))
+        .sort((a,b)=>String(b.last_message_at||"").localeCompare(String(a.last_message_at||"")));
+
+      if(candidates.length){
+        await openThread(candidates[0].thread_id);
+      }
+    }
+
+  } finally {
+    setGlobalLoader(false);
+  }
+}
+
+/* ===========================
+   Filter actions
+=========================== */
+function applyFilters(){ loadThreads(); }
+function clearFilters(){
+  $("fStatus").value = "OPEN";
+  $("fUnread").value = "";
+  $("fContext").value = "";
+  $("fLimit").value = "80";
+  $("fQuery").value = "";
+  loadThreads();
+}
+
+/* ===========================
+   Boot + events
+=========================== */
+$("btnRefresh").onclick = loadThreads;
+$("btnApplyFilters").onclick = applyFilters;
+$("btnClearFilters").onclick = clearFilters;
+
+$("btnSend").onclick = adminReply;
+$("btnClose").onclick = adminClose;
+$("btnReopen").onclick = adminReopen;
+
+$("fStatus").onchange = loadThreads;
+$("fUnread").onchange = loadThreads;
+$("fContext").onchange = loadThreads;
+$("fLimit").onchange = loadThreads;
+$("fQuery").addEventListener("keydown", (e)=>{ if(e.key==="Enter") loadThreads(); });
+
+$("msgBox").addEventListener("keydown", (e)=>{
+  if(e.key === "Enter" && (e.ctrlKey || e.metaKey)){
+    e.preventDefault();
+    adminReply();
+  }
+});
+$("msgBox").addEventListener("input", ()=> recomputeSendEnabled());
+
+$("btnNew").onclick = async () => {
+  clearComposeErrors();
+  setPickedUser(null);
+
+  setGlobalLoader(true, "Loading scope suggestions...");
+  await loadScopeMeta(false);
+  setGlobalLoader(false);
+
+  syncComposeVisibility();
+  showComposeDesktop(true);
+};
+
+$("btnComposeCloseDesk").onclick = () => showComposeDesktop(false);
+$("btnComposeCancelDesk").onclick = () => showComposeDesktop(false);
+$("btnComposeSendDesk").onclick = () => sendBulk();
+
+$("cAudience").onchange = syncComposeVisibility;
+$("cContext").onchange = syncComposeVisibility;
+
+// Fix C: live suggestions for comma-separated scope values
+$("cScopeValues").addEventListener("input", () => {
+  const audience = $("cAudience").value;
+  const inp = $("cScopeValues");
+  if(!inp) return;
+
+  if(audience === "single" || audience === "all_active"){
+    hideScopeSug();
+    setNativeDatalistEnabled(true);
+    return;
+  }
+
+  const raw = inp.value || "";
+  const multi = hasComma(raw);
+
+  if(!multi){
+    hideScopeSug();
+    setNativeDatalistEnabled(true);
+    return;
+  }
+
+  setNativeDatalistEnabled(false);
+
+  if(!STATE.scopeMeta || !STATE.scopeMeta.ok){
+    hideScopeSug();
+    return;
+  }
+
+  const tokenText = getLastTokenFromCSVInput(raw);
+  const sug = getFilteredScopeSuggestions(audience, tokenText);
+
+  showScopeSug(sug, (picked) => {
+    const nowRaw = inp.value || "";
+    inp.value = replaceLastTokenInCSVInput(nowRaw, picked);
+
+    if(!inp.value.trim().endsWith(",")){
+      inp.value = inp.value.replace(/\s+$/,"") + ", ";
+    }
+
+    hideScopeSug();
+    inp.focus();
+  });
+});
+
+$("btnUserSearch").onclick = () => searchUsers($("cUserSearch").value);
+$("cUserSearch").addEventListener("keydown", (e)=>{ if(e.key==="Enter") searchUsers($("cUserSearch").value); });
+
+$("composeMask").addEventListener("click", (e)=>{
+  if(e.target && e.target.id === "composeMask") showComposeDesktop(false);
+});
+
+(async function init(){
+  setGlobalLoader(true, "Checking session...");
+  setStatus("Checking session…", true);
+
+  if(!token()){
+    setStatus("Not logged in", false);
+    location.href = QA.LOGIN_URL;
+    return;
+  }
+
+  await loadScopeMeta(false);
+  syncComposeVisibility();
+
+  await loadThreads();
+  setGlobalLoader(false);
+  setStatus("Ready", true);
+})();
+</script>
+</body>
+</html>
