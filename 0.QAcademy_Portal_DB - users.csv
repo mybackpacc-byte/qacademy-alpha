@@ -1,3 +1,0 @@
-user_id,username,password_hash,salt,name,forename,surname,email,phone_number,program_id,cohort,expires_utc,active,role,avatar_url,last_login_utc,must_change_password,created_utc,signup_source,level
-admin1,sam,vZ6Un4wRVHfc_no2cxdQuGn-lzV78YQJw0cs6pPdCnY,5HJDFDfMSOIZN-hHZz-nid,Samuel Owusu-Ansah,samuel,owusu,mybackpacc@gmail.com,,RN,2026A,,TRUE,ADMIN,,2026-03-10T03:44:48.739Z,TRUE,,,200
-U_3712233b3b,albert01,ffizuSRxkkJTtnAH-TOunnXoytY0egHGa4XiW03FhLA,-cHL0cExOPDTBctvf5ZZYd,Albert Owusu-Ansah,Albert,Owusu-Ansah,samquatleumas@gmail.com,,RM,,,TRUE,STUDENT,,2026-03-04T15:56:12.408Z,TRUE,2026-01-10T03:21:57.926Z,ADMIN,
