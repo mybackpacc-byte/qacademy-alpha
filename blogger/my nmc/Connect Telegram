@@ -1,0 +1,712 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Connect Telegram</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f6f8f7;margin:0}
+    .wrap{max-width:720px;margin:24px auto;padding:0 14px}
+    .card{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:16px}
+    .muted{color:#5b6a68;font-size:14px;line-height:1.35}
+    .ok{color:#0a6c67;font-weight:800}
+    .bad{color:#8f2727;font-weight:800}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(0,0,0,.05);font-size:12px}
+    .btn{
+      appearance:none;border:1px solid rgba(0,0,0,.12);
+      background:#0b7a75;color:#fff;border-radius:12px;
+      padding:10px 12px;font-weight:800;cursor:pointer
+    }
+    .btn.secondary{background:#fff;color:#0b7a75}
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+
+    .codeBox{
+      margin-top:10px;border:1px dashed rgba(0,0,0,.18);border-radius:14px;
+      padding:12px;background:rgba(11,122,117,.06)
+    }
+    .code{font-size:26px;font-weight:900;letter-spacing:1px;color:#0b7a75}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+    .small{font-size:13px}
+    .hr{height:1px;background:rgba(0,0,0,.08);margin:14px 0}
+    a{color:#0b7a75}
+    .list{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+    .groupCard{
+      background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:14px;padding:12px;
+      display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap
+    }
+    .groupTitle{font-weight:900;color:#1f2a28}
+
+    /* ===== Working Overlay ===== */
+    .overlay{
+      position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+      background:rgba(246,248,247,.85);backdrop-filter:saturate(1.2) blur(3px);
+      z-index:9999;
+    }
+    .overlayCard{
+      width:min(520px,92vw);
+      background:#fff;border:1px solid rgba(0,0,0,.10);
+      border-radius:18px;padding:16px;
+      box-shadow:0 14px 40px rgba(0,0,0,.10);
+      display:flex;gap:12px;align-items:center;
+    }
+    .spinner{
+      width:18px;height:18px;border-radius:50%;
+      border:3px solid rgba(11,122,117,.25);
+      border-top-color:#0b7a75;
+      animation:spin 0.9s linear infinite;
+      flex:0 0 auto;
+    }
+    @keyframes spin { to { transform:rotate(360deg) } }
+    .overlayTitle{font-weight:900;color:#1f2a28;margin:0}
+    .overlaySub{margin:2px 0 0;color:#5b6a68;font-size:13px;line-height:1.35}
+
+    /* ===== Login Gate Overlay ===== */
+    .gate{
+      position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+      background:rgba(246,248,247,.92);backdrop-filter:saturate(1.2) blur(3px);
+      z-index:10000;
+    }
+    .gateCard{
+      width:min(520px,92vw);
+      background:#fff;border:1px solid rgba(0,0,0,.10);
+      border-radius:18px;padding:16px;
+      box-shadow:0 14px 40px rgba(0,0,0,.10);
+    }
+    .gateTitle{font-weight:950;color:#1f2a28;margin:0 0 6px}
+    .gateRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .dimWhenGated{opacity:.25;filter:blur(1px);pointer-events:none;user-select:none}
+
+    /* ===== Accordions ===== */
+    details.acc{
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      background:#fff;
+      margin:10px 0;
+      overflow:hidden;
+    }
+    details.acc > summary{
+      list-style:none;
+      cursor:pointer;
+      padding:12px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      font-weight:900;
+      color:#1f2a28;
+      background:rgba(0,0,0,.02);
+    }
+    details.acc > summary::-webkit-details-marker{display:none}
+    .chev{
+      width:10px;height:10px;border-right:2px solid rgba(0,0,0,.45);border-bottom:2px solid rgba(0,0,0,.45);
+      transform:rotate(45deg);
+      transition:transform .18s ease;
+      flex:0 0 auto;
+      margin-left:auto;
+    }
+    details[open] > summary .chev{transform:rotate(225deg)}
+    .accBody{padding:12px}
+    .hint{
+      display:inline-flex;align-items:center;gap:8px;
+      font-size:12px;font-weight:800;color:#5b6a68
+    }
+    .hint .dot{width:8px;height:8px;border-radius:999px;background:rgba(0,0,0,.18)}
+    .hint.ok .dot{background:rgba(10,108,103,.9)}
+    .hint.bad .dot{background:rgba(143,39,39,.9)}
+    .primaryBlock{
+      border:1px solid rgba(11,122,117,.18);
+      background:rgba(11,122,117,.06);
+      border-radius:14px;
+      padding:12px;
+      margin-top:10px;
+    }
+    .softLine{height:1px;background:rgba(0,0,0,.07);margin:12px 0}
+  </style>
+</head>
+<body>
+
+  <!-- Working Overlay -->
+  <div id="overlay" class="overlay" aria-hidden="true">
+    <div class="overlayCard">
+      <div class="spinner"></div>
+      <div>
+        <div id="overlayTitle" class="overlayTitle">Working…</div>
+        <div id="overlaySub" class="overlaySub">Please wait.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login Gate Overlay -->
+  <div id="gate" class="gate" aria-hidden="true">
+    <div class="gateCard">
+      <h3 class="gateTitle">Login required</h3>
+      <p class="muted" style="margin:0">
+        Please log in to QAcademy to link your Telegram account.
+      </p>
+      <div class="gateRow">
+        <a id="gateLogin" class="btn" href="#" style="text-decoration:none">Go to Login</a>
+        <a id="gateDash" class="btn secondary" href="#" style="text-decoration:none">Back to Dashboard</a>
+      </div>
+      <p class="muted small" style="margin:10px 0 0">
+        After logging in, return to this page and continue.
+      </p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div id="mainCard" class="card">
+      <h2 style="margin:0 0 6px">Connect your Telegram</h2>
+      <p class="muted" style="margin:0 0 10px">
+        Link Telegram to your QAcademy account so we can approve you into the correct groups automatically.
+      </p>
+
+      <div id="status" class="pill">Status: checking...</div>
+
+      <div class="hr"></div>
+
+      <!-- Join Groups (linked users) -->
+      <details id="accGroups" class="acc" style="display:none">
+        <summary>
+          <span>Join your groups</span>
+          <span id="groupsHint" class="hint"><span class="dot"></span><span id="groupsHintText">Not available yet</span></span>
+          <span class="chev"></span>
+        </summary>
+        <div class="accBody">
+          <p class="muted small" style="margin:0 0 10px">
+            These buttons show only groups your subscription allows.
+            If a join request stays pending, wait 1–2 minutes and try again.
+          </p>
+
+          <div class="row" style="margin-bottom:10px">
+            <button id="btnRefresh" class="btn secondary" disabled>Refresh groups</button>
+          </div>
+
+          <div id="groupsWrap" class="list"></div>
+
+          <p id="noGroups" class="muted small" style="margin:10px 0 0; display:none">
+            No eligible groups found for your account right now.
+            If you recently subscribed, refresh in a minute.
+          </p>
+        </div>
+      </details>
+
+      <!-- Link Telegram (not linked users) -->
+      <details id="accLink" class="acc">
+        <summary>
+          <span>Link Telegram (2 steps)</span>
+          <span id="linkHint" class="hint"><span class="dot"></span><span id="linkHintText">Not linked</span></span>
+          <span class="chev"></span>
+        </summary>
+        <div class="accBody">
+          <div id="relinkHint" class="muted small" style="display:none;margin:0 0 10px">
+            You’re already linked. Generating a new code lets you <b>re-link</b> to a different Telegram account.
+          </div>
+
+          <!-- Step 1 -->
+          <div>
+            <div style="font-weight:900;color:#1f2a28">1) Get your link code</div>
+            <p class="muted small" style="margin:6px 0 10px">
+              Tap the button to generate a one-time code.
+            </p>
+            <div class="row">
+              <button id="btnGen" class="btn">Generate link code</button>
+            </div>
+          </div>
+
+          <div class="softLine"></div>
+
+          <!-- Step 2 -->
+          <div class="primaryBlock">
+            <div style="font-weight:950;color:#1f2a28">2) Continue in Telegram</div>
+            <p class="muted small" style="margin:6px 0 10px">
+              Tap to open the bot and finish linking. We pass your code automatically.
+              When Telegram opens, wait a few seconds for the bot reply: <b>Linked ✅</b>.
+            </p>
+            <div class="row">
+              <a id="btnOpenBot" class="btn" style="text-decoration:none;display:inline-block" href="#" target="_blank" rel="noopener">
+                Open Telegram to finish linking
+              </a>
+              <button id="btnCheck" class="btn secondary" disabled>I finished in Telegram — Check status</button>
+            </div>
+            <p class="muted small" style="margin:10px 0 0">
+              After the bot confirms <b>Linked ✅</b>, come back and tap <b>I finished in Telegram — Check status</b>.
+            </p>
+          </div>
+
+          <!-- Backup (collapsed) -->
+          <details id="backupDetails" class="acc" style="margin-top:12px">
+            <summary>
+              <span>Show backup details</span>
+              <span class="chev"></span>
+            </summary>
+            <div class="accBody">
+              <p class="muted small" style="margin:0 0 8px">
+                Only use this if Telegram didn’t auto-fill the link.
+              </p>
+
+              <div id="codeWrap" class="codeBox" style="display:none">
+                <div class="muted small">Your code (valid for ~10 minutes):</div>
+                <div id="code" class="code mono">QK-000000</div>
+
+                <div class="muted small" style="margin-top:8px">
+                  Backup command:
+                  <div id="cmd" class="mono" style="margin-top:6px;font-weight:900">/link QK-000000</div>
+                </div>
+
+                <div class="row" style="margin-top:10px">
+                  <button id="btnCopy" class="btn secondary" disabled>Copy backup command</button>
+                </div>
+              </div>
+
+              <p id="noCodeYet" class="muted small" style="margin:0">
+                Generate a link code first to see the backup command.
+              </p>
+            </div>
+          </details>
+        </div>
+      </details>
+
+      <!-- Help -->
+      <details class="acc">
+        <summary>
+          <span>Help & troubleshooting</span>
+          <span class="chev"></span>
+        </summary>
+        <div class="accBody">
+          <ul class="muted small" style="margin:0;padding-left:18px">
+            <li>If your code expires, generate a new one.</li>
+            <li>If the bot confirms <b>Linked ✅</b> but groups don’t appear, wait 1–2 minutes and refresh.</li>
+            <li>If join requests still fail, wait 1–2 minutes and try again.</li>
+          </ul>
+        </div>
+      </details>
+
+    </div>
+  </div>
+
+  <script>
+    // ================= CONFIG =================
+    const TG_BOT_USERNAME = "QAcademyFacilitator_bot"; // without @
+    const TG_GATE_API_URL = "https://script.google.com/macros/s/AKfycbymk4185lOHHQ6GL4w5C3jy38bPP6S1VA0rDecpOHg1M7ZIKYhRuBrSv7DPWxedwc5E/exec";
+    const PORTAL_AUTH_URL = "https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec";
+
+    // Portal pages (adjust if you use QA_CONFIG elsewhere)
+    const LOGIN_URL = "/p/login_23.html";
+    const DASHBOARD_URL = "/p/dashboard_23.html";
+    // =========================================
+
+    const QA_TOKEN = localStorage.getItem("qa_token") || "";
+
+    const mainCard = document.getElementById("mainCard");
+
+    const statusEl = document.getElementById("status");
+    const btnGen = document.getElementById("btnGen");
+    const btnCopy = document.getElementById("btnCopy");
+    const btnCheck = document.getElementById("btnCheck");
+    const btnRefresh = document.getElementById("btnRefresh");
+
+    const codeWrap = document.getElementById("codeWrap");
+    const codeEl = document.getElementById("code");
+    const cmdEl = document.getElementById("cmd");
+    const btnOpenBot = document.getElementById("btnOpenBot");
+
+    const groupsWrap = document.getElementById("groupsWrap");
+    const noGroups = document.getElementById("noGroups");
+
+    const relinkHint = document.getElementById("relinkHint");
+    const noCodeYet = document.getElementById("noCodeYet");
+
+    const overlay = document.getElementById("overlay");
+    const overlayTitle = document.getElementById("overlayTitle");
+    const overlaySub = document.getElementById("overlaySub");
+
+    const gate = document.getElementById("gate");
+    const gateLogin = document.getElementById("gateLogin");
+    const gateDash = document.getElementById("gateDash");
+
+    const accGroups = document.getElementById("accGroups");
+    const accLink = document.getElementById("accLink");
+
+    const linkHint = document.getElementById("linkHint");
+    const linkHintText = document.getElementById("linkHintText");
+    const groupsHint = document.getElementById("groupsHint");
+    const groupsHintText = document.getElementById("groupsHintText");
+
+    // State
+    let VERIFY = null;
+    let LINK_STATUS = null;
+    let LAST_CODE = "";
+
+    // Gate links
+    gateLogin.href = LOGIN_URL;
+    gateDash.href = DASHBOARD_URL;
+
+    // Default bot link (no payload)
+    btnOpenBot.href = "https://t.me/" + encodeURIComponent(TG_BOT_USERNAME);
+
+    function qaShowOverlay(title, sub){
+      overlayTitle.textContent = title || "Working…";
+      overlaySub.textContent = sub || "Please wait.";
+      overlay.style.display = "flex";
+      overlay.setAttribute("aria-hidden", "false");
+    }
+    function qaHideOverlay(){
+      overlay.style.display = "none";
+      overlay.setAttribute("aria-hidden", "true");
+    }
+
+    function showGate(){
+      gate.style.display = "flex";
+      gate.setAttribute("aria-hidden", "false");
+      mainCard.classList.add("dimWhenGated");
+    }
+    function hideGate(){
+      gate.style.display = "none";
+      gate.setAttribute("aria-hidden", "true");
+      mainCard.classList.remove("dimWhenGated");
+    }
+
+    function setStatus(text, ok){
+      statusEl.textContent = "Status: " + text;
+      statusEl.className = "pill " + (ok === true ? "ok" : ok === false ? "bad" : "");
+    }
+
+    function setHint(el, text, state){ // state: ok|bad|null
+      el.className = "hint" + (state === "ok" ? " ok" : state === "bad" ? " bad" : "");
+      el.querySelector("span:last-child").textContent = text;
+    }
+
+    function safeJson(resp) {
+      return resp.json().catch(() => ({}));
+    }
+
+    async function postForm(url, params){
+      const body = new URLSearchParams();
+      Object.keys(params || {}).forEach(k => body.set(k, String(params[k])));
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body: body.toString()
+      });
+      const data = await safeJson(resp);
+      return { resp, data };
+    }
+
+    async function getJson(url){
+      const resp = await fetch(url, { method: "GET" });
+      const data = await safeJson(resp);
+      return { resp, data };
+    }
+
+    function normalizeKey(k){
+      return String(k || "").trim().toUpperCase();
+    }
+
+    function setBotStartLink(code){
+      if(!code){
+        btnOpenBot.href = "https://t.me/" + encodeURIComponent(TG_BOT_USERNAME);
+        return btnOpenBot.href;
+      }
+      const link = "https://t.me/" + encodeURIComponent(TG_BOT_USERNAME) + "?start=" + encodeURIComponent(code);
+      btnOpenBot.href = link;
+      return link;
+    }
+
+    function showCode(code){
+      LAST_CODE = String(code || "").trim();
+      if(!LAST_CODE) return;
+
+      codeWrap.style.display = "";
+      noCodeYet.style.display = "none";
+
+      codeEl.textContent = LAST_CODE;
+      cmdEl.textContent = "/link " + LAST_CODE;
+
+      btnCopy.disabled = false;
+      btnCheck.disabled = false;
+
+      setBotStartLink(LAST_CODE);
+    }
+
+    async function copyToClipboard(text){
+      try{
+        await navigator.clipboard.writeText(text);
+        setStatus("copied ", true);
+      }catch(e){
+        window.prompt("Copy this:", text);
+      }
+    }
+
+    function renderGroups(eligibleGroups){
+      groupsWrap.innerHTML = "";
+      noGroups.style.display = "none";
+
+      if (!eligibleGroups.length){
+        noGroups.style.display = "";
+        return;
+      }
+
+      eligibleGroups.forEach(g => {
+        const card = document.createElement("div");
+        card.className = "groupCard";
+
+        const left = document.createElement("div");
+
+        const title = document.createElement("div");
+        title.className = "groupTitle";
+        title.textContent = g.title_hint || g.group_key;
+
+        const meta = document.createElement("div");
+        meta.className = "muted small";
+        meta.textContent = normalizeKey(g.group_key);
+
+        left.appendChild(title);
+        left.appendChild(meta);
+
+        const a = document.createElement("a");
+        a.className = "btn";
+        a.href = g.join_link;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.style.textDecoration = "none";
+        a.textContent = "Join";
+
+        card.appendChild(left);
+        card.appendChild(a);
+        groupsWrap.appendChild(card);
+      });
+    }
+
+    function isLinkedAndActive(){
+      return !!(LINK_STATUS && LINK_STATUS.ok === true && LINK_STATUS.linked === true && LINK_STATUS.active === true);
+    }
+
+    function applyLinkUI(){
+      // Link accordion is always available; groups accordion is gated by link state
+      if (isLinkedAndActive()){
+        btnGen.textContent = "Re-link Telegram";
+        relinkHint.style.display = "";
+
+        // Show groups accordion and open it by default
+        accGroups.style.display = "";
+        accGroups.open = true;
+
+        // Keep link accordion available but collapse it by default
+        accLink.open = false;
+
+        btnRefresh.disabled = false;
+
+        setHint(linkHint, "Linked", "ok");
+        setHint(groupsHint, "Available", "ok");
+        groupsHintText.textContent = "Available";
+      } else {
+        btnGen.textContent = "Generate link code";
+        relinkHint.style.display = "none";
+
+        // Hide groups accordion
+        accGroups.style.display = "none";
+
+        // Ensure link accordion is open
+        accLink.open = true;
+
+        btnRefresh.disabled = true;
+
+        setHint(linkHint, "Not linked", null);
+      }
+    }
+
+    async function loadVerify(){
+      const vUrl =
+        PORTAL_AUTH_URL +
+        "?action=verify" +
+        "&token=" + encodeURIComponent(QA_TOKEN) +
+        "&include=" + encodeURIComponent("tg");
+
+      const { data: v } = await getJson(vUrl);
+      if (!v || v.ok !== true) {
+        VERIFY = null;
+        setStatus("verify failed", false);
+        return false;
+      }
+      VERIFY = v;
+      return true;
+    }
+
+    async function loadLinkStatus(){
+      const { data } = await postForm(TG_GATE_API_URL, {
+        action: "tg.link.status",
+        qa_token: QA_TOKEN
+      });
+      LINK_STATUS = data || null;
+
+      if(!LINK_STATUS || LINK_STATUS.ok !== true){
+        setStatus("link status failed", false);
+        return false;
+      }
+
+      if(LINK_STATUS.linked === true && LINK_STATUS.active === true){
+        const tg = LINK_STATUS.telegram || {};
+        const raw = String(tg.telegram_username || "").trim();
+        const uname = raw.replace(/^@+/, ""); // remove leading @ if present
+        const handle = uname ? ("@" + uname) : (tg.telegram_user_id ? ("ID " + tg.telegram_user_id) : "linked");
+        setStatus("Telegram linked (" + handle + ")", true);
+        setHint(linkHint, "Linked", "ok");
+        return true;
+      }
+
+      if(LINK_STATUS.linked === true && LINK_STATUS.active === false){
+        setStatus("Telegram link inactive — re-link needed", false);
+        setHint(linkHint, "Inactive", "bad");
+        return true;
+      }
+
+      setStatus("not linked yet", null);
+      setHint(linkHint, "Not linked", null);
+      return true;
+    }
+
+    async function loadEligibleGroups(){
+      if (!QA_TOKEN) return;
+      if (!isLinkedAndActive()) return;
+
+      try{
+        btnRefresh.disabled = true;
+        qaShowOverlay("Loading groups...", "Fetching your eligible Telegram groups.");
+
+        if(!VERIFY){
+          const ok = await loadVerify();
+          if(!ok) return;
+        }
+
+        const allowed = Array.isArray(VERIFY.allowed_group_keys) ? VERIFY.allowed_group_keys : [];
+        const allowedSet = {};
+        allowed.map(normalizeKey).filter(Boolean).forEach(k => allowedSet[k] = true);
+
+        const { data: gl } = await postForm(TG_GATE_API_URL, { action: "tg.groups.list" });
+        const groups = (gl && gl.ok === true && Array.isArray(gl.groups)) ? gl.groups : [];
+
+        const eligible = groups.filter(g => allowedSet[ normalizeKey(g.group_key) ] === true);
+
+        renderGroups(eligible);
+
+      }catch(e){
+        setStatus("group load error", false);
+      }finally{
+        qaHideOverlay();
+        btnRefresh.disabled = !isLinkedAndActive();
+      }
+    }
+
+    async function bootstrap(){
+      if (!QA_TOKEN) {
+        // Gate the whole page if not logged in
+        showGate();
+        return;
+      } else {
+        hideGate();
+      }
+
+      // Default: backup details hidden until code exists
+      codeWrap.style.display = "none";
+      noCodeYet.style.display = "";
+
+      try{
+        qaShowOverlay("Checking account...", "Verifying your QAcademy session.");
+        const okVerify = await loadVerify();
+        if(!okVerify){
+          setStatus("session invalid — please login", false);
+          showGate();
+          return;
+        }
+
+        qaShowOverlay("Checking Telegram link...", "Confirming whether your Telegram is linked.");
+        await loadLinkStatus();
+
+        applyLinkUI();
+
+        if(isLinkedAndActive()){
+          await loadEligibleGroups();
+        } else {
+          btnCheck.disabled = true;   // enabled after code generation
+          btnRefresh.disabled = true;
+        }
+
+      } finally {
+        qaHideOverlay();
+      }
+    }
+
+    // ===== Events =====
+
+    btnGen.addEventListener("click", async () => {
+      if(!QA_TOKEN) return;
+
+      if(isLinkedAndActive()){
+        const yes = window.confirm("Re-linking will switch the Telegram account linked to this QAcademy account. Continue?");
+        if(!yes) return;
+      }
+
+      try{
+        btnGen.disabled = true;
+        qaShowOverlay("Generating code...", "Creating your one-time link code.");
+        setStatus("generating code...", null);
+
+        const { data } = await postForm(TG_GATE_API_URL, {
+          action: "tg.link.code",
+          qa_token: QA_TOKEN
+        });
+
+        if (data && data.ok === true && data.code) {
+          showCode(String(data.code));
+          setStatus("code generated - open Telegram to finish", true);
+
+          // Keep Link accordion open so user sees Step 2 button clearly
+          accLink.open = true;
+        } else {
+          setStatus("failed: " + (data && data.error ? data.error : "unknown"), false);
+        }
+
+      }catch(e){
+        setStatus("network error", false);
+      }finally{
+        qaHideOverlay();
+        btnGen.disabled = false;
+      }
+    });
+
+    btnCopy.addEventListener("click", async () => {
+      const code = String(codeEl.textContent || "").trim();
+      if (!code) return;
+      await copyToClipboard("/link " + code);
+    });
+
+    btnCheck.addEventListener("click", async () => {
+      if(!QA_TOKEN) return;
+
+      try{
+        btnCheck.disabled = true;
+        qaShowOverlay("Checking link...", "Looking for your linked Telegram account.");
+
+        await loadLinkStatus();
+        applyLinkUI();
+
+        if(isLinkedAndActive()){
+          await loadEligibleGroups();
+        }
+      } catch (e){
+        setStatus("check failed", false);
+      } finally {
+        qaHideOverlay();
+        btnCheck.disabled = false;
+      }
+    });
+
+    btnRefresh.addEventListener("click", () => loadEligibleGroups());
+
+    // Init
+    setBotStartLink("");
+    bootstrap();
+  </script>
+</body>
+</html>
