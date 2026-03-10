@@ -1,0 +1,2095 @@
+/** ============================================================
+ * QAcademy — Teacher Assess WebApp — File Two
+ * - candidate.quiz.get
+ * - candidate.quiz.attempts.list
+ * - candidate.attempt.start / get / save / submit
+ * - teacher.attempts.list / attempt.get
+ 
+
+ * UPDATE (2026-02-24):
+ * - Runner endpoints no longer return score/review payloads.
+ * - Added:
+ *    - candidate.attempt.results.get
+ *    - candidate.attempt.review.get
+ * ============================================================ */
+
+const RUNNER_BUILD = 'teacherassess-runner-clean-2026-02-24';
+
+/* =========================
+ * Candidate: quiz.get
+ * ========================= */
+function _handleCandidateQuizGet_({ token, body, p }) {
+  const gate = _requireUser_({ token });
+  if (!gate.ok) return _json(gate.payload, gate.code);
+
+  const user_id = gate.user_id;
+  const getS = (k) => String(((p && p[k]) || (body && body[k]) || '')).trim();
+
+  const class_id = getS('class_id');
+  const teacher_quiz_id = getS('teacher_quiz_id');
+  if (!class_id || !teacher_quiz_id) {
+    return _json({ ok: false, error: 'missing_class_id_or_teacher_quiz_id' }, 400);
+  }
+
+  const ss = SpreadsheetApp.openById(DB_ID);
+
+  if (!_isMemberActive_(ss, class_id, user_id)) {
+    return _json({ ok: false, error: 'forbidden_not_class_member' }, 403);
+  }
+  if (!_isQuizLinkedToClassActive_(ss, teacher_quiz_id, class_id)) {
+    return _json({ ok: false, error: 'forbidden_quiz_not_linked_to_class' }, 403);
+  }
+
+  const q = _getTeacherQuizById_(teacher_quiz_id);
+  if (!q.found) return _json({ ok: false, error: 'quiz_not_found' }, 404);
+
+  const quiz = q.obj;
+  if (String(quiz.status || '').toUpperCase() !== 'PUBLISHED') {
+    return _json({ ok: false, error: 'quiz_not_published' }, 400);
+  }
+
+  const nowMs = Date.now();
+  const open_state = _computeOpenState_(quiz.open_at, quiz.close_at, nowMs);
+
+  let custom_fields = { fields: [] };
+  const customRaw = String(quiz.custom_fields_json || '').trim();
+  if (customRaw) {
+    try { custom_fields = JSON.parse(customRaw); } catch (_) {}
+  }
+
+  const policy = _normalizeResultsPolicy_(quiz.results_release_policy);
+  const gateRes = _computeResultsGatePolicy_(quiz, nowMs);
+
+  // ===== NEW: normalize grading config on read =====
+  const gc = _normalizeGradingConfig_(quiz);
+  const pass_threshold_pct = _passThresholdStrict_(quiz);
+
+  return _json({
+    ok: true,
+    quiz: {
+      teacher_quiz_id: String(quiz.teacher_quiz_id || '').trim(),
+      title: String(quiz.title || '').trim(),
+      subject: String(quiz.subject || '').trim(),
+      preset: String(quiz.preset || '').trim().toUpperCase(),
+
+      mode: String(quiz.mode || 'TIMED').trim().toUpperCase(),
+      duration_minutes: String(quiz.duration_minutes || '0').trim(),
+      shuffle_questions: _toBoolDefault_(quiz.shuffle_questions, true),
+      shuffle_options: _toBoolDefault_(quiz.shuffle_options, true),
+
+      show_review: _toBoolDefault_(quiz.show_review, true),
+      show_results: _getShowResultsBool_(quiz),
+
+      open_at: String(quiz.open_at || '').trim(),
+      close_at: String(quiz.close_at || '').trim(),
+      open_state,
+
+      max_attempts: String(_toIntDefault_(quiz.max_attempts, 0)),
+
+      results_release_policy: policy,
+      results_released: _toBoolDefault_(quiz.results_released, false),
+      results_released_at: String(quiz.results_released_at || '').trim(),
+
+      results_gate_now: !!gateRes.met,
+      results_gate_reason: String(gateRes.reason || ''),
+      results_available_at: String(gateRes.available_at || ''),
+
+      // ===== NEW (Grade Bands + Score Display) =====
+      grading_policy: gc.grading_policy,
+      grade_bands_json: gc.grade_bands_json,
+      score_display_policy: gc.score_display_policy,
+      pass_threshold_pct: String(pass_threshold_pct),
+
+      custom_fields
+    }
+  });
+}
+
+/* =========================
+ * Candidate: attempt.start
+ * - Resumes IN_PROGRESS if exists (unless force_new=1)
+ * - Creates new attempt (per-student shuffle)
+ * ========================= */
+function _handleCandidateAttemptStart_({ token, body, p }) {
+  const gate = _requireUser_({ token });
+  if (!gate.ok) return _json(gate.payload, gate.code);
+
+  const user_id = gate.user_id;
+  const getS = (k) => String(((p && p[k]) || (body && body[k]) || '')).trim();
+
+  const class_id = getS('class_id');
+  const teacher_quiz_id = getS('teacher_quiz_id');
+  const force_new = getS('force_new') === '1';
+
+  // Canonical: candidate_fields_json
+  const candidate_fields_json = getS('candidate_fields_json') || '';
+
+  if (!class_id || !teacher_quiz_id) {
+    return _json({ ok: false, error: 'missing_class_id_or_teacher_quiz_id' }, 400);
+  }
+
+  if (candidate_fields_json) {
+    const parsed = _parseJsonSafe_(candidate_fields_json, null);
+    if (!parsed || typeof parsed !== 'object') {
+      return _json({ ok: false, error: 'invalid_candidate_fields_json' }, 400);
+    }
+  }
+
+  const ss = SpreadsheetApp.openById(DB_ID);
+
+  if (!_isMemberActive_(ss, class_id, user_id)) {
+    return _json({ ok: false, error: 'forbidden_not_class_member' }, 403);
+  }
+  if (!_isQuizLinkedToClassActive_(ss, teacher_quiz_id, class_id)) {
+    return _json({ ok: false, error: 'forbidden_quiz_not_linked_to_class' }, 403);
+  }
+
+  const q = _getTeacherQuizById_(teacher_quiz_id);
+  if (!q.found) return _json({ ok: false, error: 'quiz_not_found' }, 404);
+
+  const quiz = q.obj;
+  if (String(quiz.status || '').toUpperCase() !== 'PUBLISHED') {
+    return _json({ ok: false, error: 'quiz_not_published' }, 400);
+  }
+
+  const nowMs = Date.now();
+  if (_computeOpenState_(quiz.open_at, quiz.close_at, nowMs) !== 'OPEN') {
+    return _json({ ok: false, error: 'quiz_not_open' }, 403);
+  }
+
+  // Resume if allowed
+  if (!force_new) {
+    const found = _findInProgressAttempt_(ss, teacher_quiz_id, class_id, user_id);
+    if (found.found) {
+      // ensure timeout + time patch + due_at recompute
+      const patchedExpiry = _maybeExpireAttempt_(ss, found.attempt, quiz, nowMs, found.rowIndex);
+let attempt = patchedExpiry.attempt;
+      if (String(attempt.status || '').toUpperCase() === 'IN_PROGRESS') {
+        // Apply elapsed-time patch on resume (prevents “free extra time”)
+        const timePatch = _ta_activeTimePatch_(attempt, nowMs);
+        if (timePatch.changed) {
+          _attemptUpdateByRow_(ss, found.rowIndex, timePatch.patch);
+          const fresh = _attemptGetById_(ss, attempt.attempt_id);
+          attempt = fresh.found ? fresh.obj : attempt;
+        }
+
+        // For timed attempts, refresh due_at from remaining time
+        const durationSec = _toIntDefault_(attempt.duration_minutes, 0) * 60;
+        const takenSec = _toIntDefault_(attempt.time_taken_s, 0);
+
+        if (durationSec > 0) {
+          if (takenSec >= durationSec) {
+            // exhausted -> timeout right now
+            const grade = _gradeAttempt_(ss, attempt);
+            const nowIso = _iso(new Date(nowMs));
+
+            const headers = _attemptHeaders_(_attemptSheet_(ss));
+            const patch = Object.assign({
+              status: 'TIMED_OUT',
+              submitted_at: nowIso,
+              updated_at: nowIso,
+              time_taken_s: String(takenSec)
+            }, _setScorePatch_(headers, grade.score));
+
+            _attemptUpdateByRow_(ss, found.rowIndex, patch);
+            const fresh2 = _attemptGetById_(ss, attempt.attempt_id);
+            const a2 = fresh2.found ? fresh2.obj : attempt;
+            const payload = _buildAttemptPayload_(ss, a2);
+            const meta = _candidateResultsMetaPack_(quiz, nowMs);
+
+            return _json({
+              ok: true,
+              resumed: true,
+              ...payload,
+              ended: true,
+              status: 'TIMED_OUT',
+              results: meta,
+              next: 'RESULTS'
+            });
+          }
+
+          const remainingSec = Math.max(durationSec - takenSec, 0);
+          const newDueIso = _iso(new Date(nowMs + remainingSec * 1000));
+
+          _attemptUpdateByRow_(ss, found.rowIndex, {
+            due_at: newDueIso,
+            updated_at: _iso(new Date(nowMs))
+          });
+
+          const refreshed = _attemptGetById_(ss, attempt.attempt_id);
+          return _json({
+            ok: true,
+            resumed: true,
+            ..._buildAttemptPayload_(ss, refreshed.found ? refreshed.obj : attempt),
+            ended: false,
+            status: 'IN_PROGRESS'
+          });
+        }
+      }
+
+      // If _maybeTimeoutAttempt_ flipped to TIMED_OUT, return ended meta (runner-safe)
+      const payload = _buildAttemptPayload_(ss, attempt);
+      const stU = String(attempt.status || '').toUpperCase();
+      if (stU !== 'IN_PROGRESS') {
+        const meta = _candidateResultsMetaPack_(quiz, nowMs);
+        return _json({ ok: true, resumed: true, ...payload, ended: true, status: stU, results: meta, next: 'RESULTS' });
+      }
+
+      return _json({ ok: true, resumed: true, ...payload, ended: false, status: 'IN_PROGRESS' });
+    }
+  }
+
+  // Max attempts enforcement (exclude ABANDONED)
+  const max = _toIntDefault_(quiz.max_attempts, 0);
+  const used = _countUserAttempts_(ss, teacher_quiz_id, class_id, user_id);
+  if (max > 0 && used >= max) {
+    return _json({ ok: false, error: 'max_attempts_reached', max: String(max), used: String(used) }, 403);
+  }
+
+  // Load published snapshot items
+  const itemsSrc = _getQuizItemsSnapshots_(ss, teacher_quiz_id);
+  if (!itemsSrc.length) {
+    return _json({ ok: false, error: 'quiz_has_no_items' }, 400);
+  }
+
+  // Shuffle questions if enabled
+  const shuffleQ = _toBoolDefault_(quiz.shuffle_questions, true);
+  const ordered = shuffleQ ? _ta_shuffle_(itemsSrc) : itemsSrc.slice();
+
+  // Attempt items with option maps
+  const attemptItems = ordered.map((it, idx) => ({
+    quiz_item_id: it.quiz_item_id,
+    position: idx + 1,
+    marks: _toIntDefault_(it.snap_marks, 1),
+    opt_map: _buildOptionMap_(it, _toBoolDefault_(quiz.shuffle_options, true))
+  }));
+
+  const attempt_id = _newId_('ta');
+  const attempt_no = used + 1;
+
+  const mode = String(quiz.mode || 'TIMED').toUpperCase();
+  const duration = _toIntDefault_(quiz.duration_minutes, 0);
+
+  const nowIso = _iso(new Date(nowMs));
+let due_at = '';
+if (mode === 'TIMED' && duration > 0) {
+  let dueMs = nowMs + duration * 60000;
+  const closeMs = _parseIsoMs_(String(quiz.close_at || '').trim());
+  if (closeMs != null && closeMs < dueMs) dueMs = closeMs; // cap to quiz close
+  due_at = _iso(new Date(dueMs));
+}
+
+  const row = {
+    user_id,
+    attempt_id,
+    started_at: nowIso,
+    submitted_at: '',
+    updated_at: nowIso,
+
+    items_json: JSON.stringify(attemptItems),
+    due_at,
+    class_id,
+    attempt_no: String(attempt_no),
+
+    teacher_id: String(quiz.teacher_id || '').trim(),
+    teacher_quiz_id: String(quiz.teacher_quiz_id || '').trim(),
+
+    mode,
+    duration_minutes: String(duration),
+    status: 'IN_PROGRESS',
+
+    score_raw: '',
+    score_total: '',
+    score_pct: '',
+    time_taken_s: '0',
+
+    // canonical
+    candidate_fields_json,
+
+    // legacy fallback (keep blank; append helper will mirror if needed)
+    custom_fields_json: '',
+
+    answers_json: '{}',
+    flags_json: '{}',
+    score_json: ''
+  };
+
+  _attemptAppend_(ss, row);
+
+  return _json({
+    ok: true,
+    created: true,
+    ..._buildAttemptPayload_(ss, row, itemsSrc),
+    ended: false,
+    status: 'IN_PROGRESS'
+  });
+}
+
+/* =========================
+ * Candidate: attempt.get
+ * - if attempt_id provided: loads that attempt
+ * - else: current in-progress, else latest ended
+ * NOTE: Runner-safe payload only (no score/review).
+ * ========================= */
+function _handleCandidateAttemptGet_({ token, body, p }) {
+  const gate = _requireUser_({ token });
+  if (!gate.ok) return _json(gate.payload, gate.code);
+
+  const user_id = gate.user_id;
+  const getS = (k) => String(((p && p[k]) || (body && body[k]) || '')).trim();
+
+  const class_id = getS('class_id');
+  const teacher_quiz_id = getS('teacher_quiz_id');
+  if (!class_id || !teacher_quiz_id) {
+    return _json({ ok: false, error: 'missing_class_id_or_teacher_quiz_id' }, 400);
+  }
+
+  const ss = SpreadsheetApp.openById(DB_ID);
+
+  if (!_isMemberActive_(ss, class_id, user_id)) {
+    return _json({ ok: false, error: 'forbidden_not_class_member' }, 403);
+  }
+  if (!_isQuizLinkedToClassActive_(ss, teacher_quiz_id, class_id)) {
+    return _json({ ok: false, error: 'forbidden_quiz_not_linked_to_class' }, 403);
+  }
+
+  const attempt_id = getS('attempt_id'); // optional
+  const nowMs = Date.now();
+
+  // helper for ended attempts (runner-safe)
+  function _attachEndedMeta_(resp, quizObj, nowMsLocal) {
+    const meta = _candidateResultsMetaPack_(quizObj, nowMsLocal);
+    resp.results = meta;
+    resp.next = 'RESULTS';
+    return resp;
+  }
+
+  // load quiz once (used only if ended)
+  const q0 = _getTeacherQuizById_(teacher_quiz_id);
+  const quiz0 = q0.found ? (q0.obj || {}) : {};
+
+  // 0) specific attempt
+  if (attempt_id) {
+    const foundA = _attemptGetById_(ss, attempt_id);
+    if (!foundA.found) return _json({ ok: false, error: 'attempt_not_found' }, 404);
+
+    let a = foundA.obj;
+
+    if (String(a.user_id || '').trim() !== user_id) return _json({ ok: false, error: 'forbidden' }, 403);
+    if (String(a.class_id || '').trim() !== String(class_id).trim()) return _json({ ok: false, error: 'forbidden' }, 403);
+    if (String(a.teacher_quiz_id || '').trim() !== String(teacher_quiz_id).trim()) return _json({ ok: false, error: 'forbidden' }, 403);
+
+    const patchedExpiry = _maybeExpireAttempt_(ss, a, quiz0, nowMs, foundA.rowIndex);
+a = patchedExpiry.attempt;
+
+    // apply elapsed patch + due refresh for timed IN_PROGRESS
+    if (String(a.status || '').toUpperCase() === 'IN_PROGRESS') {
+      const timePatch = _ta_activeTimePatch_(a, nowMs);
+      if (timePatch.changed) {
+        _attemptUpdateByRow_(ss, foundA.rowIndex, timePatch.patch);
+        const fresh = _attemptGetById_(ss, a.attempt_id);
+        a = fresh.found ? fresh.obj : a;
+      }
+
+      const durationSec = _toIntDefault_(a.duration_minutes, 0) * 60;
+      const takenSec = _toIntDefault_(a.time_taken_s, 0);
+      if (durationSec > 0) {
+        if (takenSec >= durationSec) {
+          const grade = _gradeAttempt_(ss, a);
+          const headers = _attemptHeaders_(_attemptSheet_(ss));
+          const nowIso = _iso(new Date(nowMs));
+          const patch = Object.assign({
+            status: 'TIMED_OUT',
+            submitted_at: nowIso,
+            updated_at: nowIso,
+            time_taken_s: String(takenSec)
+          }, _setScorePatch_(headers, grade.score));
+
+          _attemptUpdateByRow_(ss, foundA.rowIndex, patch);
+          const fresh2 = _attemptGetById_(ss, a.attempt_id);
+          const a2 = fresh2.found ? fresh2.obj : a;
+          const payload2 = _buildAttemptPayload_(ss, a2);
+
+          const stU2 = String(a2.status || '').toUpperCase();
+          let res2 = { ok: true, ...payload2, ended: (stU2 !== 'IN_PROGRESS'), status: stU2 };
+          if (stU2 !== 'IN_PROGRESS') res2 = _attachEndedMeta_(res2, quiz0, nowMs);
+          return _json(res2);
+        }
+
+        const remainingSec = Math.max(durationSec - takenSec, 0);
+        const newDueIso = _iso(new Date(nowMs + remainingSec * 1000));
+        _attemptUpdateByRow_(ss, foundA.rowIndex, { due_at: newDueIso, updated_at: _iso(new Date(nowMs)) });
+
+        const fresh3 = _attemptGetById_(ss, a.attempt_id);
+        a = fresh3.found ? fresh3.obj : a;
+      }
+    }
+
+    const payload = _buildAttemptPayload_(ss, a);
+    const stU = String(a.status || '').toUpperCase();
+    let res = { ok: true, ...payload, ended: (stU !== 'IN_PROGRESS'), status: stU };
+    if (stU !== 'IN_PROGRESS') res = _attachEndedMeta_(res, quiz0, nowMs);
+    return _json(res);
+  }
+
+  // 1) in-progress attempt
+  const found = _findInProgressAttempt_(ss, teacher_quiz_id, class_id, user_id);
+  if (found.found) {
+let attempt = _maybeExpireAttempt_(ss, found.attempt, quiz0, nowMs, found.rowIndex).attempt;
+    if (String(attempt.status || '').toUpperCase() === 'IN_PROGRESS') {
+      const timePatch = _ta_activeTimePatch_(attempt, nowMs);
+      if (timePatch.changed) {
+        _attemptUpdateByRow_(ss, found.rowIndex, timePatch.patch);
+        const fresh = _attemptGetById_(ss, attempt.attempt_id);
+        attempt = fresh.found ? fresh.obj : attempt;
+      }
+
+      const durationSec = _toIntDefault_(attempt.duration_minutes, 0) * 60;
+      const takenSec = _toIntDefault_(attempt.time_taken_s, 0);
+
+      if (durationSec > 0) {
+        if (takenSec >= durationSec) {
+          const grade = _gradeAttempt_(ss, attempt);
+          const headers = _attemptHeaders_(_attemptSheet_(ss));
+          const nowIso = _iso(new Date(nowMs));
+          const patch = Object.assign({
+            status: 'TIMED_OUT',
+            submitted_at: nowIso,
+            updated_at: nowIso,
+            time_taken_s: String(takenSec)
+          }, _setScorePatch_(headers, grade.score));
+
+          _attemptUpdateByRow_(ss, found.rowIndex, patch);
+
+          const fresh2 = _attemptGetById_(ss, attempt.attempt_id);
+          const a2 = fresh2.found ? fresh2.obj : attempt;
+          const payload2 = _buildAttemptPayload_(ss, a2);
+
+          const stU2 = String(a2.status || '').toUpperCase();
+          let res2 = { ok: true, ...payload2, ended: (stU2 !== 'IN_PROGRESS'), status: stU2 };
+          if (stU2 !== 'IN_PROGRESS') res2 = _attachEndedMeta_(res2, quiz0, nowMs);
+          return _json(res2);
+        }
+
+        const remainingSec = Math.max(durationSec - takenSec, 0);
+        let newDueMs = nowMs + remainingSec * 1000;
+const closeMs = _parseIsoMs_(String(quiz.close_at || '').trim());
+if (closeMs != null && closeMs < newDueMs) newDueMs = closeMs;
+
+const newDueIso = _iso(new Date(newDueMs));
+_attemptUpdateByRow_(ss, found.rowIndex, { due_at: newDueIso, updated_at: _iso(new Date(nowMs)) });
+
+        const refreshed = _attemptGetById_(ss, attempt.attempt_id);
+        attempt = refreshed.found ? refreshed.obj : attempt;
+      }
+    }
+
+    const payload = _buildAttemptPayload_(ss, attempt);
+    const stU = String(attempt.status || '').toUpperCase();
+    let res = { ok: true, ...payload, ended: (stU !== 'IN_PROGRESS'), status: stU };
+    if (stU !== 'IN_PROGRESS') res = _attachEndedMeta_(res, quiz0, nowMs);
+    return _json(res);
+  }
+
+  // 2) latest ended attempt
+  const ended = _findLatestEndedAttempt_(ss, teacher_quiz_id, class_id, user_id);
+  if (!ended.found) return _json({ ok: true, attempt: null });
+
+  const payload = _buildAttemptPayload_(ss, ended.attempt);
+  const stU = String((ended.attempt && ended.attempt.status) || '').toUpperCase();
+  let res = { ok: true, ...payload, ended: true, status: stU || 'SUBMITTED' };
+  res = _attachEndedMeta_(res, quiz0, nowMs);
+  return _json(res);
+}
+
+/* =========================
+ * Candidate: quiz.attempts.list
+ * ========================= */
+function _handleCandidateQuizAttemptsList_({ token, body, p }) {
+  const gate = _requireUser_({ token });
+  if (!gate.ok) return _json(gate.payload, gate.code);
+
+  const user_id = gate.user_id;
+  const getS = (k) => String(((p && p[k]) || (body && body[k]) || '')).trim();
+
+  const class_id = getS('class_id');
+  const teacher_quiz_id = getS('teacher_quiz_id');
+  if (!class_id || !teacher_quiz_id) {
+    return _json({ ok:false, error:'missing_class_id_or_teacher_quiz_id' }, 400);
+  }
+
+  const limit = Math.min(Math.max(_toIntDefault_(getS('limit'), 30), 1), 200);
+  const ss = SpreadsheetApp.openById(DB_ID);
+
+  if (!_isMemberActive_(ss, class_id, user_id)) {
+    return _json({ ok:false, error:'forbidden_not_class_member' }, 403);
+  }
+  if (!_isQuizLinkedToClassActive_(ss, teacher_quiz_id, class_id)) {
+    return _json({ ok:false, error:'forbidden_quiz_not_linked_to_class' }, 403);
+  }
+
+  const q = _getTeacherQuizById_(teacher_quiz_id);
+  if (!q.found) return _json({ ok:false, error:'quiz_not_found' }, 404);
+
+  const quiz = q.obj;
+  if (String(quiz.status || '').trim().toUpperCase() !== 'PUBLISHED') {
+    return _json({ ok:false, error:'quiz_not_published' }, 400);
+  }
+
+  const nowMs = Date.now();
+  const policy = _normalizeResultsPolicy_(quiz.results_release_policy);
+  const gateRes = _computeResultsGatePolicy_(quiz, nowMs);
+
+  const showResults = _getShowResultsBool_(quiz);
+  const showReview  = _toBoolDefault_(quiz.show_review, false);
+
+  const anyOutput = (showResults || showReview);
+  const score_visible = !!(gateRes.met && showResults);
+  const review_visible = !!(gateRes.met && showReview);
+
+  const results_status =
+    !gateRes.met ? 'PENDING' :
+    !anyOutput  ? 'HIDDEN'  :
+                 'AVAILABLE';
+
+  const sh = ss.getSheetByName(SH_ATTEMPTS);
+  const headers = _getHeaders_(sh);
+
+  const idx = _indexMap_(headers, [
+    'attempt_id','teacher_quiz_id','class_id','user_id','attempt_no','status',
+    'started_at','due_at','submitted_at','updated_at','time_taken_s','score_json'
+  ]);
+
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) {
+    return _json({
+      ok:true,
+      quiz: {
+        teacher_quiz_id: String(quiz.teacher_quiz_id||'').trim(),
+        title: String(quiz.title||'').trim(),
+        preset: String(quiz.preset||'').trim().toUpperCase(),
+        results_release_policy: policy,
+        results_gate_now: !!gateRes.met,
+        results_gate_reason: String(gateRes.reason||''),
+        results_available_at: String(gateRes.available_at||''),
+        score_visible,
+        review_visible,
+        results_status
+      },
+      count: 0,
+      items: []
+    });
+  }
+
+  const values = sh.getRange(2, 1, lastRow - 1, sh.getLastColumn()).getValues();
+  let out = [];
+
+  for (let i = 0; i < values.length; i++) {
+    const r = values[i];
+
+    if (String(r[idx.teacher_quiz_id] || '').trim() !== String(teacher_quiz_id).trim()) continue;
+    if (String(r[idx.class_id] || '').trim() !== String(class_id).trim()) continue;
+    if (String(r[idx.user_id] || '').trim() !== String(user_id).trim()) continue;
+
+    const st = String(r[idx.status] || '').trim().toUpperCase();
+    if (st === 'ABANDONED') continue;
+
+    const attempt_id = String(r[idx.attempt_id] || '').trim();
+    const attempt_no = _toIntDefault_(r[idx.attempt_no], 0);
+
+    let score_summary = null;
+    if (score_visible) {
+      try {
+        const sj = JSON.parse(String(r[idx.score_json] || '') || 'null');
+        if (sj && typeof sj === 'object') {
+          score_summary = {
+            score_marks: sj.score_marks ?? null,
+            total_marks: sj.total_marks ?? null,
+            percent: sj.percent ?? null
+          };
+        }
+      } catch (_) {}
+    }
+
+    out.push({
+      attempt_id,
+      attempt_no: String(attempt_no || ''),
+      status: st,
+      started_at: String(r[idx.started_at] || '').trim(),
+      due_at: String(r[idx.due_at] || '').trim(),
+      submitted_at: String(r[idx.submitted_at] || '').trim(),
+      updated_at: String(r[idx.updated_at] || '').trim(),
+      time_taken_s: String(r[idx.time_taken_s] || '').trim(),
+      can_resume: (st === 'IN_PROGRESS'),
+      score_summary
+    });
+  }
+
+  out.sort((a,b) => {
+    const an = _toIntDefault_(a.attempt_no, 0);
+    const bn = _toIntDefault_(b.attempt_no, 0);
+    if (bn !== an) return bn - an;
+    const am = _parseIsoMs_(a.submitted_at) || _parseIsoMs_(a.updated_at) || 0;
+    const bm = _parseIsoMs_(b.submitted_at) || _parseIsoMs_(b.updated_at) || 0;
+    return bm - am;
+  });
+
+  if (out.length > limit) out = out.slice(0, limit);
+
+  return _json({
+    ok:true,
+    quiz: {
+      teacher_quiz_id: String(quiz.teacher_quiz_id||'').trim(),
+      title: String(quiz.title||'').trim(),
+      preset: String(quiz.preset||'').trim().toUpperCase(),
+      results_release_policy: policy,
+      results_gate_now: !!gateRes.met,
+      results_gate_reason: String(gateRes.reason||''),
+      results_available_at: String(gateRes.available_at||''),
+      score_visible,
+      review_visible,
+      results_status
+    },
+    count: out.length,
+    items: out
+  });
+}
+
+/* =========================
+ * Candidate: attempt.save
+ * NOTE: Runner-safe (no score/review payloads).
+ * ========================= */
+function _handleCandidateAttemptSave_({ token, body, p }) {
+  const gate = _requireUser_({ token });
+  if (!gate.ok) return _json(gate.payload, gate.code);
+
+  const user_id = gate.user_id;
+  const getS = (k) => String(((p && p[k]) || (body && body[k]) || '')).trim();
+
+  const attempt_id = getS('attempt_id');
+  if (!attempt_id) return _json({ ok: false, error: 'missing_attempt_id' }, 400);
+
+  const ss = SpreadsheetApp.openById(DB_ID);
+  const found = _attemptGetById_(ss, attempt_id);
+  if (!found.found) return _json({ ok: false, error: 'attempt_not_found' }, 404);
+
+  const attempt = found.obj;
+  if (String(attempt.user_id || '').trim() !== user_id) {
+    return _json({ ok: false, error: 'forbidden' }, 403);
+  }
+
+let cur = found.obj;
+
+// load quiz once (needed for close_at)
+const q = _getTeacherQuizById_(String(cur.teacher_quiz_id || '').trim());
+const quiz = q.found ? (q.obj || {}) : {};
+
+// define once, reuse below
+const nowMs = Date.now();
+
+// expire attempt if due_at OR close_at has passed
+cur = _maybeExpireAttempt_(ss, cur, quiz, nowMs, found.rowIndex).attempt;
+
+
+  if (String(cur.status || '').toUpperCase() !== 'IN_PROGRESS') {
+    // Ended: return minimal safe info + redirect hint
+    const q = _getTeacherQuizById_(String(cur.teacher_quiz_id || '').trim());
+    const quiz = q.found ? (q.obj || {}) : {};
+    const meta = _candidateResultsMetaPack_(quiz, Date.now());
+
+    return _json({
+      ok: true,
+      attempt: cur,
+      ended: true,
+      status: String(cur.status || '').toUpperCase(),
+      results: meta,
+      next: 'RESULTS'
+    });
+  }
+
+
+  const timePatch = _ta_activeTimePatch_(cur, nowMs);
+
+  const patch = Object.assign({
+    updated_at: _iso(new Date(nowMs))
+  }, timePatch.changed ? timePatch.patch : {});
+
+  const answers_json = getS('answers_json');
+  const flags_json = getS('flags_json');
+
+  if (answers_json) patch.answers_json = answers_json;
+  if (flags_json) patch.flags_json = flags_json;
+
+  _attemptUpdateByRow_(ss, found.rowIndex, patch);
+
+  const fresh = _attemptGetById_(ss, attempt_id);
+  return _json({ ok: true, attempt: fresh.found ? fresh.obj : cur });
+}
+
+/* =========================
+ * Candidate: attempt.submit
+ * NOTE: Runner-safe (no score/review payloads).
+ * ========================= */
+function _handleCandidateAttemptSubmit_({ token, body, p }) {
+  const gate = _requireUser_({ token });
+  if (!gate.ok) return _json(gate.payload, gate.code);
+
+  const user_id = gate.user_id;
+  const getS = (k) => String(((p && p[k]) || (body && body[k]) || '')).trim();
+
+  const attempt_id = getS('attempt_id');
+  if (!attempt_id) return _json({ ok: false, error: 'missing_attempt_id' }, 400);
+
+  const ss = SpreadsheetApp.openById(DB_ID);
+  const found = _attemptGetById_(ss, attempt_id);
+  if (!found.found) return _json({ ok: false, error: 'attempt_not_found' }, 404);
+
+  const attempt = found.obj;
+  if (String(attempt.user_id || '').trim() !== user_id) {
+    return _json({ ok: false, error: 'forbidden' }, 403);
+  }
+
+let cur = found.obj;
+
+// load quiz once (needed for close_at + results meta)
+const q = _getTeacherQuizById_(String(cur.teacher_quiz_id || '').trim());
+if (!q.found) return _json({ ok: false, error: 'quiz_not_found' }, 404);
+const quiz = q.obj;
+
+const nowMs = Date.now();
+
+// expire attempt if due_at OR close_at has passed
+cur = _maybeExpireAttempt_(ss, cur, quiz, nowMs, found.rowIndex).attempt;
+
+// if expiry ended it, return ended meta immediately
+if (String(cur.status || '').toUpperCase() !== 'IN_PROGRESS') {
+  const metaX = _candidateResultsMetaPack_(quiz, nowMs);
+  return _json({
+    ok: true,
+    attempt: cur,
+    ended: true,
+    status: String(cur.status || '').toUpperCase(),
+    results: metaX,
+    next: 'RESULTS'
+  });
+}
+
+
+  const timePatch = _ta_activeTimePatch_(cur, nowMs);
+
+  if (timePatch.changed) {
+    _attemptUpdateByRow_(ss, found.rowIndex, Object.assign({ updated_at: _iso(new Date(nowMs)) }, timePatch.patch));
+    const fresh0 = _attemptGetById_(ss, attempt_id);
+    cur = fresh0.found ? fresh0.obj : cur;
+  }
+
+  const grade = _gradeAttempt_(ss, cur);
+  const nowIso = _iso(new Date(nowMs));
+  const statusOut = grade.timed_out ? 'TIMED_OUT' : 'SUBMITTED';
+
+  const headers = _attemptHeaders_(_attemptSheet_(ss));
+  const patch = Object.assign({
+    status: statusOut,
+    submitted_at: nowIso,
+    updated_at: nowIso,
+    time_taken_s: String(_toIntDefault_(cur.time_taken_s, 0))
+  }, _setScorePatch_(headers, grade.score));
+
+  _attemptUpdateByRow_(ss, found.rowIndex, patch);
+
+  const fresh = _attemptGetById_(ss, attempt_id);
+  const finalAttempt = fresh.found ? fresh.obj : cur;
+
+  // Runner-safe “what next?” info only
+  const meta = _candidateResultsMetaPack_(quiz, nowMs);
+
+  const res = {
+    ok: true,
+    attempt: finalAttempt,
+    ended: true,
+    status: statusOut,
+    results: meta,
+    next: 'RESULTS'
+  };
+
+  // Preserve a user-friendly message in the submit response
+  if (meta.results_pending) res.message = meta.message || 'Submitted.';
+  else res.message = 'Submitted.';
+
+  return _json(res);
+}
+
+function _handleCandidateAttemptResultsGet_({ token, body, p }) {
+  const gate = _requireUser_({ token });
+  if (!gate.ok) return _json(gate.payload, gate.code);
+
+  const user_id = gate.user_id;
+  const getS = (k) => String(((p && p[k]) || (body && body[k]) || '')).trim();
+
+  const class_id = getS('class_id');
+  const teacher_quiz_id = getS('teacher_quiz_id');
+  const attempt_id = getS('attempt_id');
+  if (!class_id || !teacher_quiz_id || !attempt_id) {
+    return _json({ ok:false, error:'missing_class_id_or_teacher_quiz_id_or_attempt_id' }, 400);
+  }
+
+  const ss = SpreadsheetApp.openById(DB_ID);
+
+  if (!_isMemberActive_(ss, class_id, user_id)) {
+    return _json({ ok:false, error:'forbidden_not_class_member' }, 403);
+  }
+  if (!_isQuizLinkedToClassActive_(ss, teacher_quiz_id, class_id)) {
+    return _json({ ok:false, error:'forbidden_quiz_not_linked_to_class' }, 403);
+  }
+
+  const found = _attemptGetById_(ss, attempt_id);
+  if (!found.found) return _json({ ok:false, error:'attempt_not_found' }, 404);
+
+  const a = found.obj;
+
+  if (String(a.user_id || '').trim() !== user_id) return _json({ ok:false, error:'forbidden' }, 403);
+  if (String(a.class_id || '').trim() !== String(class_id).trim()) return _json({ ok:false, error:'forbidden' }, 403);
+  if (String(a.teacher_quiz_id || '').trim() !== String(teacher_quiz_id).trim()) return _json({ ok:false, error:'forbidden' }, 403);
+
+  const stU = String(a.status || '').trim().toUpperCase();
+  if (stU === 'IN_PROGRESS') return _json({ ok:false, error:'attempt_not_submitted' }, 400);
+
+  const q = _getTeacherQuizById_(teacher_quiz_id);
+  if (!q.found) return _json({ ok:false, error:'quiz_not_found' }, 404);
+  const quiz = q.obj;
+
+  const nowMs = Date.now();
+  const policy = _normalizeResultsPolicy_(quiz.results_release_policy);
+  const gateRes = _computeResultsGatePolicy_(quiz, nowMs);
+
+  const showResults = _getShowResultsBool_(quiz);
+  const showReview  = _toBoolDefault_(quiz.show_review, false);
+  const anyOutput = (showResults || showReview);
+
+  // normalize grading config (safe defaults even if sheet has blanks/invalid JSON)
+  const gc = _normalizeGradingConfig_(quiz);
+  const pass_threshold_pct = _passThresholdStrict_(quiz);
+
+  // ensure score_json exists for ended attempts (even if hidden)
+  const ensured = _ensureAttemptScored_(ss, a, found.rowIndex);
+  const scoreObj = ensured.score; // {total_marks, score_marks, percent}
+  
+  // ===== bundle quiz_meta + attempt_meta + my_details (shared helper) =====
+const a2 = ensured.attempt || a;
+const bundle = _buildCandidateAttemptBundle_(ss, quiz, a2, class_id, user_id);
+
+const quiz_meta = bundle.quiz_meta;
+const attempt_meta = bundle.attempt_meta;
+const my_details = bundle.my_details;
+
+  const res = {
+    ok: true,
+    quiz_meta,
+    attempt_meta,
+    my_details,
+    attempt_id,
+    status: stU,
+    results_release_policy: policy,
+    gate_met: !!gateRes.met,
+    gate_reason: String(gateRes.reason || ''),
+    available_at: String(gateRes.available_at || ''),
+    show_results: !!showResults,
+    show_review: !!showReview,
+    can_review_now: !!(gateRes.met && showReview),
+
+    results_pending: false,
+    message: '',
+    score: null,
+
+    score_display_policy: gc.score_display_policy,
+    display_score: null,
+    grade_label: null,
+    pass_threshold_pct: String(pass_threshold_pct),
+    pass_status: null,
+    passed: null
+  };
+
+  // Gate not met => no label, no score
+  if (!gateRes.met) {
+    res.results_pending = true;
+    res.message = _candidateResultsPendingMessage_(policy, gateRes, quiz);
+    return _json(res);
+  }
+
+  // Teacher hidden BOTH results + review
+  if (!anyOutput) {
+    res.results_pending = true;
+    res.message = "Results and review are hidden for this quiz.";
+    return _json(res);
+  }
+
+  // show_results=false => no label, no score (review may still be allowed)
+  if (!showResults) {
+    res.score = null;
+    res.display_score = null;
+    res.grade_label = null;
+    res.message = "Results hidden (review may be available).";
+    return _json(res);
+  }
+
+  // showResults === true, but score display policy may still hide numeric score
+  const sdp = String(gc.score_display_policy || 'PCT_ONLY').trim().toUpperCase();
+
+  const pct = (scoreObj && scoreObj.percent != null) ? Number(scoreObj.percent) : null;
+  const raw = (scoreObj && scoreObj.score_marks != null) ? Number(scoreObj.score_marks) : null;
+  const total = (scoreObj && scoreObj.total_marks != null) ? Number(scoreObj.total_marks) : null;
+
+  // PASS/FAIL is based ONLY on pass_threshold_pct (not bands)
+if (pct != null && isFinite(pct)) {
+  res.pass_status = (pct >= pass_threshold_pct) ? 'PASS' : 'FAIL';
+  res.passed = (res.pass_status === 'PASS');
+}
+
+  // Grade label is allowed when gate_met=true AND show_results=true (even if numeric is hidden)
+  if (pct != null && isFinite(pct)) {
+    res.grade_label = _gradeLabelFromBands_(gc.grade_bands, pct);
+  } else {
+    res.grade_label = '';
+  }
+
+  // ===== FIX: HIDE returns grade_label but NO numeric score anywhere =====
+  if (sdp === 'HIDE') {
+    res.display_score = null;
+    res.score = null; // avoid numeric leaks to older frontends
+    res.message = "Results available.";
+    return _json(res);
+  }
+
+  // Non-HIDE: keep backward-compatible full score object
+  res.score = scoreObj || null;
+
+  // compute display_score based on policy
+  if (sdp === 'PCT_ONLY') {
+    res.display_score = { percent: (pct == null || !isFinite(pct)) ? null : pct };
+  } else if (sdp === 'RAW_ONLY') {
+    res.display_score = {
+      score_marks: (raw == null || !isFinite(raw)) ? null : raw,
+      total_marks: (total == null || !isFinite(total)) ? null : total
+    };
+  } else { // RAW_AND_PCT (and any future-safe fallback)
+    res.display_score = {
+      score_marks: (raw == null || !isFinite(raw)) ? null : raw,
+      total_marks: (total == null || !isFinite(total)) ? null : total,
+      percent: (pct == null || !isFinite(pct)) ? null : pct
+    };
+  }
+
+  res.message = "Results available.";
+  return _json(res);
+}
+
+/* =========================
+ * Candidate bundle helper (Results-style)
+ * - quiz_meta
+ * - attempt_meta
+ * - my_details (class profile + attempt submitted fields)
+ * Safe to call even if attemptObj is null.
+ * ========================= */
+function _buildCandidateAttemptBundle_(ss, quizObj, attemptObj, class_id, user_id) {
+  const quiz = quizObj || {};
+  const attempt = attemptObj || {};
+
+  function _norm_(v){ return String(v == null ? '' : v).trim(); }
+
+  function _fieldsMapFromAnyJson_(jsonStr) {
+    const raw = _parseJsonSafe_(jsonStr, {});
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      if (raw.fields && typeof raw.fields === 'object' && !Array.isArray(raw.fields)) return raw.fields;
+      return raw;
+    }
+    return {};
+  }
+
+  function _entriesFromSchema_(schemaFields, valuesMap) {
+    const fields = Array.isArray(schemaFields) ? schemaFields : [];
+    const vals = (valuesMap && typeof valuesMap === 'object' && !Array.isArray(valuesMap)) ? valuesMap : {};
+
+    const seen = {};
+    const out = [];
+
+    // schema-ordered
+    for (let i = 0; i < fields.length; i++) {
+      const f = fields[i] || {};
+      const key = _norm_(f.key);
+      const label = _norm_(f.label) || key;
+      if (!key) continue;
+      seen[key] = true;
+      out.push({ key, label, value: _norm_(vals[key]) });
+    }
+
+    // extras (not in schema)
+    Object.keys(vals).forEach(k => {
+      const key = _norm_(k);
+      if (!key || seen[key]) return;
+      out.push({ key, label: key, value: _norm_(vals[key]) });
+    });
+
+    return out;
+  }
+
+  // quiz_meta (keep existing keys; extra keys are safe additions)
+  const quiz_meta = {
+    teacher_quiz_id: _norm_(quiz.teacher_quiz_id),
+    title: _norm_(quiz.title),
+    subject: _norm_(quiz.subject),
+    preset: _norm_(quiz.preset).toUpperCase(),
+
+    // helpful extras (optional for UI)
+    mode: _norm_(quiz.mode || 'TIMED').toUpperCase(),
+    duration_minutes: _norm_(quiz.duration_minutes),
+    results_release_policy: _normalizeResultsPolicy_(quiz.results_release_policy),
+    show_review: _toBoolDefault_(quiz.show_review, false),
+    show_results: _getShowResultsBool_(quiz)
+  };
+
+  // attempt_meta (blank-safe)
+  const attempt_meta = {
+    attempt_id: _norm_(attempt.attempt_id),
+    attempt_no: _norm_(attempt.attempt_no),
+    status: _norm_(attempt.status).toUpperCase(),
+    started_at: _norm_(attempt.started_at),
+    submitted_at: _norm_(attempt.submitted_at),
+    updated_at: _norm_(attempt.updated_at),
+    time_taken_s: _norm_(attempt.time_taken_s),
+    due_at: _norm_(attempt.due_at)
+  };
+
+  // Class profile (current): teacher_class_members + teacher_classes schema
+  let class_profile = null;
+  try {
+    const mem = _getMembershipByClassUser_(ss, class_id, user_id);
+
+    const clsSh = ss.getSheetByName(SH_CLASSES);
+    const clsHeaders = _getHeaders_(clsSh);
+    const clsRow = _findRowIndexBy_(clsSh, clsHeaders, 'class_id', class_id);
+    const clsObj = (clsRow > 0) ? _readObjAtRow_(clsSh, clsHeaders, clsRow) : null;
+
+    const classSchemaStr = _norm_(clsObj && clsObj.custom_fields_json) || JSON.stringify({ fields: [] });
+    const classSchemaFields = _schemaToFields_(classSchemaStr);
+
+    const mfJson = _norm_(mem && mem.obj && mem.obj.member_fields_json);
+    const mfMap = _fieldsMapFromAnyJson_(mfJson);
+
+    class_profile = {
+      display_name: _norm_(mem && mem.obj && mem.obj.display_name),
+      entries: _entriesFromSchema_(classSchemaFields, mfMap)
+    };
+  } catch (_) {
+    class_profile = null;
+  }
+
+  // Attempt details (submitted): teacher_attempts candidate_fields_json (fallback custom_fields_json) + quiz schema
+  let attempt_submitted = null;
+  try {
+    const quizSchemaStr = _norm_(quiz.custom_fields_json) || JSON.stringify({ fields: [] });
+    const quizSchemaFields = _schemaToFields_(quizSchemaStr);
+
+    const candJson = _norm_(attempt.candidate_fields_json) || _norm_(attempt.custom_fields_json);
+    const candMap = _fieldsMapFromAnyJson_(candJson);
+
+    attempt_submitted = { entries: _entriesFromSchema_(quizSchemaFields, candMap) };
+  } catch (_) {
+    attempt_submitted = { entries: [] };
+  }
+
+  const my_details = {
+    class_profile,
+    attempt_submitted
+  };
+
+  return { quiz_meta, attempt_meta, my_details };
+}
+
+function _handleCandidateAttemptReviewGet_({ token, body, p }) {
+  const gate = _requireUser_({ token });
+  if (!gate.ok) return _json(gate.payload, gate.code);
+
+  const user_id = gate.user_id;
+  const getS = (k) => String(((p && p[k]) || (body && body[k]) || '')).trim();
+
+  const class_id = getS('class_id');
+  const teacher_quiz_id = getS('teacher_quiz_id');
+  let attempt_id = getS('attempt_id'); // OPTIONAL now
+
+  if (!class_id || !teacher_quiz_id) {
+    return _json({ ok:false, error:'missing_class_id_or_teacher_quiz_id' }, 400);
+  }
+
+  const ss = SpreadsheetApp.openById(DB_ID);
+
+  if (!_isMemberActive_(ss, class_id, user_id)) {
+    return _json({ ok:false, error:'forbidden_not_class_member' }, 403);
+  }
+  if (!_isQuizLinkedToClassActive_(ss, teacher_quiz_id, class_id)) {
+    return _json({ ok:false, error:'forbidden_quiz_not_linked_to_class' }, 403);
+  }
+
+  const q = _getTeacherQuizById_(teacher_quiz_id);
+  if (!q.found) return _json({ ok:false, error:'quiz_not_found' }, 404);
+  const quiz = q.obj;
+
+  // candidates should only see published quizzes
+  if (String(quiz.status || '').trim().toUpperCase() !== 'PUBLISHED') {
+    return _json({ ok:false, error:'quiz_not_published' }, 400);
+  }
+
+  const nowMs = Date.now();
+  const policy = _normalizeResultsPolicy_(quiz.results_release_policy);
+  const gateRes = _computeResultsGatePolicy_(quiz, nowMs);
+
+  const showResults = _getShowResultsBool_(quiz);
+  const showReview  = _toBoolDefault_(quiz.show_review, false);
+
+  // grading config (for optional score panel)
+  const gc = _normalizeGradingConfig_(quiz);
+  const pass_threshold_pct = _passThresholdStrict_(quiz);
+
+  // ---- Load attempt (attempt_id optional)
+  let found = null;
+  let a = null;
+  let rowIndex = 0;
+
+  if (attempt_id) {
+    found = _attemptGetById_(ss, attempt_id);
+    if (!found.found) {
+      // Return ok:true with a friendly block (lets UI still show quiz meta)
+      const bundle0 = _buildCandidateAttemptBundle_(ss, quiz, null, class_id, user_id);
+      return _json({
+        ok: true,
+        ...bundle0,
+        attempt_id: attempt_id,
+        status: '',
+        results_release_policy: policy,
+        gate_met: !!gateRes.met,
+        gate_reason: String(gateRes.reason || ''),
+        available_at: String(gateRes.available_at || ''),
+        show_results: !!showResults,
+        show_review: !!showReview,
+
+        review_allowed: false,
+        review_block_reason: { code:'ATTEMPT_NOT_FOUND', message:'Attempt not found.' },
+
+        score_display_policy: gc.score_display_policy,
+        pass_threshold_pct: String(pass_threshold_pct),
+        pass_status: null,
+        passed: null,
+        grade_label: null,
+        score: null,
+        display_score: null,
+        review_items: []
+      });
+    }
+
+    a = found.obj;
+    rowIndex = found.rowIndex;
+
+    // ownership + scope gate
+    if (String(a.user_id || '').trim() !== user_id) return _json({ ok:false, error:'forbidden' }, 403);
+    if (String(a.class_id || '').trim() !== String(class_id).trim()) return _json({ ok:false, error:'forbidden' }, 403);
+    if (String(a.teacher_quiz_id || '').trim() !== String(teacher_quiz_id).trim()) return _json({ ok:false, error:'forbidden' }, 403);
+
+  } else {
+    // latest ended attempt
+    const ended = _findLatestEndedAttempt_(ss, teacher_quiz_id, class_id, user_id);
+    if (ended.found) {
+      a = ended.attempt;
+      rowIndex = ended.rowIndex || 0;
+      attempt_id = String(a.attempt_id || '').trim();
+    }
+  }
+
+  // Build bundle (even if no attempt -> UI can still show quiz + class profile)
+  const bundle = _buildCandidateAttemptBundle_(ss, quiz, a, class_id, user_id);
+
+  // Base response
+  const res = {
+    ok: true,
+    quiz_meta: bundle.quiz_meta,
+    attempt_meta: bundle.attempt_meta,
+    my_details: bundle.my_details,
+
+    attempt_id: String(attempt_id || '').trim(),
+    status: a ? String(a.status || '').trim().toUpperCase() : '',
+
+    results_release_policy: policy,
+    gate_met: !!gateRes.met,
+    gate_reason: String(gateRes.reason || ''),
+    available_at: String(gateRes.available_at || ''),
+
+    show_results: !!showResults,
+    show_review: !!showReview,
+
+    review_allowed: false,
+    review_block_reason: { code:'', message:'' },
+
+    // optional score panel (respects score_display_policy)
+    score_display_policy: gc.score_display_policy,
+    pass_threshold_pct: String(pass_threshold_pct),
+    pass_status: null,
+    passed: null,
+    grade_label: null,
+    score: null,
+    display_score: null,
+
+    review_items: []
+  };
+
+  // ---- No attempt
+  if (!a) {
+    res.review_block_reason = { code:'NO_ATTEMPT', message:'No submitted attempt found for this quiz.' };
+    return _json(res);
+  }
+
+  const stU = String(a.status || '').trim().toUpperCase();
+  if (stU === 'IN_PROGRESS') {
+    res.review_block_reason = { code:'ATTEMPT_IN_PROGRESS', message:'This attempt is still in progress. Submit first to review.' };
+    return _json(res);
+  }
+  if (stU === 'ABANDONED') {
+    res.review_block_reason = { code:'ATTEMPT_ABANDONED', message:'This attempt was abandoned and cannot be reviewed.' };
+    return _json(res);
+  }
+
+  // ---- Review setting gate
+  if (!showReview) {
+    res.review_block_reason = { code:'REVIEW_DISABLED', message:'Review is disabled for this quiz.' };
+    return _json(res);
+  }
+
+  // ---- Results-policy gate (review follows the same gate)
+  if (!gateRes.met) {
+    res.review_block_reason = {
+      code: 'REVIEW_LOCKED',
+      message: _candidateResultsPendingMessage_(policy, gateRes, quiz),
+      available_at: String(gateRes.available_at || '')
+    };
+    return _json(res);
+  }
+
+  // ---- Allowed
+  res.review_allowed = true;
+  res.review_block_reason = { code:'OK', message:'' };
+
+  // Ensure score exists (used for score panel; review does NOT depend on numeric score)
+  const ensured = _ensureAttemptScored_(ss, a, rowIndex);
+  const finalAttempt = ensured.attempt || a;
+  const scoreObj = ensured.score || null;
+
+  // Apply score visibility rules
+  if (showResults && scoreObj && typeof scoreObj === 'object') {
+    const sdp = String(gc.score_display_policy || 'PCT_ONLY').trim().toUpperCase();
+
+    const pct = (scoreObj && scoreObj.percent != null) ? Number(scoreObj.percent) : null;
+    const raw = (scoreObj && scoreObj.score_marks != null) ? Number(scoreObj.score_marks) : null;
+    const total = (scoreObj && scoreObj.total_marks != null) ? Number(scoreObj.total_marks) : null;
+
+    if (pct != null && isFinite(pct)) {
+      res.pass_status = (pct >= pass_threshold_pct) ? 'PASS' : 'FAIL';
+      res.passed = (res.pass_status === 'PASS');
+      res.grade_label = _gradeLabelFromBands_(gc.grade_bands, pct);
+    }
+
+    if (sdp !== 'HIDE') {
+      res.score = scoreObj;
+
+      if (sdp === 'PCT_ONLY') {
+        res.display_score = { percent: (pct == null || !isFinite(pct)) ? null : pct };
+      } else if (sdp === 'RAW_ONLY') {
+        res.display_score = {
+          score_marks: (raw == null || !isFinite(raw)) ? null : raw,
+          total_marks: (total == null || !isFinite(total)) ? null : total
+        };
+      } else {
+        res.display_score = {
+          score_marks: (raw == null || !isFinite(raw)) ? null : raw,
+          total_marks: (total == null || !isFinite(total)) ? null : total,
+          percent: (pct == null || !isFinite(pct)) ? null : pct
+        };
+      }
+    }
+  }
+
+  // Build REVIEW items (include meta + feedback + rationale safely here)
+  const payload = _buildAttemptPayload_(ss, finalAttempt, null, {
+    include_meta: true,
+    include_feedback: true,
+    include_rationale: true
+  });
+
+  // chosen/correct come from grading
+  const grade = _gradeAttempt_(ss, finalAttempt);
+  const byId = {};
+  (grade.review_items || []).forEach(x => {
+    byId[String(x.quiz_item_id || '').trim()] = x;
+  });
+
+  const items = Array.isArray(payload.items) ? payload.items : [];
+  res.review_items = items.map(it => {
+    const rid = String(it.quiz_item_id || '').trim();
+    const g = byId[rid] || {};
+    const chosen = String(g.chosen || '').trim();
+    const correct = String(g.correct || '').trim();
+
+    // Prefer snapshot rationale if present; fallback to grade rationale
+    const rationale = String(it.rationale || '').trim() || String(g.rationale || '').trim();
+
+    return Object.assign({}, it, {
+      chosen,
+      correct,
+      is_correct: (!!chosen && !!correct && chosen === correct),
+      rationale
+    });
+  });
+
+  return _json(res);
+}
+
+/* =========================
+ * Teacher: attempts.list
+ * ========================= */
+function _handleTeacherAttemptsList_({ token, body, p }) {
+  const gate = _requireTeacher_({ token });
+  if (!gate.ok) return _json(gate.payload, gate.code);
+
+  const teacher_id = gate.teacher_id;
+  const getS = (k) => String(((p && p[k]) || (body && body[k]) || '')).trim();
+
+  const teacher_quiz_id = getS('teacher_quiz_id');
+  const class_id = getS('class_id');
+  const status = (getS('status') || 'ANY').toUpperCase();
+  const limit = Math.min(Math.max(_toIntDefault_(getS('limit'), 50), 1), 300);
+
+  if (!teacher_quiz_id) return _json({ ok:false, error:'missing_teacher_quiz_id' }, 400);
+
+  const ss = SpreadsheetApp.openById(DB_ID);
+  const sh = ss.getSheetByName(SH_ATTEMPTS);
+  const headers = _getHeaders_(sh);
+
+  const idx = _indexMap_(headers, [
+    'attempt_id','teacher_quiz_id','class_id','user_id','attempt_no',
+    'status','started_at','submitted_at','updated_at','score_json','teacher_id'
+  ]);
+
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return _json({ ok: true, count: 0, items: [] });
+
+  const values = sh.getRange(2, 1, lastRow - 1, sh.getLastColumn()).getValues();
+  let out = [];
+
+  for (let i = values.length - 1; i >= 0; i--) {
+    const r = values[i];
+
+    if (String(r[idx.teacher_quiz_id] || '').trim() !== teacher_quiz_id) continue;
+    if (String(r[idx.teacher_id] || '').trim() !== teacher_id) continue;
+    if (class_id && String(r[idx.class_id] || '').trim() !== class_id) continue;
+
+    const st = String(r[idx.status] || '').trim().toUpperCase();
+    if (status !== 'ANY' && st !== status) continue;
+
+    let score = null;
+    try { score = JSON.parse(String(r[idx.score_json] || '') || 'null'); } catch (_) {}
+
+    out.push({
+      attempt_id: String(r[idx.attempt_id] || '').trim(),
+      teacher_quiz_id: String(r[idx.teacher_quiz_id] || '').trim(),
+      class_id: String(r[idx.class_id] || '').trim(),
+      user_id: String(r[idx.user_id] || '').trim(),
+      attempt_no: String(r[idx.attempt_no] || '').trim(),
+      status: st,
+      started_at: String(r[idx.started_at] || '').trim(),
+      submitted_at: String(r[idx.submitted_at] || '').trim(),
+      updated_at: String(r[idx.updated_at] || '').trim(),
+      score
+    });
+
+    if (out.length >= limit) break;
+  }
+
+  return _json({ ok: true, count: out.length, items: out });
+}
+
+/* =========================
+ * Teacher: attempt.get
+ * ========================= */
+function _handleTeacherAttemptGet_({ token, body, p }) {
+  const gate = _requireTeacher_({ token });
+  if (!gate.ok) return _json(gate.payload, gate.code);
+
+  const teacher_id = gate.teacher_id;
+  const getS = (k) => String(((p && p[k]) || (body && body[k]) || '')).trim();
+
+  const attempt_id = getS('attempt_id');
+  if (!attempt_id) return _json({ ok: false, error: 'missing_attempt_id' }, 400);
+
+  const ss = SpreadsheetApp.openById(DB_ID);
+  const found = _attemptGetById_(ss, attempt_id);
+  if (!found.found) return _json({ ok: false, error: 'attempt_not_found' }, 404);
+
+  const attempt = found.obj;
+  if (String(attempt.teacher_id || '').trim() !== teacher_id) {
+    return _json({ ok: false, error: 'forbidden' }, 403);
+  }
+
+  const ensured = _ensureAttemptScored_(ss, attempt, found.rowIndex);
+  const finalAttempt = ensured.attempt;
+  const scoreObj = ensured.score;
+
+  const payload = _buildAttemptPayload_(ss, finalAttempt);
+  const grade = _gradeAttempt_(ss, finalAttempt);
+
+  payload.score = scoreObj || grade.score;
+  payload.review_items = grade.review_items;
+
+  return _json({ ok: true, ...payload });
+}
+
+/* ============================================================
+ * Helpers (runner-local)
+ * ============================================================ */
+
+function _ta_shuffle_(arr) {
+  const a = (arr || []).slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function _buildOptionMap_(snap, shuffleOptions) {
+  const letters = ['A','B','C','D','E','F'];
+  const has = [];
+  letters.forEach(L => {
+    const v = String(snap['snap_option_' + L.toLowerCase()] || '').trim();
+    if (v) has.push(L);
+  });
+
+  const display = ['A','B','C','D','E','F'].slice(0, has.length);
+  const order = shuffleOptions ? _ta_shuffle_(has) : has.slice();
+
+  const map = {};
+  for (let i = 0; i < display.length; i++) map[display[i]] = order[i];
+  return map;
+}
+
+function _renderItemsForClient_(snapById, attemptItems, opts) {
+  const out = [];
+  const o = opts || {};
+  const include_meta = !!o.include_meta;           // topic, difficulty
+  const include_feedback = !!o.include_feedback;   // fb per option
+  const include_rationale = !!o.include_rationale; // rationale + rationale_img
+
+  (attemptItems || []).forEach(ai => {
+    const snap = snapById[ai.quiz_item_id];
+    if (!snap) return;
+
+    const opt_map = ai.opt_map || {};
+    const optsArr = [];
+
+    ['A','B','C','D','E','F'].forEach(dk => {
+      const ok = opt_map[dk]; // original letter (A-F)
+      if (!ok) return;
+
+      const text = String(snap['snap_option_' + ok.toLowerCase()] || '').trim();
+      if (!text) return;
+
+      const opt = { key: dk, orig: ok, text };
+
+      if (include_feedback) {
+        opt.feedback = String(snap['snap_fb_' + ok.toLowerCase()] || '').trim();
+      }
+
+      optsArr.push(opt);
+    });
+
+    const item = {
+      quiz_item_id: ai.quiz_item_id,
+      position: ai.position,
+      marks: ai.marks || 1,
+      subject: snap.snap_subject || '',
+      stem: snap.snap_stem || '',
+      options: optsArr
+    };
+
+    if (include_meta) {
+      item.topic = String(snap.snap_topic || '').trim();
+      item.difficulty = String(snap.snap_difficulty || '').trim();
+    }
+
+    if (include_rationale) {
+      item.rationale = String(snap.snap_rationale || '').trim();
+      item.rationale_img = String(snap.snap_rationale_img || '').trim();
+    }
+
+    out.push(item);
+  });
+
+  return out;
+}
+
+function _buildAttemptPayload_(ss, attempt, snapshotsOptional, opts) {
+  const teacher_quiz_id = String(attempt.teacher_quiz_id || '').trim();
+
+  const itemsArr = _parseJsonSafe_(attempt.items_json, []) || [];
+  const answers = _parseJsonSafe_(attempt.answers_json, {}) || {};
+  const flags = _parseJsonSafe_(attempt.flags_json, {}) || {};
+
+  const snaps = snapshotsOptional || _getQuizItemsSnapshots_(ss, teacher_quiz_id);
+  const snapById = {};
+  snaps.forEach(s => snapById[s.quiz_item_id] = s);
+
+  // Default remains runner-safe (no meta/feedback/rationale)
+  const items = _renderItemsForClient_(snapById, itemsArr, opts);
+
+  let due_ms = null;
+  const due_at = String(attempt.due_at || '').trim();
+  if (due_at) {
+    const ms = Date.parse(due_at);
+    if (!isNaN(ms)) due_ms = ms;
+  }
+
+  return { attempt, items, answers, flags, due_ms };
+}
+
+function _candidateResultsPendingMessage_(policy, gateRes, quizObj) {
+  const pol = String(policy || 'IMMEDIATE').toUpperCase();
+
+  if (pol === 'AFTER_CLOSE') {
+    if (gateRes.reason === 'MISSING_CLOSE_AT' || gateRes.reason === 'INVALID_CLOSE_AT') {
+      return "Results are not available because the quiz close time is missing.";
+    }
+    const closeAt = String((quizObj && quizObj.close_at) || gateRes.available_at || '').trim();
+    return closeAt
+      ? `Results will be available after the quiz closes (${closeAt}).`
+      : "Results will be available after the quiz closes.";
+  }
+
+  if (pol === 'MANUAL') {
+    return "Your attempt has been submitted. Your teacher will release results and feedback when ready.";
+  }
+
+  return "Your attempt has been submitted.";
+}
+
+/**
+ * Runner-safe results metadata pack (NO score, NO review_items).
+ */
+function _candidateResultsMetaPack_(quizObj, nowMs) {
+  const policy = _normalizeResultsPolicy_(quizObj && quizObj.results_release_policy);
+  const gateRes = _computeResultsGatePolicy_(quizObj || {}, nowMs);
+
+  const showResults = _getShowResultsBool_(quizObj || {});
+  const showReview  = _toBoolDefault_(quizObj && quizObj.show_review, false);
+
+  const anyOutput = (showResults || showReview);
+
+  const out = {
+    policy,
+    gate_met: !!gateRes.met,
+    gate_reason: String(gateRes.reason || ''),
+    available_at: String(gateRes.available_at || ''),
+    show_results: !!showResults,
+    show_review: !!showReview,
+    any_output: !!anyOutput,
+    results_pending: false,
+    message: ''
+  };
+
+  if (!gateRes.met) {
+    out.results_pending = true;
+    out.message = _candidateResultsPendingMessage_(policy, gateRes, quizObj || {});
+    return out;
+  }
+
+  if (!anyOutput) {
+    out.results_pending = true;
+    out.message = "Results and review are hidden for this quiz.";
+    return out;
+  }
+
+  out.results_pending = false;
+  out.message = "Results available.";
+  return out;
+}
+
+function _gradeLabelFromBands_(gradeBandsObj, percent) {
+  const p0 = Number(percent);
+  const p = isFinite(p0) ? Math.max(0, Math.min(100, p0)) : 0;
+
+  const bands = (gradeBandsObj && Array.isArray(gradeBandsObj.bands)) ? gradeBandsObj.bands : [];
+  if (!bands.length) return '';
+
+  // bands are expected sorted ascending by min_pct already (from _normalizeGradingConfig_)
+  let label = String(bands[0].label || '').trim();
+
+  for (let i = 0; i < bands.length; i++) {
+    const b = bands[i] || {};
+    const min = Number(b.min_pct);
+    const lab = String(b.label || '').trim();
+    if (!lab) continue;
+    if (!isFinite(min)) continue;
+    if (p >= min) label = lab;
+    else break; // because sorted ascending
+  }
+
+  return label;
+}
+
+function _passThresholdStrict_(quizObj) {
+  // Use stored pass_threshold_pct ONLY. Do not derive from bands here.
+  // Falls back to 50 if missing/invalid.
+  let n = null;
+
+  // Prefer global _parsePct_ if available (defined in File 1)
+  if (typeof _parsePct_ === 'function') {
+    n = _parsePct_(quizObj && quizObj.pass_threshold_pct);
+  } else {
+    // local fallback parsing
+    const s = String((quizObj && quizObj.pass_threshold_pct) ?? '').trim();
+    if (s) {
+      const x = Number(s);
+      if (isFinite(x)) n = Math.max(0, Math.min(100, Math.round(x * 100) / 100));
+    }
+  }
+
+  if (n == null) {
+    if (typeof PASS_THRESHOLD_DEFAULT !== 'undefined') return PASS_THRESHOLD_DEFAULT; // from File 1 (50)
+    return 50;
+  }
+  return n;
+}
+
+function _ensureAttemptScored_(ss, attempt, rowIndexMaybe) {
+  let scoreObj = _parseJsonSafe_(attempt.score_json, null);
+  if (scoreObj && typeof scoreObj === 'object') {
+    return { attempt, score: scoreObj, updated: false };
+  }
+
+  let rowIndex = rowIndexMaybe;
+  if (!rowIndex) {
+    const found = _attemptGetById_(ss, String(attempt.attempt_id || '').trim());
+    if (!found.found) return { attempt, score: null, updated: false };
+    rowIndex = found.rowIndex;
+    attempt = found.obj;
+
+    scoreObj = _parseJsonSafe_(attempt.score_json, null);
+    if (scoreObj && typeof scoreObj === 'object') return { attempt, score: scoreObj, updated: false };
+  }
+
+  const grade = _gradeAttempt_(ss, attempt);
+  const headers = _attemptHeaders_(_attemptSheet_(ss));
+
+  const patch = Object.assign({
+    updated_at: _iso(new Date())
+  }, _setScorePatch_(headers, grade.score));
+
+  _attemptUpdateByRow_(ss, rowIndex, patch);
+
+  const refreshed = _attemptGetById_(ss, String(attempt.attempt_id || '').trim());
+  const fixed = refreshed.found ? refreshed.obj : attempt;
+
+  return { attempt: fixed, score: grade.score, updated: true };
+}
+
+/* =========================
+ * Time tracking helper
+ * ========================= */
+function _ta_activeTimePatch_(attempt, nowMs) {
+  if (String(attempt.status || '').toUpperCase() !== 'IN_PROGRESS') {
+    return { changed: false, patch: {} };
+  }
+
+  const lastMs = _parseIsoMs_(attempt.updated_at) || null;
+  if (!lastMs) return { changed: false, patch: {} };
+
+  const deltaSec = Math.floor((nowMs - lastMs) / 1000);
+  if (deltaSec <= 0) return { changed: false, patch: {} };
+
+  const currentTaken = _toIntDefault_(attempt.time_taken_s, 0);
+  const durationSec = _toIntDefault_(attempt.duration_minutes, 0) * 60;
+
+  const cap = (durationSec > 0) ? durationSec : Number.POSITIVE_INFINITY;
+  const newTaken = Math.min(currentTaken + deltaSec, cap);
+
+  return {
+    changed: (newTaken !== currentTaken),
+    patch: {
+      time_taken_s: String(newTaken),
+      updated_at: _iso(new Date(nowMs))
+    }
+  };
+}
+
+/* =========================
+ * Attempts sheet IO
+ * ========================= */
+function _attemptSheet_(ss) {
+  return ss.getSheetByName(SH_ATTEMPTS);
+}
+function _attemptHeaders_(sh) {
+  return _getHeaders_(sh);
+}
+
+function _attemptAppend_(ss, obj) {
+  const sh = _attemptSheet_(ss);
+  const headers = _attemptHeaders_(sh);
+
+  // candidate fields: prefer candidate_fields_json, fallback to custom_fields_json
+  const hasCandidate = headers.indexOf('candidate_fields_json') !== -1;
+  const hasCustom    = headers.indexOf('custom_fields_json') !== -1;
+
+  if (hasCandidate && !('candidate_fields_json' in obj) && ('custom_fields_json' in obj)) {
+    obj.candidate_fields_json = obj.custom_fields_json;
+  }
+  if (hasCustom && !('custom_fields_json' in obj) && ('candidate_fields_json' in obj)) {
+    obj.custom_fields_json = obj.candidate_fields_json;
+  }
+
+  const row = headers.map(h => (h in obj) ? obj[h] : '');
+  sh.appendRow(row);
+}
+
+function _attemptGetById_(ss, attempt_id) {
+  const sh = _attemptSheet_(ss);
+  const headers = _attemptHeaders_(sh);
+
+  const idx = headers.indexOf('attempt_id');
+  if (idx === -1) throw new Error('Missing header: attempt_id');
+
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return { found: false };
+
+  const vals = sh.getRange(2, idx + 1, lastRow - 1, 1).getValues();
+  for (let i = 0; i < vals.length; i++) {
+    if (String(vals[i][0] || '').trim() === attempt_id) {
+      const rowIndex = i + 2;
+      const row = sh.getRange(rowIndex, 1, 1, headers.length).getValues()[0];
+      return { found: true, rowIndex, obj: _rowToObj_(headers, row) };
+    }
+  }
+  return { found: false };
+}
+
+function _attemptUpdateByRow_(ss, rowIndex, patch) {
+  const sh = _attemptSheet_(ss);
+  const headers = _attemptHeaders_(sh);
+  const row = sh.getRange(rowIndex, 1, 1, headers.length).getValues()[0];
+  const obj = _rowToObj_(headers, row);
+  Object.keys(patch || {}).forEach(k => obj[k] = patch[k]);
+  const outRow = headers.map(h => (h in obj) ? obj[h] : '');
+  sh.getRange(rowIndex, 1, 1, headers.length).setValues([outRow]);
+}
+
+function _findInProgressAttempt_(ss, teacher_quiz_id, class_id, user_id) {
+  const sh = _attemptSheet_(ss);
+  const headers = _attemptHeaders_(sh);
+
+  const idx = _indexMap_(headers, ['attempt_id','teacher_quiz_id','class_id','user_id','status','updated_at']);
+
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return { found: false };
+
+  const values = sh.getRange(2, 1, lastRow - 1, sh.getLastColumn()).getValues();
+
+  let best = null, bestRow = -1, bestMs = -1;
+
+  for (let i = 0; i < values.length; i++) {
+    const r = values[i];
+
+    if (String(r[idx.teacher_quiz_id] || '').trim() !== String(teacher_quiz_id).trim()) continue;
+    if (String(r[idx.class_id] || '').trim() !== String(class_id).trim()) continue;
+    if (String(r[idx.user_id] || '').trim() !== String(user_id).trim()) continue;
+
+    const st = String(r[idx.status] || '').trim().toUpperCase();
+    if (st !== 'IN_PROGRESS') continue;
+
+    const ms = _parseIsoMs_(String(r[idx.updated_at] || '').trim()) || 0;
+    if (ms > bestMs) {
+      bestMs = ms;
+      bestRow = i + 2;
+      best = _rowToObj_(headers, r);
+    }
+  }
+
+  if (!best) return { found: false };
+  best._rowIndex = bestRow;
+  return { found: true, rowIndex: bestRow, attempt: best };
+}
+
+function _findLatestEndedAttempt_(ss, teacher_quiz_id, class_id, user_id) {
+  const sh = _attemptSheet_(ss);
+  const headers = _attemptHeaders_(sh);
+
+  const idx = _indexMap_(headers, [
+    'attempt_id','teacher_quiz_id','class_id','user_id','status',
+    'submitted_at','updated_at','started_at'
+  ]);
+
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return { found:false };
+
+  const values = sh.getRange(2, 1, lastRow - 1, sh.getLastColumn()).getValues();
+
+  let best = null, bestRow = -1, bestMs = -1;
+
+  for (let i = 0; i < values.length; i++) {
+    const r = values[i];
+
+    if (String(r[idx.teacher_quiz_id] || '').trim() !== String(teacher_quiz_id).trim()) continue;
+    if (String(r[idx.class_id] || '').trim() !== String(class_id).trim()) continue;
+    if (String(r[idx.user_id] || '').trim() !== String(user_id).trim()) continue;
+
+    const st = String(r[idx.status] || '').trim().toUpperCase();
+    if (!st || st === 'IN_PROGRESS' || st === 'ABANDONED') continue;
+
+    const ms =
+      _parseIsoMs_(String(r[idx.submitted_at] || '').trim()) ||
+      _parseIsoMs_(String(r[idx.updated_at] || '').trim()) ||
+      _parseIsoMs_(String(r[idx.started_at] || '').trim()) ||
+      0;
+
+    if (ms > bestMs) {
+      bestMs = ms;
+      bestRow = i + 2;
+      best = _rowToObj_(headers, r);
+    }
+  }
+
+  if (!best) return { found:false };
+  best._rowIndex = bestRow;
+  return { found:true, rowIndex: bestRow, attempt: best };
+}
+
+function _countUserAttempts_(ss, teacher_quiz_id, class_id, user_id) {
+  const sh = _attemptSheet_(ss);
+  const headers = _attemptHeaders_(sh);
+
+  const idx = _indexMap_(headers, ['teacher_quiz_id','class_id','user_id','status']);
+
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return 0;
+
+  const values = sh.getRange(2, 1, lastRow - 1, sh.getLastColumn()).getValues();
+  let n = 0;
+
+  for (let i = 0; i < values.length; i++) {
+    const r = values[i];
+
+    if (String(r[idx.teacher_quiz_id] || '').trim() !== String(teacher_quiz_id).trim()) continue;
+    if (String(r[idx.class_id] || '').trim() !== String(class_id).trim()) continue;
+    if (String(r[idx.user_id] || '').trim() !== String(user_id).trim()) continue;
+
+    const st = String(r[idx.status] || '').trim().toUpperCase();
+    if (st === 'ABANDONED') continue;
+
+    n++;
+  }
+
+  return n;
+}
+
+// =========================
+// Expiry helper (due_at OR close_at)
+// - Ends IN_PROGRESS if now > min(due_at, close_at)
+// - Caps time_taken_s patch to the stop moment (prevents huge jumps)
+// - Status: TIMED_OUT (due) or CLOSED (close)
+// =========================
+function _maybeExpireAttempt_(ss, attempt, quizObj, nowMs, rowIndexMaybe) {
+  const st = String(attempt && attempt.status || '').trim().toUpperCase();
+  if (st !== 'IN_PROGRESS') return { changed:false, attempt };
+
+  const dueMs   = _parseIsoMs_(String(attempt.due_at || '').trim());                  // may be null
+  const closeMs = _parseIsoMs_(String((quizObj && quizObj.close_at) || '').trim());   // may be null
+
+  // No stop condition
+  if (dueMs == null && closeMs == null) return { changed:false, attempt };
+
+  const stopMs =
+    (dueMs != null && closeMs != null) ? Math.min(dueMs, closeMs) :
+    (dueMs != null) ? dueMs : closeMs;
+
+  if (stopMs == null || nowMs <= stopMs) return { changed:false, attempt };
+
+  // Decide why we expired
+  const reason = (dueMs != null && stopMs === dueMs) ? 'DUE' : 'CLOSE';
+  const statusOut = (reason === 'DUE') ? 'TIMED_OUT' : 'CLOSED';
+
+  // Read fresh row (avoid scan if rowIndex provided)
+  let rowIndex = rowIndexMaybe || 0;
+  let fresh = attempt;
+
+  try {
+    if (rowIndex > 0) {
+      const sh = _attemptSheet_(ss);
+      const headers = _attemptHeaders_(sh);
+      const row = sh.getRange(rowIndex, 1, 1, headers.length).getValues()[0];
+      fresh = _rowToObj_(headers, row);
+    } else {
+      const found = _attemptGetById_(ss, String(attempt.attempt_id || '').trim());
+      if (!found.found) return { changed:false, attempt };
+      rowIndex = found.rowIndex;
+      fresh = found.obj;
+    }
+  } catch (_) {}
+
+  // Cap elapsed-time patch to stop moment (prevents “hours added after close”)
+  const effectiveMs = stopMs;
+  const timePatch = _ta_activeTimePatch_(fresh, effectiveMs);
+  if (timePatch.changed) {
+    _attemptUpdateByRow_(ss, rowIndex, timePatch.patch);
+    const again = _attemptGetById_(ss, String(fresh.attempt_id || '').trim());
+    if (again.found) fresh = again.obj;
+  }
+
+  // Grade + finalize
+  const grade = _gradeAttempt_(ss, fresh);
+  const headers2 = _attemptHeaders_(_attemptSheet_(ss));
+  const stopIso = _iso(new Date(effectiveMs));
+
+  const patch = Object.assign({
+    status: statusOut,
+    submitted_at: stopIso,
+    updated_at: stopIso,
+    time_taken_s: String(_toIntDefault_(fresh.time_taken_s, 0))
+  }, _setScorePatch_(headers2, grade.score));
+
+  _attemptUpdateByRow_(ss, rowIndex, patch);
+
+  const refreshed = _attemptGetById_(ss, String(fresh.attempt_id || '').trim());
+  return {
+    changed:true,
+    attempt: refreshed.found ? refreshed.obj : fresh,
+    status: statusOut,
+    reason
+  };
+}
+
+function _maybeTimeoutAttempt_(ss, attempt) {
+  const st = String(attempt.status || '').trim().toUpperCase();
+  if (st !== 'IN_PROGRESS') return { changed:false, attempt };
+
+  const due_at = String(attempt.due_at || '').trim();
+  if (!due_at) return { changed:false, attempt };
+
+  const dueMs = Date.parse(due_at);
+  if (isNaN(dueMs)) return { changed:false, attempt };
+
+  if (Date.now() <= dueMs) return { changed:false, attempt };
+
+  // refresh from sheet (answers might have changed)
+  const found = _attemptGetById_(ss, String(attempt.attempt_id || '').trim());
+  if (!found.found) return { changed:false, attempt };
+
+  let fresh = found.obj;
+
+  // apply elapsed patch before grading
+  const nowMs = Date.now();
+  const timePatch = _ta_activeTimePatch_(fresh, nowMs);
+  if (timePatch.changed) {
+    _attemptUpdateByRow_(ss, found.rowIndex, timePatch.patch);
+    const fresh2 = _attemptGetById_(ss, fresh.attempt_id);
+    fresh = fresh2.found ? fresh2.obj : fresh;
+  }
+
+  const grade = _gradeAttempt_(ss, fresh);
+  const headers = _attemptHeaders_(_attemptSheet_(ss));
+  const nowIso = _iso(new Date(nowMs));
+
+  const patch = Object.assign({
+    status: 'TIMED_OUT',
+    submitted_at: nowIso,
+    updated_at: nowIso
+  }, _setScorePatch_(headers, grade.score));
+
+  _attemptUpdateByRow_(ss, found.rowIndex, patch);
+
+  const fresh3 = _attemptGetById_(ss, String(fresh.attempt_id || '').trim());
+  return { changed:true, attempt: fresh3.found ? fresh3.obj : fresh, grade };
+}
+
+/* =========================
+ * Grading
+ * ========================= */
+function _gradeAttempt_(ss, attempt) {
+  const teacher_quiz_id = String(attempt.teacher_quiz_id || '').trim();
+
+  const snaps = _getQuizItemsSnapshots_(ss, teacher_quiz_id);
+  const snapById = {};
+  snaps.forEach(s => snapById[s.quiz_item_id] = s);
+
+  const itemsArr = _parseJsonSafe_(attempt.items_json, []) || [];
+  const answers = _parseJsonSafe_(attempt.answers_json, {}) || {};
+
+  let total = 0;
+  let score = 0;
+
+  const review_items = [];
+
+  for (let i = 0; i < itemsArr.length; i++) {
+    const ai = itemsArr[i];
+    const snap = snapById[ai.quiz_item_id];
+    if (!snap) continue;
+
+    const marks = _toIntDefault_(ai.marks, _toIntDefault_(snap.snap_marks, 1));
+    total += marks;
+
+    const opt_map = ai.opt_map || {};
+    const chosenDisplay = String(answers[ai.quiz_item_id] || '').trim().toUpperCase();
+    const chosenOrig = chosenDisplay ? String(opt_map[chosenDisplay] || '').trim().toUpperCase() : '';
+
+    const correctOrig = String(snap.snap_correct || '').trim().toUpperCase();
+    const correctDisplay = _invertMapFindKey_(opt_map, correctOrig);
+
+    const correct = (chosenOrig && chosenOrig === correctOrig);
+    if (correct) score += marks;
+
+    review_items.push({
+      quiz_item_id: ai.quiz_item_id,
+      chosen: chosenDisplay || '',
+      correct: correctDisplay || '',
+      stem: String(snap.snap_stem || ''),
+      rationale: String(snap.snap_rationale || '')
+    });
+  }
+
+  const percent = total ? Math.round((score / total) * 100) : 0;
+
+  let timed_out = false;
+  const due_at = String(attempt.due_at || '').trim();
+  if (due_at) {
+    const dueMs = Date.parse(due_at);
+    if (!isNaN(dueMs) && Date.now() > dueMs) timed_out = true;
+  }
+
+  return {
+    timed_out,
+    score: { total_marks: total, score_marks: score, percent },
+    review_items
+  };
+}
+
+function _setScorePatch_(headers, gradeScore) {
+  const patch = { score_json: JSON.stringify(gradeScore || {}) };
+
+  if (headers.indexOf('score_raw') !== -1)   patch.score_raw = String(gradeScore.score_marks ?? '');
+  if (headers.indexOf('score_total') !== -1) patch.score_total = String(gradeScore.total_marks ?? '');
+  if (headers.indexOf('score_pct') !== -1)   patch.score_pct = String(gradeScore.percent ?? '');
+
+  return patch;
+}
+
+function _invertMapFindKey_(map, orig) {
+  const want = String(orig || '').trim().toUpperCase();
+  const keys = ['A','B','C','D','E','F'];
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    const v = String(map[k] || '').trim().toUpperCase();
+    if (v === want) return k;
+  }
+  return '';
+}
