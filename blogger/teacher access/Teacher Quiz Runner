@@ -1,0 +1,1431 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QAcademy — Quiz</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --brand: #0b7a75;
+      --brand-dark: #085f5c;
+      --text: #1a2e2b;
+      --text-light: #4a6a66;
+      --bg: #f8faf9;
+      --card: #ffffff;
+      --border: #e0e6e4;
+      --danger: #c53030;
+      --warn: #d69e2e;
+      --success: #38a169;
+      --flag: #ed8936;
+
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.10);
+      --shadow-lg: 0 14px 44px rgba(0,0,0,0.14);
+
+      --transition: all 0.2s ease;
+      --maxw: 1720px; /* wider desktop */
+    }
+
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      overflow-x: hidden; /* prevents tiny horizontal scroll after breakout */
+    }
+
+    /* Scope box-sizing to app, avoids theme side-effects */
+    .qaApp, .qaApp * { box-sizing: border-box; }
+
+    /* ✅ FULL-BLEED BREAKOUT: escape Blogger post column width */
+    .qaApp{
+      min-height: 100vh;
+      background: var(--bg);
+
+      width: 100vw;
+      margin-left: calc(50% - 50vw);
+      margin-right: calc(50% - 50vw);
+      overflow-x: hidden;
+    }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,249,0.92));
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+    .topbar .wrap {
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 12px 128px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .left-nav { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .brand { font-weight: 700; font-size: 1.25rem; color: var(--brand); }
+
+    .timer-chip {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-light);
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .timer-chip.timer--warn{
+      border-color: rgba(214,158,46,0.55);
+      background: rgba(214,158,46,0.10);
+      color: #7a5a11;
+    }
+    .timer-chip.timer--danger{
+      border-color: rgba(197,48,48,0.55);
+      background: rgba(197,48,48,0.10);
+      color: #7a1b1b;
+      box-shadow: 0 0 0 3px rgba(197,48,48,0.08);
+    }
+
+    /* ✅ renamed from .container to avoid Blogger collisions */
+    .qaContainer { max-width: var(--maxw); margin: 0 auto; padding: 24px 128px; }
+
+    .grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+    @media (min-width: 992px) { .grid { grid-template-columns: 360px minmax(0, 1fr); } }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: var(--shadow-md);
+    }
+
+    /* ✅ renamed from .sidebar to avoid Blogger theme .sidebar rules */
+    .qaSidebar { position: sticky; top: 84px; align-self: start; }
+
+    h2, h3 { font-weight: 700; margin-bottom: 12px; }
+    .section-title { font-size: 1.1rem; color: var(--text); margin-bottom: 16px; }
+
+    .progress-bar {
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 12px 0;
+    }
+    .progress-fill { height: 100%; background: var(--brand); width: 0%; transition: width 0.4s ease; }
+
+    .qnav { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .qbtn {
+      width: 40px; height: 40px; border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .qbtn:hover { background: #f0f4f3; }
+    .qbtn.active { border-color: var(--brand); background: rgba(11,122,117,0.08); box-shadow: 0 0 0 3px rgba(11,122,117,0.15); }
+    .qbtn.answered { background: rgba(56,161,105,0.12); border-color: var(--success); }
+    .qbtn.flagged { border-color: var(--flag); background: rgba(237,137,54,0.08); }
+
+    /* Smooth question swap transition */
+    #questionsContainer {
+      transition: opacity .18s ease, transform .18s ease;
+      opacity: 1;
+      transform: none;
+    }
+    #questionsContainer.swap-out{
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+
+    .question { margin-bottom: 32px; }
+    .stem {
+      font-size: 1.28rem;
+      font-weight: 650;
+      margin-bottom: 20px;
+      line-height: 1.75;
+      padding: 0 4px;
+    }
+
+    .options { display: flex; flex-direction: column; gap: 12px; }
+
+    .opt {
+      position: relative;
+      display: flex; align-items: flex-start; gap: 12px; padding: 16px;
+      border: 1px solid var(--border); border-radius: 12px;
+      background: #fbfdfd;
+      transition: var(--transition);
+      cursor: pointer;
+    }
+
+    /* Hover lift only on hover-capable devices */
+    @media (hover:hover) {
+      .opt:hover {
+        background: #f0f7f6;
+        border-color: rgba(11,122,117,0.60);
+        transform: translateY(-1px);
+        box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+      }
+    }
+
+    .opt input { margin-top: 4px; }
+    .opt-label { flex: 1; font-size: 1rem; line-height: 1.55; }
+    .opt-tag { font-weight: 800; min-width: 28px; color: var(--brand); }
+
+    /* Strong selected state */
+    .opt.is-selected{
+      background: rgba(11,122,117,0.10);
+      border-color: rgba(11,122,117,0.70);
+      box-shadow: 0 0 0 3px rgba(11,122,117,0.14);
+    }
+    .opt.is-selected .opt-label{ font-weight: 650; color: var(--text); }
+    .opt.is-selected::after{
+      content: "";
+      position: absolute;
+      right: 14px;
+      top: 14px;
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 14px;
+      color: white;
+      background: var(--brand);
+      box-shadow: 0 8px 18px rgba(0,0,0,0.14);
+    }
+
+    /* Keyboard focus */
+    .opt:focus-within{
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(11,122,117,0.18);
+      border-color: rgba(11,122,117,0.65);
+    }
+
+    .btn {
+      padding: 12px 20px; border: none; border-radius: 10px;
+      font-weight: 700; cursor: pointer; transition: var(--transition);
+      text-decoration: none; display: inline-block;
+    }
+    .btn-primary { background: var(--brand); color: white; }
+    .btn-primary:hover { background: var(--brand-dark); }
+    .btn-outline { border: 1px solid var(--border); background: white; color: var(--text); }
+    .btn-outline:hover { background: #f8faf9; }
+    .btn-flag { background: rgba(237,137,54,0.1); color: var(--flag); border: 1px solid var(--flag); }
+    .btn-flag.active { background: var(--flag); color: white; }
+    .btn:disabled, .qbtn:disabled { opacity: 0.55; cursor: not-allowed; pointer-events: none; filter: grayscale(0.05); }
+
+    /* Submit pulse on last question */
+    @keyframes qaPulse {
+      0%{ transform: scale(1); }
+      50%{ transform: scale(1.03); }
+      100%{ transform: scale(1); }
+    }
+    #btnSubmit.pulse{
+      animation: qaPulse 1.2s ease-in-out infinite;
+      box-shadow: 0 12px 28px rgba(11,122,117,0.22);
+    }
+
+    .notice { padding: 16px; border-radius: 12px; background: #fef9e7; border: 1px solid #f7e1b5; margin: 16px 0; }
+
+    .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: white; }
+    .seg button{ border: 0; background: transparent; padding: 10px 12px; font-weight: 800; cursor: pointer; color: var(--text-light); transition: var(--transition); }
+    .seg button + button { border-left: 1px solid var(--border); }
+    .seg button.active{ background: rgba(11,122,117,0.10); color: var(--brand); }
+
+    .fab {
+      position: fixed; right: 18px; bottom: 18px; z-index: 999;
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 12px 14px; border-radius: 999px; border: 1px solid var(--border);
+      background: rgba(255,255,255,0.96); backdrop-filter: blur(10px);
+      box-shadow: var(--shadow-md); cursor: pointer; font-weight: 900; color: var(--text);
+      transition: var(--transition);
+    }
+    .fab:hover{ transform: translateY(-1px); }
+    .fab .badge{
+      min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 900; color: white; background: var(--brand);
+    }
+    .fab .badge.flagged{ background: var(--flag); }
+
+    .overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,0.35);
+      display: none; align-items: flex-end; justify-content: center; padding: 18px;
+    }
+    .panel {
+      width: 100%; max-width: 520px; max-height: 78vh; overflow: auto;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 18px; box-shadow: 0 18px 50px rgba(0,0,0,0.25); padding: 18px;
+    }
+    .panelHead{ display:flex; align-items:center; justify-content:space-between; gap: 10px; margin-bottom: 12px; }
+    .panelTitle{ font-size: 1.05rem; font-weight: 900; color: var(--text); }
+    .panelSub{ color: var(--text-light); font-size: .92rem; margin-bottom: 12px; }
+    .panelRow{ display:flex; align-items:center; justify-content:space-between; gap: 12px; flex-wrap: wrap; margin: 10px 0 14px; }
+    .legend{ display:flex; gap: 10px; flex-wrap: wrap; font-size: .9rem; color: var(--text-light); }
+    .dot{ width: 10px; height: 10px; border-radius: 999px; display:inline-block; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(0,0,0,0.12); background: white; }
+    .dot.answered{ background: rgba(56,161,105,0.45); border-color: rgba(56,161,105,0.7); }
+    .dot.flagged{ background: rgba(237,137,54,0.45); border-color: rgba(237,137,54,0.8); }
+    .dot.active{ background: rgba(11,122,117,0.35); border-color: rgba(11,122,117,0.8); }
+
+    /* Busy overlay */
+    .busyOverlay{
+      position: fixed; inset: 0; z-index: 1200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(17,24,39,0.38);
+      backdrop-filter: blur(6px);
+    }
+    .busyOverlay.show{ display:flex; }
+    .busyBox{
+      width: min(520px, 92vw);
+      background: rgba(255,255,255,0.96);
+      border: 1px solid rgba(224,230,228,0.9);
+      border-radius: 16px;
+      box-shadow: var(--shadow-lg);
+      padding: 18px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .spinner{
+      width: 22px; height: 22px;
+      border-radius: 999px;
+      border: 3px solid rgba(11,122,117,0.18);
+      border-top-color: rgba(11,122,117,0.95);
+      animation: spin .9s linear infinite;
+      flex: 0 0 auto;
+    }
+    @keyframes spin { to{ transform: rotate(360deg); } }
+    .busyMsg{
+      font-weight: 800;
+      color: var(--text);
+      font-size: 1rem;
+    }
+    .busySub{
+      font-size: .92rem;
+      color: var(--text-light);
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    /* ✅ Keep desktop unchanged. Mobile/tablet only overrides below 992px */
+    @media (max-width: 991px) {
+      .qaSidebar { position: static; }
+      .topbar .wrap { flex-direction: column; align-items: flex-start; }
+
+      /* Fix the "narrow bar" by removing desktop 128px gutters on smaller screens */
+      .topbar .wrap{
+        padding-left: calc(24px + env(safe-area-inset-left));
+        padding-right: calc(24px + env(safe-area-inset-right));
+      }
+      .qaContainer{
+        padding-left: calc(24px + env(safe-area-inset-left));
+        padding-right: calc(24px + env(safe-area-inset-right));
+        padding-top: 20px;
+      }
+    }
+
+    /* ✅ Phone-focused tweaks */
+    @media (max-width: 700px){
+      .qaContainer{ padding-bottom: 120px; } /* prevents FAB overlap */
+
+      /* Tighten gutters further so content uses the screen */
+      .topbar .wrap{
+        padding-left: calc(16px + env(safe-area-inset-left));
+        padding-right: calc(16px + env(safe-area-inset-right));
+        gap: 10px;
+      }
+      .qaContainer{
+        padding-left: calc(16px + env(safe-area-inset-left));
+        padding-right: calc(16px + env(safe-area-inset-right));
+        padding-top: 16px;
+      }
+
+      /* Hide the left progress card entirely on phones */
+      .card.qaSidebar{ display:none !important; }
+
+      /* Slightly tighter cards for mobile readability */
+      .card{ padding: 16px; }
+
+      /* Make action buttons feel uncramped: Prev/Next side-by-side, Submit full-width */
+      .qaActions{
+        margin-top: 22px !important;
+        text-align: initial !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .qaActions .btn{ width: 100%; }
+      .qaActions #btnSubmit{ grid-column: 1 / -1; }
+
+      /* Override inline margins that push buttons off/awkward on mobile */
+      #btnNext, #btnSubmit{ margin-left: 0 !important; }
+    }
+    /* ✅ Completed/submitted view: hide progress sidebar + use full-width layout */
+.qaApp.qaComplete .qaSidebar{ display:none !important; }
+
+@media (min-width: 992px){
+  .qaApp.qaComplete .grid{ grid-template-columns: 1fr; }
+}
+  </style>
+</head>
+<body>
+  <div class="qaApp">
+    <div class="topbar">
+      <div class="wrap">
+        <div class="left-nav">
+          <a href="https://nursing2000a.blogspot.com/p/my-classes.html" class="btn btn-outline" style="font-size:0.95rem; padding:8px 14px;">
+            ← My Classes
+          </a>
+          <div class="brand">QAcademy Quiz</div>
+        </div>
+        <div class="timer-chip" id="timerChip">Time left: <span id="uiTimer">--:--</span></div>
+      </div>
+    </div>
+
+    <div class="qaContainer">
+      <div class="grid">
+        <div class="card qaSidebar">
+          <h3 class="section-title">Attempt Progress</h3>
+          <div class="progress-bar"><div class="progress-fill" id="uiBar"></div></div>
+          <div id="uiProg">0/0 answered</div>
+          <div style="margin:20px 0;">
+            <label style="display:flex; align-items:center; gap:8px; font-weight:700; cursor:pointer;">
+              <input type="checkbox" id="toggleFlaggedSidebar" />
+              View flagged only
+            </label>
+          </div>
+          <div id="uiFlaggedCount" class="notice" style="display:none; margin:16px 0;"></div>
+          <div class="qnav" id="uiNav"></div>
+        </div>
+
+        <div class="card">
+          <h2 id="uiQuizTitle">Loading quiz...</h2>
+          <p id="uiQuizMeta"></p>
+
+          <!-- START BLOCK -->
+          <div id="uiStartBlock">
+            <div class="notice" id="uiStartNotice">Complete any required fields and click Start Attempt to begin.</div>
+            <div id="uiFields" style="margin:20px 0;"></div>
+            <button class="btn btn-primary" id="btnStart" type="button">Start Attempt</button>
+          </div>
+
+          <!-- QUIZ BLOCK -->
+          <div id="uiQuizBlock" style="display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:12px; flex-wrap:wrap;">
+              <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <div>
+                  <span id="uiQPos">Question 1</span>
+                  <span style="margin:0 8px;">•</span>
+                  <span id="uiQMarks">1 mark</span>
+                </div>
+                <div class="seg" aria-label="View mode">
+                  <button id="btnViewAll" type="button">All</button>
+                  <button id="btnViewFlagged" type="button">Flagged</button>
+                </div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                <button class="btn btn-outline" id="btnQuit" type="button">Quit</button>
+                <button class="btn btn-flag" id="btnFlag" type="button">Flag</button>
+              </div>
+            </div>
+
+            <div id="questionsContainer"></div>
+
+            <div class="qaActions" style="margin-top:32px; text-align:center;">
+              <button class="btn btn-outline" id="btnPrev" type="button">Previous</button>
+              <button class="btn btn-primary" id="btnNext" type="button" style="margin-left:12px;">Next</button>
+              <button class="btn btn-primary" id="btnSubmit" type="button" style="display:none; margin-left:12px;">Submit Quiz</button>
+            </div>
+          </div>
+
+          <!-- END/REDIRECT BLOCK -->
+          <div id="uiEndBlock" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="fab" id="btnGrid" type="button" aria-label="Open question grid">
+    Grid <span class="badge" id="uiGridBadge">0</span>
+    <span class="badge flagged" id="uiGridFlagBadge" style="display:none;">0</span>
+  </button>
+
+  <div class="overlay" id="gridOverlay" role="dialog" aria-modal="true" aria-label="Question grid">
+    <div class="panel" id="gridPanel">
+      <div class="panelHead">
+        <div>
+          <div class="panelTitle">Question Grid</div>
+          <div class="panelSub" id="uiGridSub">Jump to any question.</div>
+        </div>
+        <button class="btn btn-outline" id="btnGridClose" type="button">Close</button>
+      </div>
+      <div class="panelRow">
+        <label style="display:flex; align-items:center; gap:8px; font-weight:800; cursor:pointer;">
+          <input type="checkbox" id="toggleFlaggedGrid" />
+          View flagged only
+        </label>
+        <div class="legend">
+          <span><i class="dot active"></i>Current</span>
+          <span><i class="dot answered"></i>Answered</span>
+          <span><i class="dot flagged"></i>Flagged</span>
+        </div>
+      </div>
+      <div id="uiNoFlagged" class="notice" style="display:none;">
+        No flagged questions yet. Flag a question, then switch to “flagged only”.
+      </div>
+      <div class="qnav" id="uiNavFloat" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <!-- Busy / Loading Overlay -->
+  <div class="busyOverlay" id="busyOverlay" aria-live="polite" aria-busy="true">
+    <div class="busyBox" role="status">
+      <div class="spinner" aria-hidden="true"></div>
+      <div>
+        <div class="busyMsg" id="busyMsg">Loading..</div>
+        <div class="busySub" id="busySub" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const TA_URL = "https://script.google.com/macros/s/AKfycbz54M_jWoRq4cOC2gUQeRhd55AeEJ5vnELJ0gkBSodO58fr7WGa9jwk6JNwPptf8p8X/exec";
+    const DASHBOARD_URL = "https://nursing2000a.blogspot.com/p/my-classes.html";
+    const TOKEN_KEY = 'qa_token';
+
+    const RESULTS_PAGE = "/p/teacher-quiz-results.html";
+    const REVIEW_PAGE  = "/p/teacher-quiz-review.html"; // not used here, kept for consistency
+
+    const state = {
+      token: "",
+      class_id: "",
+      teacher_quiz_id: "",
+      quiz: null,
+
+      attempt: null,
+      items: [],
+      answers: {},
+      flags: {},
+
+      activePage: 0,
+      showFlaggedOnly: false,
+      saveTimer: null,
+      tickTimer: null,
+      dueMs: null,
+
+      // URL intent
+      urlAttemptId: '',
+      forceNew: false,
+
+      submitting: false
+    };
+
+    const $ = sel => document.querySelector(sel);
+
+    function setCompleteLayout(on){
+  const app = document.querySelector('.qaApp');
+  if (app) app.classList.toggle('qaComplete', !!on);
+}
+    function toast(msg, type = 'info') {
+      const colors = { success: '#38a169', warn: '#d69e2e', error: '#c53030' };
+      const el = document.createElement('div');
+      el.style.cssText = `position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:14px 24px; border-radius:12px; color:white; background:${colors[type]||'#666'}; z-index:9999; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-weight:800;`;
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3500);
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m]));
+    }
+
+    function getParam(name) { return new URL(location.href).searchParams.get(name)?.trim() || ''; }
+    function readToken() { return localStorage.getItem(TOKEN_KEY)?.trim() || ''; }
+
+    function buildUrl(path, params) {
+      const u = new URL(path, location.origin);
+      Object.entries(params || {}).forEach(([k,v]) => { if (v !== undefined && v !== null && String(v).trim() !== '') u.searchParams.set(k, String(v)); });
+      return u.toString();
+    }
+
+    function goToResults(attempt_id) {
+      const url = buildUrl(RESULTS_PAGE, {
+        class_id: state.class_id,
+        teacher_quiz_id: state.teacher_quiz_id,
+        attempt_id: attempt_id || (state.attempt && state.attempt.attempt_id) || ''
+      });
+      window.location.href = url;
+    }
+
+    function goToReview(attempt_id) {
+      const url = buildUrl(REVIEW_PAGE, {
+        class_id: state.class_id,
+        teacher_quiz_id: state.teacher_quiz_id,
+        attempt_id: attempt_id || (state.attempt && state.attempt.attempt_id) || ''
+      });
+      window.location.href = url;
+    }
+
+    function isReviewAllowed() {
+      const q = state.quiz || {};
+      const v =
+        (q.allow_review ?? q.allowReview ?? q.show_review ?? q.showReview ?? q.allow_review_questions);
+
+      if (typeof v === 'boolean') return v;
+      if (typeof v === 'number') return v === 1;
+      const s = String(v || '').trim().toLowerCase();
+      return s === 'true' || s === '1' || s === 'yes';
+    }
+
+    /* Busy overlay with delayed show (prevents flicker) */
+    const busy = (() => {
+      const ov = () => $('#busyOverlay');
+      const msgEl = () => $('#busyMsg');
+      const subEl = () => $('#busySub');
+      let depth = 0;
+      let showTimer = null;
+
+      function _showNow(message, sub) {
+        const o = ov();
+        if (!o) return;
+        if (msgEl()) msgEl().textContent = message || 'Working…';
+        if (subEl()) {
+          if (sub) { subEl().style.display = 'block'; subEl().textContent = sub; }
+          else { subEl().style.display = 'none'; subEl().textContent = ''; }
+        }
+        o.classList.add('show');
+      }
+
+      function show(message, { sub = '', delay = 250 } = {}) {
+        depth++;
+        if (showTimer) clearTimeout(showTimer);
+        showTimer = setTimeout(() => _showNow(message, sub), delay);
+      }
+
+      function hide() {
+        depth = Math.max(0, depth - 1);
+        if (depth !== 0) return;
+        if (showTimer) { clearTimeout(showTimer); showTimer = null; }
+        const o = ov();
+        if (!o) return;
+        o.classList.remove('show');
+      }
+
+      async function run(promiseOrFn, message, opts = {}) {
+        show(message, opts);
+        try {
+          const out = (typeof promiseOrFn === 'function') ? await promiseOrFn() : await promiseOrFn;
+          return out;
+        } finally {
+          hide();
+        }
+      }
+
+      return { show, hide, run };
+    })();
+
+    async function apiCall(action, data = {}) {
+      const body = new URLSearchParams();
+      body.set('action', action);
+      if (state.token) body.set('token', state.token);
+      Object.entries(data).forEach(([k,v]) => { if (v !== undefined) body.set(k, String(v)); });
+      try {
+        const res = await fetch(TA_URL, { method: 'POST', body });
+        return await res.json();
+      } catch (err) {
+        return { ok: false, error: 'network_error', detail: err.message };
+      }
+    }
+
+    function fmtTime(ms) {
+      if (ms == null || ms < 0) return '--:--';
+      const s = Math.floor(ms / 1000);
+      return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+    }
+
+    function getFlaggedCount() { return Object.keys(state.flags).filter(k => state.flags[k]).length; }
+    function getVisibleItems() { return !state.showFlaggedOnly ? state.items : state.items.filter(it => state.flags[it.quiz_item_id]); }
+
+    function clampActivePage() {
+      const v = getVisibleItems();
+      if (v.length === 0) { state.activePage = 0; return; }
+      state.activePage = Math.max(0, Math.min(state.activePage, v.length - 1));
+    }
+
+    function syncViewUI() {
+      const a = $('#toggleFlaggedSidebar');
+      const b = $('#toggleFlaggedGrid');
+      if (a) a.checked = state.showFlaggedOnly;
+      if (b) b.checked = state.showFlaggedOnly;
+
+      const allBtn = $('#btnViewAll');
+      const flgBtn = $('#btnViewFlagged');
+      if (allBtn && flgBtn) {
+        allBtn.classList.toggle('active', !state.showFlaggedOnly);
+        flgBtn.classList.toggle('active', state.showFlaggedOnly);
+      }
+
+      const total = state.items.length || 0;
+      const flagged = getFlaggedCount();
+      const badge = $('#uiGridBadge');
+      const fbadge = $('#uiGridFlagBadge');
+      if (badge) badge.textContent = String(total);
+      if (fbadge) fbadge.style.display = flagged > 0 ? 'inline-flex' : 'none';
+      if (fbadge) fbadge.textContent = String(flagged);
+
+      const sub = $('#uiGridSub');
+      if (sub) sub.textContent = state.showFlaggedOnly
+        ? `Showing flagged only (${getVisibleItems().length}). Tap a number to jump.`
+        : `Showing all questions (${total}). Tap a number to jump.`;
+
+      const no = $('#uiNoFlagged');
+      if (no) no.style.display = (state.showFlaggedOnly && getVisibleItems().length === 0) ? 'block' : 'none';
+
+      const flaggedEl = $('#uiFlaggedCount');
+      if (flaggedEl) {
+        if (state.showFlaggedOnly) {
+          const n = getVisibleItems().length;
+          flaggedEl.textContent = `Viewing ${n} flagged question${n !== 1 ? 's' : ''}.`;
+          flaggedEl.style.display = 'block';
+        } else {
+          flaggedEl.style.display = 'none';
+        }
+      }
+    }
+
+    function setShowFlaggedOnly(on) {
+      state.showFlaggedOnly = !!on;
+      state.activePage = 0;
+      syncViewUI();
+      renderNav();
+      renderQuestions();
+    }
+
+    /* ===== Submission UX helpers (NEW) ===== */
+    function qaPlural(n, singular, plural) {
+      return (n === 1) ? singular : (plural || (singular + 's'));
+    }
+
+    function getUnansweredStats() {
+      let count = 0;
+      let firstIdx = -1;
+      for (let i = 0; i < (state.items || []).length; i++) {
+        const qid = state.items[i]?.quiz_item_id;
+        if (!qid) continue;
+        if (!state.answers[qid]) {
+          count++;
+          if (firstIdx === -1) firstIdx = i;
+        }
+      }
+      return { count, firstIdx };
+    }
+
+    function getFlaggedStats() {
+      let count = 0;
+      let firstIdx = -1;
+      for (let i = 0; i < (state.items || []).length; i++) {
+        const qid = state.items[i]?.quiz_item_id;
+        if (!qid) continue;
+        if (!!state.flags[qid]) {
+          count++;
+          if (firstIdx === -1) firstIdx = i;
+        }
+      }
+      return { count, firstIdx };
+    }
+
+    function switchToAllAndJump(idx) {
+      const target = Math.max(0, Math.min(idx, (state.items.length || 1) - 1));
+      state.showFlaggedOnly = false;
+      state.activePage = target;
+      syncViewUI();
+      renderNav();
+      renderQuestions();
+    }
+
+    function switchToFlaggedAndJumpFirst() {
+      state.showFlaggedOnly = true;
+      state.activePage = 0;
+      syncViewUI();
+      renderNav();
+      renderQuestions();
+    }
+
+    function showSubmitReviewPrompt({ unanswered, flagged }) {
+      return new Promise(resolve => {
+        const OVER_ID = 'qaSubmitReviewOverlay';
+        const closeExisting = () => {
+          const old = document.getElementById(OVER_ID);
+          if (old) old.remove();
+        };
+        closeExisting();
+
+        const msg =
+          `You have ${unanswered} unanswered ${qaPlural(unanswered,'question','questions')} ` +
+          `and ${flagged} flagged ${qaPlural(flagged,'question','questions')}.`;
+
+        const ov = document.createElement('div');
+        ov.id = OVER_ID;
+        ov.className = 'overlay';
+        ov.style.display = 'flex';
+        ov.style.alignItems = 'center';   /* center modal (not bottom sheet) */
+        ov.style.justifyContent = 'center';
+        ov.innerHTML = `
+          <div class="panel" style="max-width:560px;">
+            <div class="panelHead">
+              <div>
+                <div class="panelTitle">Review before submitting</div>
+                <div class="panelSub">${escapeHtml(msg)} What would you like to do?</div>
+              </div>
+              <button class="btn btn-outline" id="${OVER_ID}__close" type="button">Close</button>
+            </div>
+
+            <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+              ${unanswered > 0 ? `<button class="btn btn-outline" id="${OVER_ID}__unanswered" type="button">Go to first unanswered</button>` : ``}
+              ${flagged > 0 ? `<button class="btn btn-flag" id="${OVER_ID}__flagged" type="button">Review flagged</button>` : ``}
+              <button class="btn btn-primary" id="${OVER_ID}__submit" type="button">Submit anyway</button>
+            </div>
+
+            <div style="margin-top:10px; color:var(--text-light); font-size:.9rem; font-weight:650;">
+              Tip: Use the grid to jump quickly if you’re scanning.
+            </div>
+          </div>
+        `;
+        document.body.appendChild(ov);
+
+        const cleanup = (val) => {
+          document.removeEventListener('keydown', onKey);
+          closeExisting();
+          resolve(val);
+        };
+
+        const onKey = (e) => { if (e.key === 'Escape') cleanup('cancel'); };
+        document.addEventListener('keydown', onKey);
+
+        // close on backdrop click
+        ov.addEventListener('click', (e) => { if (e.target === ov) cleanup('cancel'); });
+
+        const closeBtn = document.getElementById(`${OVER_ID}__close`);
+        const uBtn = document.getElementById(`${OVER_ID}__unanswered`);
+        const fBtn = document.getElementById(`${OVER_ID}__flagged`);
+        const sBtn = document.getElementById(`${OVER_ID}__submit`);
+
+        if (closeBtn) closeBtn.onclick = () => cleanup('cancel');
+        if (uBtn) uBtn.onclick = () => cleanup('unanswered');
+        if (fBtn) fBtn.onclick = () => cleanup('flagged');
+        if (sBtn) sBtn.onclick = () => cleanup('submit');
+      });
+    }
+    /* ===== end helpers ===== */
+
+    function updatePagerButtons() {
+      const prev = $('#btnPrev');
+      const next = $('#btnNext');
+      const submit = $('#btnSubmit');
+      if (!prev || !next || !submit) return;
+
+      const visibleCount = getVisibleItems().length;
+
+      if (state.showFlaggedOnly && visibleCount === 0) {
+        prev.disabled = true;
+        next.disabled = true;
+        submit.style.display = 'none';
+        submit.classList.remove('pulse');
+        return;
+      }
+
+      prev.disabled = (state.activePage <= 0);
+      next.disabled = (state.activePage >= visibleCount - 1);
+
+      /* ✅ Submit is ONLY in All view, on the TRUE last question of the full list */
+      const inAllView = !state.showFlaggedOnly;
+      const totalCount = state.items.length || 0;
+      const onTrueLastAll = inAllView && totalCount > 0 && state.activePage >= (totalCount - 1);
+
+      submit.style.display = onTrueLastAll ? 'inline-block' : 'none';
+      submit.disabled = state.submitting;
+
+      /* Pulse only when visible, last question, and not submitting */
+      submit.classList.toggle('pulse', onTrueLastAll && !state.submitting);
+    }
+
+    function renderMeta() {
+      const q = state.quiz || {};
+      $('#uiQuizTitle').textContent = q.title || 'Quiz';
+      const mode = q.mode || 'TIMED';
+      const dur = q.duration_minutes ? ` : ${q.duration_minutes} min` : '';
+      $('#uiQuizMeta').textContent = `${mode}${dur}`;
+    }
+
+    function renderFields() {
+      const host = $('#uiFields');
+      host.innerHTML = '';
+      const fields = state.quiz?.custom_fields?.fields || [];
+      if (!fields.length) return;
+      fields.forEach(f => {
+        const key = f.key?.trim() || '';
+        if (!key) return;
+        const div = document.createElement('div');
+        div.style.marginBottom = '20px';
+        div.innerHTML = `
+          <label style="display:block; margin-bottom:6px; font-weight:800;">
+            ${escapeHtml(f.label || key)}${f.required ? ' <span style="color:var(--danger)">*</span>' : ''}
+          </label>
+          <input id="field_${key}" placeholder="${escapeHtml(f.label || key)}" style="width:100%; padding:12px; border:1px solid var(--border); border-radius:10px;" />
+        `;
+        host.appendChild(div);
+      });
+    }
+
+    function readFields() {
+      const fields = state.quiz?.custom_fields?.fields || [];
+      const out = {};
+      let missing = [];
+      fields.forEach(f => {
+        const key = f.key?.trim();
+        if (!key) return;
+        const val = $(`#field_${key}`)?.value?.trim() || '';
+        if (f.required && !val) missing.push(f.label || key);
+        out[key] = val;
+      });
+      return { ok: missing.length === 0, missing, json: JSON.stringify({ fields: out }) };
+    }
+
+    function renderProgress() {
+      const total = state.items.length;
+      const answered = Object.keys(state.answers).length;
+      $('#uiProg').textContent = `${answered}/${total} answered`;
+      $('#uiBar').style.width = total ? (answered / total * 100) + '%' : '0%';
+      syncViewUI();
+    }
+
+    function buildNavInto(containerEl, { closeOnPick = false } = {}) {
+      if (!containerEl) return;
+      containerEl.innerHTML = '';
+      const visibleItems = getVisibleItems();
+      clampActivePage();
+      visibleItems.forEach((it, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'qbtn';
+        btn.textContent = state.items.indexOf(it) + 1;
+        if (state.answers[it.quiz_item_id]) btn.classList.add('answered');
+        if (state.flags[it.quiz_item_id]) btn.classList.add('flagged');
+        if (state.activePage === idx) btn.classList.add('active');
+        btn.onclick = () => {
+          state.activePage = idx;
+          renderNav();
+          renderQuestions();
+          if (closeOnPick) closeGrid();
+        };
+        containerEl.appendChild(btn);
+      });
+    }
+
+    function renderNav() {
+      buildNavInto($('#uiNav'));
+      buildNavInto($('#uiNavFloat'), { closeOnPick: true });
+      syncViewUI();
+    }
+
+    function renderCompletedScreen(message, attemptId) {
+      setCompleteLayout(true);
+      $('#uiStartBlock').style.display = 'none';
+      $('#uiQuizBlock').style.display = 'none';
+      $('#uiEndBlock').style.display = 'block';
+
+      // optional: hide grid button once completed (keeps UI clean)
+      const gridBtn = $('#btnGrid');
+      if (gridBtn) gridBtn.style.display = 'none';
+
+      const allowReview = isReviewAllowed();
+      const safeMsg = message || 'Your attempt has been submitted successfully.';
+
+      $('#uiEndBlock').innerHTML = `
+        <div style="text-align:center; padding:40px 20px; background:#f8faf9; border-radius:12px; border:1px solid var(--border);">
+          <h2 style="color:var(--brand); margin-bottom:10px;">Completed</h2>
+          <p style="font-size:1.05rem; color:var(--text-light); max-width:620px; margin:0 auto 22px; font-weight:600;">
+            ${escapeHtml(safeMsg)}
+          </p>
+
+          <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+            <a href="${DASHBOARD_URL}" class="btn btn-outline" style="text-decoration:none;">Back to My Classes</a>
+            <button class="btn btn-primary" id="btnGoResultsNow" type="button">View Results</button>
+            ${allowReview ? `<button class="btn btn-outline" id="btnGoReviewNow" type="button">Review Questions</button>` : ``}
+          </div>
+
+          ${allowReview ? `` : `<div style="margin-top:14px; color:var(--text-light); font-size:.95rem; font-weight:700;">Review is not available for this quiz.</div>`}
+        </div>
+      `;
+
+      const b1 = $('#btnGoResultsNow');
+      if (b1) b1.onclick = () => goToResults(attemptId);
+
+      const b2 = $('#btnGoReviewNow');
+      if (b2) b2.onclick = () => goToReview(attemptId);
+    }
+
+    /* Question swap with subtle fade/slide */
+    function swapQuestionsContainer(doBuild) {
+      const container = $('#questionsContainer');
+      if (!container) return doBuild();
+
+      const hasRenderedBefore = container.dataset.ready === '1';
+      if (!hasRenderedBefore) {
+        doBuild();
+        container.dataset.ready = '1';
+        return;
+      }
+
+      container.classList.add('swap-out');
+      setTimeout(() => {
+        doBuild();
+        requestAnimationFrame(() => {
+          container.classList.remove('swap-out');
+        });
+      }, 140);
+    }
+
+    function renderQuestions() {
+      const container = $('#questionsContainer');
+
+      const visibleItems = getVisibleItems();
+      clampActivePage();
+
+      // empty flagged view
+      if (state.showFlaggedOnly && visibleItems.length === 0) {
+        swapQuestionsContainer(() => {
+          container.innerHTML = `
+            <div class="notice">
+              <strong>No flagged questions yet.</strong><br>
+              Flag a question, then come back to “Flagged”.
+              <div style="margin-top:12px;">
+                <button class="btn btn-primary" id="btnBackToAll" type="button">Show all questions</button>
+              </div>
+            </div>
+          `;
+        });
+
+        $('#uiQPos').textContent = `Flagged questions`;
+        $('#uiQMarks').textContent = '';
+        updatePagerButtons();
+
+        setTimeout(() => {
+          const back = $('#btnBackToAll');
+          if (back) back.onclick = () => setShowFlaggedOnly(false);
+        }, 0);
+
+        const flagBtn = $('#btnFlag');
+        if (flagBtn) { flagBtn.textContent = 'Flag'; flagBtn.classList.remove('active'); }
+        return;
+      }
+
+      const currentItem = visibleItems[state.activePage];
+      if (!currentItem) return;
+
+      const qid = currentItem.quiz_item_id;
+      const visibleTotal = visibleItems.length;
+
+      swapQuestionsContainer(() => {
+        container.innerHTML = '';
+
+        const div = document.createElement('div');
+        div.className = 'question';
+        div.innerHTML = `
+          <div class="stem">${escapeHtml(currentItem.stem || '')}</div>
+          <div class="options"></div>
+        `;
+        const optsDiv = div.querySelector('.options');
+
+        (currentItem.options || []).forEach(opt => {
+          const checked = state.answers[qid] === opt.key;
+          const label = document.createElement('label');
+          label.className = 'opt' + (checked ? ' is-selected' : '');
+          label.innerHTML = `
+            <input type="radio" name="q_${qid}" value="${opt.key}" ${checked ? 'checked' : ''} />
+            <span class="opt-tag">${opt.key}.</span>
+            <span class="opt-label">${escapeHtml(opt.text)}</span>
+          `;
+
+          const input = label.querySelector('input');
+          input.onchange = () => {
+            state.answers[qid] = opt.key;
+
+            // Update strong selected UI instantly without re-render
+            const all = optsDiv.querySelectorAll('.opt');
+            all.forEach(el => el.classList.remove('is-selected'));
+            label.classList.add('is-selected');
+
+            scheduleSave();
+            renderProgress();
+            renderNav();
+          };
+
+          optsDiv.appendChild(label);
+        });
+
+        container.appendChild(div);
+      });
+
+      $('#uiQPos').textContent = `Question ${state.activePage + 1} of ${visibleTotal}${state.showFlaggedOnly ? ' (flagged)' : ''}`;
+      $('#uiQMarks').textContent = `${currentItem.marks || 1} mark${(currentItem.marks || 1) !== 1 ? 's' : ''}`;
+
+      updatePagerButtons();
+
+      const flagBtn = $('#btnFlag');
+      if (state.flags[qid]) {
+        flagBtn.textContent = 'Unflag';
+        flagBtn.classList.add('active');
+      } else {
+        flagBtn.textContent = 'Flag';
+        flagBtn.classList.remove('active');
+      }
+    }
+
+    function scheduleSave() {
+      if (state.saveTimer) clearTimeout(state.saveTimer);
+      state.saveTimer = setTimeout(doSave, 800);
+    }
+
+async function doSave() {
+  if (!state.attempt || String(state.attempt.status || '').toUpperCase() !== 'IN_PROGRESS') return;
+
+  const res = await apiCall('candidate.attempt.save', {
+    attempt_id: state.attempt.attempt_id,
+    answers_json: JSON.stringify(state.answers),
+    flags_json: JSON.stringify(state.flags)
+  });
+
+  if (!res.ok) {
+    toast('Save failed: ' + (res.error || 'unknown'), 'warn');
+    return;
+  }
+
+  // If backend ended the attempt (CLOSED / TIMED_OUT / SUBMITTED), reflect it immediately
+  const a = res.attempt || null;
+  const st = String((res.status || (a && a.status) || '')).toUpperCase();
+  const ended = !!res.ended || (st && st !== 'IN_PROGRESS');
+
+  if (a) state.attempt = a;
+
+  if (ended) {
+    stopTimer();
+    renderCompletedScreen(
+      res.message || (res.results && res.results.message) || 'This attempt has ended.',
+      (state.attempt && state.attempt.attempt_id) || ''
+    );
+  }
+}
+
+    async function submitAttempt({ auto = false } = {}) {
+      if (state.submitting) return;
+      if (!state.attempt || String(state.attempt.status || '').toUpperCase() !== 'IN_PROGRESS') return;
+
+      const { count: unansweredCount, firstIdx: firstUnansweredIdx } = getUnansweredStats();
+      const { count: flaggedCount } = getFlaggedStats();
+
+      /* ✅ One combined review decision prompt (manual submit only). No stacked prompts. */
+      if (!auto && (unansweredCount > 0 || flaggedCount > 0)) {
+        const choice = await showSubmitReviewPrompt({ unanswered: unansweredCount, flagged: flaggedCount });
+
+        if (choice === 'unanswered') {
+          if (firstUnansweredIdx >= 0) switchToAllAndJump(firstUnansweredIdx);
+          return;
+        }
+
+        if (choice === 'flagged') {
+          if (flaggedCount > 0) switchToFlaggedAndJumpFirst();
+          return;
+        }
+
+        if (choice !== 'submit') {
+          return; // cancel/close/backdrop
+        }
+        // else: "Submit anyway" -> proceed to final confirm below
+      }
+
+      /* ✅ Keep final confirmation for manual submit */
+      if (!auto) {
+        if (!confirm('Final submit? You cannot change answers after this.')) return;
+      }
+
+      state.submitting = true;
+      updatePagerButtons();
+
+      const res = await busy.run(
+        () => apiCall('candidate.attempt.submit', { attempt_id: state.attempt.attempt_id }),
+        'Submitting attempt...',
+        { delay: 200 }
+      );
+
+      if (res.ok) {
+        state.attempt = res.attempt || state.attempt;
+        stopTimer();
+        renderCompletedScreen(
+          res.message || (res.results && res.results.message) || 'Your attempt is complete.',
+          (state.attempt && state.attempt.attempt_id) || (res.attempt && res.attempt.attempt_id) || ''
+        );
+        return;
+      }
+
+      state.submitting = false;
+      updatePagerButtons();
+      toast('Submit failed: ' + (res.error || 'unknown'), 'warn');
+    }
+
+    function setTimerChipState(leftMs) {
+      const chip = $('#timerChip');
+      if (!chip) return;
+      chip.classList.remove('timer--warn', 'timer--danger');
+
+      if (leftMs <= 0) return;
+      if (leftMs <= 2 * 60 * 1000) chip.classList.add('timer--danger');
+      else if (leftMs <= 5 * 60 * 1000) chip.classList.add('timer--warn');
+    }
+
+    function startTimer() {
+      stopTimer();
+      state.tickTimer = setInterval(() => {
+        if (!state.dueMs) { $('#uiTimer').textContent = '--:--'; setTimerChipState(999999999); return; }
+        const left = state.dueMs - Date.now();
+        $('#uiTimer').textContent = fmtTime(left);
+        setTimerChipState(left);
+
+        if (left <= 0) {
+          stopTimer();
+          toast('Time up - submitting automatically', 'warn');
+          submitAttempt({ auto: true });
+        }
+      }, 1000);
+    }
+
+    function stopTimer() { if (state.tickTimer) clearInterval(state.tickTimer); state.tickTimer = null; }
+
+    function openGrid() { const ov = $('#gridOverlay'); if (!ov) return; syncViewUI(); renderNav(); ov.style.display = 'flex'; }
+    function closeGrid() { const ov = $('#gridOverlay'); if (!ov) return; ov.style.display = 'none'; }
+
+    function showStartView(label) {
+      setCompleteLayout(false);
+      $('#uiStartBlock').style.display = 'block';
+      $('#uiQuizBlock').style.display = 'none';
+      $('#uiEndBlock').style.display = 'none';
+      stopTimer();
+      $('#btnStart').textContent = label || 'Start Attempt';
+    }
+
+    function applyAttemptResponse(res) {
+      if (!res?.ok) {
+        toast('Failed to load attempt: ' + (res?.error || 'unknown'), 'warn');
+        return;
+      }
+
+      if (!res.attempt) {
+        state.attempt = null;
+        state.items = [];
+        state.answers = {};
+        state.flags = {};
+        state.dueMs = null;
+        showStartView(state.forceNew ? 'Start New Attempt' : 'Start Attempt');
+        return;
+      }
+
+      state.attempt = res.attempt;
+      state.items = res.items || [];
+      state.answers = res.answers || {};
+      state.flags = res.flags || {};
+      state.dueMs = res.due_ms;
+
+      const st = String(state.attempt.status || '').toUpperCase();
+
+      if (st === 'IN_PROGRESS') {
+        state.activePage = 0;
+        state.showFlaggedOnly = false;
+        setCompleteLayout(false);
+
+        $('#uiEndBlock').style.display = 'none';
+        $('#uiStartBlock').style.display = 'none';
+        $('#uiQuizBlock').style.display = 'block';
+
+        renderProgress();
+        renderNav();
+        renderQuestions();
+        startTimer();
+      } else {
+        stopTimer();
+        renderCompletedScreen(
+          (res.results && res.results.message) || 'This attempt is already completed.',
+          (state.attempt && state.attempt.attempt_id) || (res.attempt && res.attempt.attempt_id) || ''
+        );
+      }
+    }
+
+    async function startAttempt() {
+      const fields = readFields();
+      if (!fields.ok) return toast('Please complete required fields', 'warn');
+
+      const payload = {
+        class_id: state.class_id,
+        teacher_quiz_id: state.teacher_quiz_id,
+        candidate_fields_json: fields.json
+      };
+      if (state.forceNew) payload.force_new = '1';
+
+      const res = await busy.run(
+        () => apiCall('candidate.attempt.start', payload),
+        'Starting attempt...',
+        { delay: 200 }
+      );
+
+      if (!res.ok) return toast('Failed to start: ' + (res.error || 'unknown'), 'warn');
+
+      // once started, clear forceNew intent locally
+      state.forceNew = false;
+
+      applyAttemptResponse(res);
+      toast('Attempt started - good luck!', 'success');
+    }
+
+    (async function init() {
+      state.class_id = getParam('class_id');
+      state.teacher_quiz_id = getParam('teacher_quiz_id');
+      state.token = readToken();
+
+      state.urlAttemptId = getParam('attempt_id');
+      state.forceNew = (getParam('force_new') === '1');
+
+      if (!state.token) return toast('Please sign in first', 'warn');
+      if (!state.class_id || !state.teacher_quiz_id) return toast('Invalid quiz link', 'warn');
+
+      const qres = await busy.run(
+        () => apiCall('candidate.quiz.get', { class_id: state.class_id, teacher_quiz_id: state.teacher_quiz_id }),
+        'Loading quiz..',
+        { delay: 220 }
+      );
+      if (!qres.ok) return toast('Failed to load quiz: ' + (qres.error || 'unknown'), 'warn');
+
+      state.quiz = qres.quiz;
+      renderMeta();
+      renderFields();
+
+      // Wire start button
+      const startBtn = $('#btnStart');
+      if (startBtn) startBtn.onclick = startAttempt;
+
+      // If deep-linking to a specific attempt
+      if (state.urlAttemptId) {
+        const ares = await busy.run(
+          () => apiCall('candidate.attempt.get', {
+            class_id: state.class_id,
+            teacher_quiz_id: state.teacher_quiz_id,
+            attempt_id: state.urlAttemptId
+          }),
+          'Loading attempt...',
+          { delay: 220 }
+        );
+        if (ares?.ok) applyAttemptResponse(ares);
+      } else {
+        // force_new intent: check if an in-progress exists; if yes, resume it; otherwise show start view
+        if (state.forceNew) {
+          const cur = await busy.run(
+            () => apiCall('candidate.attempt.get', { class_id: state.class_id, teacher_quiz_id: state.teacher_quiz_id }),
+            'Checking active attempt..',
+            { delay: 260 }
+          );
+          if (cur?.ok && cur.attempt && String(cur.attempt.status || '').toUpperCase() === 'IN_PROGRESS') {
+            state.forceNew = false;
+            applyAttemptResponse(cur);
+            toast('You already have an active attempt - resuming it.', 'warn');
+          } else {
+            showStartView('Start New Attempt');
+          }
+        } else {
+          const ares = await busy.run(
+            () => apiCall('candidate.attempt.get', { class_id: state.class_id, teacher_quiz_id: state.teacher_quiz_id }),
+            'Loading attempt...',
+            { delay: 240 }
+          );
+          if (ares?.ok) applyAttemptResponse(ares);
+        }
+      }
+
+      const quitBtn = $('#btnQuit');
+      if (quitBtn) {
+        quitBtn.onclick = () => {
+          if (confirm('Quit? Progress is saved but attempt remains open.')) window.location.href = DASHBOARD_URL;
+        };
+      }
+
+      const btnAll = $('#btnViewAll');
+      const btnFlagged = $('#btnViewFlagged');
+      if (btnAll) btnAll.onclick = () => setShowFlaggedOnly(false);
+      if (btnFlagged) btnFlagged.onclick = () => setShowFlaggedOnly(true);
+
+      const tSide = $('#toggleFlaggedSidebar');
+      if (tSide) tSide.onchange = (e) => setShowFlaggedOnly(!!e.target.checked);
+
+      const tGrid = $('#toggleFlaggedGrid');
+      if (tGrid) tGrid.onchange = (e) => setShowFlaggedOnly(!!e.target.checked);
+
+      $('#btnPrev').onclick = () => {
+        if ($('#btnPrev').disabled) return;
+        state.activePage = Math.max(0, state.activePage - 1);
+        renderNav();
+        renderQuestions();
+      };
+
+      $('#btnNext').onclick = () => {
+        if ($('#btnNext').disabled) return;
+        const visibleCount = getVisibleItems().length;
+        state.activePage = Math.min(Math.max(0, visibleCount - 1), state.activePage + 1);
+        renderNav();
+        renderQuestions();
+      };
+
+      $('#btnSubmit').onclick = () => submitAttempt({ auto: false });
+
+      $('#btnFlag').onclick = () => {
+        const visibleItems = getVisibleItems();
+        const current = visibleItems[state.activePage];
+        if (!current) return;
+        const qid = current.quiz_item_id;
+        state.flags[qid] = !state.flags[qid];
+        scheduleSave();
+        clampActivePage();
+        renderProgress();
+        renderNav();
+        renderQuestions();
+      };
+
+      const gridBtn = $('#btnGrid');
+      const gridClose = $('#btnGridClose');
+      const overlay = $('#gridOverlay');
+      if (gridBtn) gridBtn.onclick = openGrid;
+      if (gridClose) gridClose.onclick = closeGrid;
+      if (overlay) overlay.addEventListener('click', (e) => { if (e.target === overlay) closeGrid(); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeGrid(); });
+
+      syncViewUI();
+      updatePagerButtons();
+    })();
+  </script>
+</body>
+</html>
