@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — My Downloads</title>
+
+<style>
+:root{
+  --brand:#0b7a75;
+  --muted:#859998;
+  --ink:#1f2a28;
+  --bg:#f6f8f7;
+  --card:#ffffff;
+  --line:#e5e7eb;
+  --soft:rgba(0,0,0,.06);
+  --disabled:#e9eeee;
+  --ok:#0a6c67;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+}
+.wrap{
+  max-width:980px;
+  margin:28px auto;
+  padding:0 16px;
+}
+h1{
+  font-size:22px;
+  margin:0 0 14px;
+}
+
+/* Controls */
+.controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+  margin-bottom:16px;
+}
+.controls select{
+  padding:6px 10px;
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:#fff;
+}
+
+/* Grid */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:14px;
+}
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:14px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  position:relative;
+}
+.card.inactive{
+  background:var(--disabled);
+  opacity:.75;
+}
+
+/* Card content */
+.course{
+  font-size:13px;
+  color:var(--muted);
+}
+.name{
+  font-weight:600;
+  font-size:15px;
+}
+.meta{
+  font-size:13px;
+  color:#555;
+}
+
+/* Status badge */
+.badge{
+  position:absolute;
+  top:12px;
+  right:12px;
+  font-size:11px;
+  padding:3px 8px;
+  border-radius:999px;
+  font-weight:600;
+}
+.badge.active{
+  background:#e6f4f3;
+  color:var(--ok);
+}
+.badge.inactive{
+  background:#ddd;
+  color:#555;
+}
+
+/* Actions */
+.actions{
+  margin-top:auto;
+}
+button{
+  width:100%;
+  padding:8px 10px;
+  border-radius:8px;
+  border:none;
+  background:var(--brand);
+  color:#fff;
+  font-weight:600;
+  cursor:pointer;
+}
+button:disabled{
+  background:#9fbcbc;
+  cursor:not-allowed;
+}
+
+/* Empty */
+.empty{
+  background:#fff;
+  border:1px dashed var(--line);
+  border-radius:10px;
+  padding:30px;
+  text-align:center;
+}
+.empty p{margin:0 0 12px}
+.empty a{
+  display:inline-block;
+  padding:8px 14px;
+  background:var(--brand);
+  color:#fff;
+  border-radius:8px;
+  text-decoration:none;
+  font-weight:600;
+}
+
+.load-more{
+  margin:22px auto 0;
+  display:block;
+  padding:8px 16px;
+}
+</style>
+</head>
+
+<body>
+<div class="wrap">
+  <h1>My Downloads</h1>
+
+  <div class="controls">
+    <select id="courseFilter">
+      <option value="">All courses</option>
+    </select>
+
+    <select id="statusFilter">
+      <option value="">All statuses</option>
+      <option value="active">Active</option>
+      <option value="inactive">Inactive</option>
+    </select>
+
+    <select id="sortSelect">
+      <option value="newest">Newest first</option>
+      <option value="oldest">Oldest first</option>
+    </select>
+  </div>
+
+  <div id="grid" class="grid"></div>
+
+  <button id="loadMoreBtn" class="load-more" style="display:none;">Load more</button>
+</div>
+
+<script>
+const API_BASE = 'https://script.google.com/macros/s/AKfycbxT6cV424Ppes5DdZxtqdqPDCS9d-TKWDO4RV5ZTtlMOxz3ygkoOdTrrXTOCxJ32WDF/exec';
+const RENDERER_URL = '/p/offline-pack-renderer.html';
+const BUILDER_URL  = '/p/pdf-downloader.html';
+
+const token = localStorage.getItem('qa_token');
+
+let cursor = null;
+let items = [];
+let sortMode = 'newest';
+
+const grid = document.getElementById('grid');
+const loadMoreBtn = document.getElementById('loadMoreBtn');
+const sortSelect = document.getElementById('sortSelect');
+const courseFilter = document.getElementById('courseFilter');
+const statusFilter = document.getElementById('statusFilter');
+
+sortSelect.onchange = render;
+courseFilter.onchange = render;
+statusFilter.onchange = render;
+
+loadMoreBtn.onclick = load;
+
+function load() {
+  let url = API_BASE + '?action=downloads.list&token=' + encodeURIComponent(token);
+  if (cursor) url += '&cursor=' + encodeURIComponent(cursor);
+
+  fetch(url)
+    .then(r => r.json())
+    .then(res => {
+      if (!res.ok) return;
+      items = items.concat(res.items || []);
+      cursor = res.meta && res.meta.next_cursor;
+      loadMoreBtn.style.display = cursor ? 'block' : 'none';
+      populateCourseFilter();
+      render();
+    });
+}
+
+function populateCourseFilter() {
+  const seen = {};
+  items.forEach(i => seen[i.course_name] = true);
+
+  courseFilter.innerHTML =
+    `<option value="">All courses</option>` +
+    Object.keys(seen).sort().map(c =>
+      `<option value="${c}">${c}</option>`
+    ).join('');
+}
+
+function render() {
+  if (!items.length) {
+    grid.innerHTML = `
+      <div class="empty">
+        <p>You don’t have any Packs yet.</p>
+        <a href="${BUILDER_URL}">Create a pack</a>
+      </div>
+    `;
+    return;
+  }
+
+  let list = items.slice();
+
+  if (courseFilter.value)
+    list = list.filter(p => p.course_name === courseFilter.value);
+
+  if (statusFilter.value)
+    list = list.filter(p => p.status === statusFilter.value);
+
+  list.sort((a,b) => {
+    if (sortMode === 'oldest')
+      return String(a.created_at).localeCompare(String(b.created_at));
+    return String(b.created_at).localeCompare(String(a.created_at));
+  });
+
+  grid.innerHTML = list.map(p => `
+    <div class="card ${p.status !== 'active' ? 'inactive' : ''}">
+      <div class="badge ${p.status}">${p.status}</div>
+      <div class="course">${p.course_name}</div>
+      <div class="name">${p.pack_name}</div>
+      <div class="meta">
+        ${p.question_count || 0} questions<br>
+        ${new Date(p.created_at).toLocaleString()}
+      </div>
+      <div class="actions">
+        <button
+          ${p.status !== 'active' ? 'disabled' : ''}
+          onclick="openPack('${p.pack_id}')">
+          Open / Download
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openPack(packId) {
+  window.location.href = RENDERER_URL + '?pack_id=' + encodeURIComponent(packId);
+}
+
+load();
+</script>
+</body>
+</html>
