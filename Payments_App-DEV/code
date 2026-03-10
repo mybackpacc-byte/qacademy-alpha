@@ -1,0 +1,1325 @@
+/** ============================================================
+ * QAcademy Payments WebApp (v0.2)
+ * - Stores payment lifecycle in Payments sheet tab: "payments"
+ * - Reads product price dynamically from PortalAuthv2 products tab
+ * - Initializes Paystack transaction
+ * - Verifies Paystack transaction (success page OR webhook)
+ * - Activates access in PortalAuthv2 via payments_activate (recommended)
+ *
+ * NEW in v0.2:
+ * - pay_init_upgrade: existing logged-in users can buy another product without creating a new user
+ * - optional PAYMENTS_DB_ID (payments sheet can live in a separate spreadsheet)
+ * - product_name snapshot stored into payments row (if column exists)
+ * ============================================================ */
+
+const BUILD = 'payments-v0.2-2026-01-03-upgrade-init';
+
+/** ========== CONFIG (edit these) ========== */
+
+// PortalAuthv2 WebApp URL (your existing Auth webapp)
+const PORTAL_AUTH_URL = 'https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec';
+
+// PortalAuthv2 *Spreadsheet ID* (so we can read products pricing dynamically)
+const PORTAL_DB_ID = '1Aq0IaPOjC1Vo4bQb8aP0S0bO5EaeUx_4oYUlnJ2g2vc';
+
+// OPTIONAL: Payments DB Spreadsheet ID (recommended if you want payments in a separate DB)
+// - If you leave this blank, the code will FALL BACK to PORTAL_DB_ID.
+// - This keeps backward compatibility with your current deployment.
+const PAYMENTS_DB_ID = '1Aq0IaPOjC1Vo4bQb8aP0S0bO5EaeUx_4oYUlnJ2g2vc'; // <-- set this to your Payments DB spreadsheet id when ready
+
+// Tab names in Portal DB
+const PORTAL_TAB_PRODUCTS = 'products';
+const PORTAL_TAB_PROGRAMS = 'programs';
+
+// Payments tab name
+const TAB_PAYMENTS = 'payments';
+
+// Paystack
+const PAYSTACK_INIT_URL   = 'https://api.paystack.co/transaction/initialize';
+const PAYSTACK_VERIFY_URL = 'https://api.paystack.co/transaction/verify/'; // + reference
+
+// Script Properties keys (set these in Apps Script → Project Settings → Script properties)
+const PROP_PAYSTACK_SECRET_KEY = 'PAYSTACK_SECRET_KEY';
+
+// Shared secret used by PortalAuthv2 payments_activate
+const PROP_PORTAL_PAYMENTS_SECRET = 'PORTAL_PAYMENTS_SECRET';
+
+// Choose activation strategy:
+// 1) RECOMMENDED: call PortalAuthv2 action=payments_activate using PORTAL_PAYMENTS_SECRET
+// 2) fallback: call action=assign_product with an admin token (NOT recommended; tokens expire)
+const ACTIVATION_MODE = 'PAYMENTS_ACTIVATE'; // 'PAYMENTS_ACTIVATE' | 'ASSIGN_PRODUCT_WITH_ADMIN_TOKEN'
+const PROP_PORTAL_ADMIN_TOKEN = 'PORTAL_ADMIN_TOKEN'; // only used if ACTIVATION_MODE = ASSIGN_PRODUCT_WITH_ADMIN_TOKEN
+
+
+/** ========== HTTP ENTRYPOINTS ========== */
+
+function doGet(e){
+  const a = String((e && e.parameter && e.parameter.action) || '').toLowerCase();
+
+  if (a === 'health') return _json({ ok:true, service:'QAcademyPayments', build:BUILD, now:_iso(new Date()) });
+
+  if (a === 'pay_status') {
+    const reference = String((e.parameter.reference || '')).trim();
+    if(!reference) return _json({ ok:false, error:'missing_reference' });
+    return apiPayStatus({ reference });
+  }
+
+  if (a === 'meta') {
+    return apiMeta();
+  }
+
+  // Convenience GET: verify payment reference (used by success page)
+  if (a === 'pay_verify') {
+    const reference = String((e.parameter.reference || '')).trim();
+    if(!reference) return _json({ ok:false, error:'missing_reference' });
+    return apiPayVerify({ reference });
+  }
+
+  return _json({ ok:false, error:'unknown_action' });
+}
+
+function doPost(e){
+  try{
+    const p = (e && e.parameter) || {};
+    const rawBody = (e && e.postData && e.postData.contents) ? e.postData.contents : '';
+
+    // We allow JSON parsing for admin/testing, but most clients should POST form-encoded
+    let body = {};
+    try { body = JSON.parse(rawBody || '{}'); } catch(_){ body = {}; }
+
+    const action = String(p.action || body.action || '').trim().toLowerCase();
+
+    // ✅ If no action, try to auto-detect Paystack webhook
+    if(!action){
+      const sig = _getHeaderCI_(e, 'x-paystack-signature');
+      const looksLikePaystack = rawBody && rawBody.indexOf('"event"') !== -1 && rawBody.indexOf('"data"') !== -1;
+
+      if(sig || looksLikePaystack){
+        return apiPayWebhook(e);
+      }
+      return _json({ ok:false, error:'missing_action' });
+    }
+
+    // Public: initialize payment (new-user paid onboarding)
+    if(action === 'pay_init') return apiPayInit(_merge(p, body));
+
+    // NEW: initialize payment for EXISTING user (upgrade/extend) - token required
+    if(action === 'pay_init_upgrade') return apiPayInitUpgrade(_merge(p, body));
+
+   // Public: initialize payment (PAY-FIRST quick flow; no user creation)
+    if(action === 'pay_init_quick') return apiPayInitQuick(_merge(p, body));
+
+    // Called by your "Payment success" page OR by admin tools
+    if(action === 'pay_verify'){
+      return apiPayVerify({ reference: String(p.reference || body.reference || '').trim() });
+    }
+     
+    // PAY-FIRST: post-payment setup (create account + activate)
+     if(action === 'setup_complete') return apiSetupComplete(_merge(p, body));
+ 
+    // Paystack webhook (still supported if you set URL ?action=pay_webhook)
+    if(action === 'pay_webhook') return apiPayWebhook(e);
+
+    return _json({ ok:false, error:'unknown_action' });
+
+  } catch(err){
+    return _json({ ok:false, error:String(err && (err.stack || err.message) || err) });
+  }
+}
+
+
+
+/** ============================================================
+ * API: pay_init (NEW USER FLOW)
+ * - Inputs: user registration fields + product_id
+ * - Creates user in PortalAuthv2 via action=self_register_paid
+ * - Reads product price from Portal products tab (price_minor + currency)
+ * - Calls Paystack initialize
+ * - Writes payments row (INIT)
+ * - Returns authorization_url + reference
+ * ============================================================ */
+function apiPayInit(args){
+  const product_id   = String(args.product_id || '').trim().toUpperCase();
+  const forename     = String(args.forename || '').trim();
+  const surname      = String(args.surname || '').trim();
+  const email        = String(args.email || '').trim().toLowerCase();
+  const password     = String(args.password || '');
+  const phone_number = String(args.phone_number || '').trim();
+  const program_id   = String(args.program_id || '').trim();
+  const cohort       = String(args.cohort || '').trim();
+  const username     = String(args.username || args.reg_username || '').trim().toLowerCase();
+  const avatar_url   = String(args.avatar_url || '').trim();
+  const callback_url = String(args.callback_url || '').trim();
+
+  // Optional client info
+  const ua = String(args.ua || '');
+  const ip = String(args.ip || '');
+
+  if(!product_id || !forename || !surname || !email || !password){
+    return _json({ ok:false, error:'missing_fields' });
+  }
+
+  // 1) Create the user in PortalAuthv2 (paid onboarding route, no trial assignment)
+  const reg = _portalPost_({
+    action: 'self_register_paid',
+    forename, surname, email, password,
+    phone_number, program_id, cohort, avatar_url,
+    username,
+    ua, ip,
+    product_id // helpful for audit/logs
+  });
+
+  if(!reg.ok){
+    return _json({ ok:false, error:'portal_register_failed', portal_error: reg.error || '' });
+  }
+
+  const user_id = reg.user_id || '';
+  const username_created = reg.username || '';
+
+  // 2) Read dynamic price from PortalAuthv2 products tab
+  const prod = _getProductPricingFromPortal_(product_id);
+  if(!prod.ok){
+    return _json({ ok:false, error: prod.error || 'product_lookup_failed' });
+  }
+
+  const amount_minor_expected = prod.price_minor;
+  const currency              = prod.currency || 'GHS';
+  const product_name          = prod.name || product_id;
+
+  // 3) Call Paystack initialize
+  const initRes = _paystackInitialize_({
+    email,
+    amount_minor: amount_minor_expected,
+    currency,
+    metadata: {
+      product_id,
+      product_name,
+      user_id,
+      program_id,
+      cohort,
+      phone_number,
+      flow: 'new_user'
+    },
+    callback_url
+  });
+
+  if(!initRes.ok){
+    // user is created but payment init failed; acceptable for MVP
+    return _json({ ok:false, error:'paystack_init_failed', detail: initRes.error || '' });
+  }
+
+  const reference = initRes.reference;
+  const authorization_url = initRes.authorization_url;
+
+  // 4) Write payments row INIT (store product_name snapshot if column exists)
+  _paymentsUpsertByReference_(reference, {
+    reference,
+    status: 'INIT',
+    email,
+    user_id,
+    product_id,
+    product_name,                 // <-- snapshot (requires a 'product_name' column to persist)
+    amount_minor_expected,
+    currency,
+    amount_minor_paid: '',
+    paid_utc: '',
+    activated_utc: '',
+    portal_subscription_id: '',
+    failure_note: '',
+    raw: JSON.stringify({ init: initRes.raw || {} })
+  });
+
+  return _json({
+    ok:true,
+    reference,
+    authorization_url,
+    product_id,
+    product_name,
+    amount_minor_expected,
+    currency,
+    user_id,
+    username: username_created,
+    email,
+    phone_number
+  });
+}
+
+/** ============================================================
+ * API: pay_init_quick (PAY-FIRST FLOW)
+ * - Inputs: email + product_id (+ optional phone/program) + callback_url
+ * - DOES NOT create a user
+ * - Reads product price dynamically from Portal products tab
+ * - Calls Paystack initialize
+ * - Writes payments row (INIT) with user_id blank
+ * - Returns authorization_url + reference
+ * ============================================================ */
+function apiPayInitQuick(args){
+  var product_id   = String(args.product_id || '').trim().toUpperCase();
+  var email        = String(args.email || '').trim().toLowerCase();
+  var phone_number = String(args.phone_number || '').trim();
+  var program_id   = String(args.program_id || '').trim().toUpperCase();
+  var callback_url = String(args.callback_url || '').trim();
+
+  // Optional client info
+  var ua = String(args.ua || '');
+  var ip = String(args.ip || '');
+
+  if(!product_id) return _json({ ok:false, error:'missing_product_id' });
+  if(!email)      return _json({ ok:false, error:'missing_email' });
+  if(!callback_url) return _json({ ok:false, error:'missing_callback_url' });
+
+  // 1) Read dynamic price
+  var prod = _getProductPricingFromPortal_(product_id);
+  if(!prod.ok){
+    return _json({ ok:false, error: prod.error || 'product_lookup_failed' });
+  }
+
+  var amount_minor_expected = prod.price_minor;
+  var currency              = prod.currency || 'GHS';
+  var product_name          = prod.name || product_id;
+
+  // 2) Optional setup token (for later post-payment setup; safe even if you don't use yet)
+  var setup_token = _randToken_();
+
+  // Append setup token onto callback_url so confirmation page can read it later (optional)
+  var cb = _addQueryParam_(callback_url, 'setup', setup_token);
+
+  // 3) Paystack initialize
+  var initRes = _paystackInitialize_({
+    email: email,
+    amount_minor: amount_minor_expected,
+    currency: currency,
+    metadata: {
+      product_id: product_id,
+      product_name: product_name,
+      program_id: program_id,
+      phone_number: phone_number,
+      flow: 'quick',
+      ua: ua || undefined,
+      ip: ip || undefined
+    },
+    callback_url: cb
+  });
+
+  if(!initRes.ok){
+    return _json({ ok:false, error:'paystack_init_failed', detail: initRes.error || '', raw: initRes.raw || {} });
+  }
+
+  var reference = initRes.reference;
+  var authorization_url = initRes.authorization_url;
+
+  // 4) Write payments row INIT (user_id intentionally blank)
+  _paymentsUpsertByReference_(reference, {
+    reference: reference,
+    status: 'INIT',
+    email: email,
+    user_id: '', // <-- pay-first: no user created yet
+    product_id: product_id,
+    product_name: product_name,
+    program_id: program_id,
+    phone_number: phone_number,
+    amount_minor_expected: amount_minor_expected,
+    currency: currency,
+    amount_minor_paid: '',
+    paid_utc: '',
+    activated_utc: '',
+    portal_subscription_id: '',
+    failure_note: '',
+    setup_token: setup_token,                 // persists only if column exists
+    setup_created_utc: _iso(new Date()),      // persists only if column exists
+    raw: JSON.stringify({ init: initRes.raw || {}, flow:'quick', program_id: program_id, phone_number: phone_number })
+  });
+
+  return _json({
+    ok:true,
+    reference: reference,
+    authorization_url: authorization_url,
+    product_id: product_id,
+    product_name: product_name,
+    amount_minor_expected: amount_minor_expected,
+    currency: currency,
+    email: email,
+    phone_number: phone_number,
+    program_id: program_id
+  });
+}
+
+
+/** ============================================================
+ * API: pay_init_upgrade (EXISTING USER FLOW)  ✅ NEW
+ * - Inputs: token + product_id (+ optional callback_url)
+ * - Verifies token with PortalAuthv2 action=verify (GET)
+ * - Reads product price dynamically from Portal products tab
+ * - Calls Paystack initialize using verified email
+ * - Writes payments row (INIT)
+ * - Returns authorization_url + reference
+ *
+ * This avoids creating duplicate users during upgrades/renewals.
+ * ============================================================ */
+function apiPayInitUpgrade(args){
+  const token        = String(args.token || '').trim();
+  const product_id   = String(args.product_id || '').trim().toUpperCase();
+  const callback_url = String(args.callback_url || '').trim();
+
+  // Optional (useful for metadata)
+  const ua = String(args.ua || '');
+  const ip = String(args.ip || '');
+
+  if(!token) return _json({ ok:false, error:'missing_token' });
+  if(!product_id) return _json({ ok:false, error:'missing_product_id' });
+
+  // 1) Verify token with PortalAuthv2
+  const me = _portalVerifyToken_(token);
+  if(!me.ok) return _json({ ok:false, error:'token_invalid' });
+
+  // Be defensive: verify payload shape can evolve
+  const user_id = String(me.user_id || (me.user && me.user.user_id) || '').trim();
+  const email   = String(me.email   || (me.user && me.user.email)   || '').trim().toLowerCase();
+  const program_id = String(me.program_id || (me.user && me.user.program_id) || '').trim();
+  const cohort     = String(me.cohort     || (me.user && me.user.cohort)     || '').trim();
+  const phone_number = String(me.phone_number || (me.user && me.user.phone_number) || '').trim();
+
+  if(!user_id || !email) return _json({ ok:false, error:'verify_missing_user_fields' });
+
+  // 2) Read dynamic price from PortalAuthv2 products tab
+  const prod = _getProductPricingFromPortal_(product_id);
+  if(!prod.ok){
+    return _json({ ok:false, error: prod.error || 'product_lookup_failed' });
+  }
+
+  const amount_minor_expected = prod.price_minor;
+  const currency              = prod.currency || 'GHS';
+  const product_name          = prod.name || product_id;
+
+  // 3) Call Paystack initialize
+  const initRes = _paystackInitialize_({
+    email,
+    amount_minor: amount_minor_expected,
+    currency,
+    metadata: {
+      product_id,
+      product_name,
+      user_id,
+      program_id,
+      cohort,
+      phone_number,
+      flow: 'upgrade',
+      ua: ua || undefined,
+      ip: ip || undefined
+    },
+    callback_url
+  });
+
+  if(!initRes.ok){
+    return _json({ ok:false, error:'paystack_init_failed', detail: initRes.error || '' });
+  }
+
+  const reference = initRes.reference;
+  const authorization_url = initRes.authorization_url;
+
+  // 4) Write payments row INIT (audit trail)
+  _paymentsUpsertByReference_(reference, {
+    reference,
+    status: 'INIT',
+    email,
+    user_id,
+    product_id,
+    product_name,                 // snapshot (requires 'product_name' col)
+    amount_minor_expected,
+    currency,
+    amount_minor_paid: '',
+    paid_utc: '',
+    activated_utc: '',
+    portal_subscription_id: '',
+    failure_note: '',
+    raw: JSON.stringify({ init: initRes.raw || {}, kind:'upgrade' })
+  });
+
+  return _json({
+    ok:true,
+    reference,
+    authorization_url,
+    product_id,
+    product_name,
+    amount_minor_expected,
+    currency,
+    user_id,
+    email
+  });
+}
+
+/** ============================================================
+ * API: pay_verify (UPDATED for PAY-FIRST)
+ * - Verifies Paystack reference
+ * - Validates amount vs amount_minor_expected stored at INIT time
+ * - Activates access in PortalAuthv2 (email can resolve user)
+ * - If user not found => SETUP_REQUIRED (paid is preserved)
+ * ============================================================ */
+function apiPayVerify({ reference }){
+  if(!reference) return _json({ ok:false, error:'missing_reference' });
+
+  // 1) Load payments row
+  var pay = _paymentsGetByReference_(reference);
+  if(!pay) return _json({ ok:false, error:'payment_not_found' });
+
+  var st0 = String(pay.status || '').trim().toUpperCase();
+
+  // Idempotency: if already activated, return quickly
+  if(st0 === 'ACTIVATED'){
+    return _json({ ok:true, status:'ACTIVATED', reference: reference, portal_subscription_id: pay.portal_subscription_id || '' });
+  }
+
+  // ===== FAST-PATH (no Paystack verify again) =====
+  // If we already confirmed PAID or SETUP_REQUIRED, try activation again.
+  // This lets the confirmation page "Retry" succeed immediately after setup_complete.
+  if(st0 === 'PAID' || st0 === 'SETUP_REQUIRED'){
+    var act0 = _portalActivate_(pay);
+    if(act0 && act0.ok){
+      _paymentsPatch_(reference, {
+        status:'ACTIVATED',
+        activated_utc: _iso(new Date()),
+        portal_subscription_id: act0.subscription_id || '',
+        user_id: act0.user_id || String(pay.user_id || '').trim(),
+        raw: _mergeRaw_(pay.raw, { activation: act0.raw || {}, activation_fastpath:true })
+      });
+      return _json({ ok:true, reference: reference, status:'ACTIVATED', portal_subscription_id: act0.subscription_id || '' });
+    }
+
+    var ae0 = String((act0 && act0.error) || '').toLowerCase();
+    if(ae0.indexOf('user_not_found') !== -1){
+      // keep paid state; require setup
+      // generate token if missing (only persists if col exists)
+      var setupTok = String(pay.setup_token || '').trim() || _randToken_();
+      _paymentsPatch_(reference, {
+        status:'SETUP_REQUIRED',
+        setup_token: setupTok,
+        raw: _mergeRaw_(pay.raw, { activation: act0.raw || {}, setup_required:true, reason:'user_not_found_fastpath' })
+      });
+
+      return _json({
+        ok:true,
+        reference: reference,
+        status:'SETUP_REQUIRED',
+        email: String(pay.email || '').trim().toLowerCase(),
+        product_id: String(pay.product_id || '').trim().toUpperCase(),
+        product_name: String(pay.product_name || '').trim(),
+        amount_minor_expected: pay.amount_minor_expected || '',
+        currency: pay.currency || '',
+        setup_token: setupTok,
+        phone_number: String(pay.phone_number || '').trim(),
+  program_id: String(pay.program_id || '').trim().toUpperCase(),
+  cohort: String(pay.cohort || '').trim(),
+  username: String(pay.username || '').trim().toLowerCase()
+      });
+    }
+
+    // Any other activation failure (don’t destroy PAID state here)
+    return _json({ ok:false, error:'activation_failed', detail:(act0 && act0.error) || '' });
+  }
+
+  // 2) Call Paystack verify
+  var v = _paystackVerify_(reference);
+  if(!v.ok){
+    _paymentsPatch_(reference, {
+      status:'FAILED',
+      failure_note: v.error || 'verify_failed',
+      raw: _mergeRaw_(pay.raw, { verify: v.raw || {} })
+    });
+    return _json({ ok:false, error:'paystack_verify_failed', detail: v.error || '' });
+  }
+
+  // Expected vs Paid
+  var expected = parseInt(pay.amount_minor_expected, 10);
+  var paid     = parseInt(v.amount_minor_paid, 10);
+
+  if(!expected || expected <= 0){
+    _paymentsPatch_(reference, {
+      status:'FAILED',
+      failure_note:'missing_expected_amount',
+      raw: _mergeRaw_(pay.raw, { verify: v.raw || {} })
+    });
+    return _json({ ok:false, error:'missing_expected_amount' });
+  }
+
+  if(paid !== expected){
+    _paymentsPatch_(reference, {
+      status:'FAILED',
+      failure_note:'amount_mismatch expected=' + expected + ' paid=' + paid,
+      amount_minor_paid: paid,
+      paid_utc: _iso(new Date()),
+      raw: _mergeRaw_(pay.raw, { verify: v.raw || {} })
+    });
+    return _json({ ok:false, error:'amount_mismatch' });
+  }
+
+  // 3) Mark as PAID
+  _paymentsPatch_(reference, {
+    status:'PAID',
+    amount_minor_paid: paid,
+    paid_utc: _iso(new Date()),
+    raw: _mergeRaw_(pay.raw, { verify: v.raw || {} })
+  });
+
+  // IMPORTANT: reload latest row after patch (ensures we see any new fields)
+  pay = _paymentsGetByReference_(reference) || pay;
+
+  // 4) Activate access in PortalAuthv2
+  var act = _portalActivate_(pay);
+  if(act && act.ok){
+    // 5) Mark as ACTIVATED
+    _paymentsPatch_(reference, {
+      status:'ACTIVATED',
+      activated_utc: _iso(new Date()),
+      portal_subscription_id: act.subscription_id || '',
+      user_id: act.user_id || String(pay.user_id || '').trim(), // ✅ ADD
+      raw: _mergeRaw_(pay.raw, { activation: act.raw || {} })
+    });
+
+    return _json({
+      ok:true,
+      reference: reference,
+      status:'ACTIVATED',
+      portal_subscription_id: act.subscription_id || ''
+    });
+  }
+
+  var ae = String((act && act.error) || '').toLowerCase();
+
+  // PAY-FIRST: user not found => setup required (do NOT mark FAILED)
+  if(ae.indexOf('user_not_found') !== -1){
+    var setupTok2 = String(pay.setup_token || '').trim() || _randToken_();
+    _paymentsPatch_(reference, {
+      status:'SETUP_REQUIRED',
+      setup_token: setupTok2,
+      raw: _mergeRaw_(pay.raw, { activation: act.raw || {}, setup_required:true, reason:'user_not_found_after_paid' })
+    });
+
+    return _json({
+      ok:true,
+      reference: reference,
+      status:'SETUP_REQUIRED',
+      email: String(pay.email || '').trim().toLowerCase(),
+      product_id: String(pay.product_id || '').trim().toUpperCase(),
+      product_name: String(pay.product_name || '').trim(),
+      amount_minor_expected: pay.amount_minor_expected || '',
+      currency: pay.currency || '',
+      setup_token: setupTok2,
+      phone_number: String(pay.phone_number || '').trim(),
+  program_id: String(pay.program_id || '').trim().toUpperCase(),
+  cohort: String(pay.cohort || '').trim(),
+  username: String(pay.username || '').trim().toLowerCase()
+    });
+  }
+
+  // Any other activation failure => real failure
+  _paymentsPatch_(reference, {
+    status:'FAILED',
+    failure_note:'activation_failed: ' + ((act && act.error) || ''),
+    raw: _mergeRaw_(pay.raw, { activation: act.raw || {} })
+  });
+
+  return _json({ ok:false, error:'activation_failed', detail: (act && act.error) || '' });
+}
+
+/** ============================================================
+ * API: setup_complete (PAY-FIRST)
+ * - Inputs: reference, forename, surname, password, (optional) phone_number, program_id, setup_token
+ * - Requires payment status to be PAID or SETUP_REQUIRED
+ * - Creates user via PortalAuthv2 self_register_paid (idempotent: handles email_exists)
+ * - Calls payments_activate to activate access
+ * - Marks payment row ACTIVATED on success
+ * ============================================================ */
+function apiSetupComplete(args){
+  const reference    = String(args.reference || '').trim();
+  const forename     = String(args.forename  || '').trim();
+  const surname      = String(args.surname   || '').trim();
+  const password     = String(args.password  || '');
+  const phone_number = String(args.phone_number || '').trim();
+  const program_id   = String(args.program_id || '').trim();
+
+  // ✅ NEW
+  const cohort       = String(args.cohort || '').trim();
+  const username     = String(args.username || '').trim().toLowerCase();
+
+  const setup_token  = String(args.setup_token || '').trim();
+
+  // Optional client info
+  const ua = String(args.ua || '');
+  const ip = String(args.ip || '');
+
+  if(!reference) return _json({ ok:false, error:'missing_reference' });
+
+  const pay = _paymentsGetByReference_(reference);
+  if(!pay) return _json({ ok:false, error:'payment_not_found' });
+
+  const st = String(pay.status || '').trim().toUpperCase();
+
+  // Idempotent
+  if(st === 'ACTIVATED'){
+    return _json({
+      ok:true,
+      status:'ACTIVATED',
+      reference: reference,
+      portal_subscription_id: pay.portal_subscription_id || ''
+    });
+  }
+
+  if(st === 'FAILED'){
+    return _json({ ok:false, error:'payment_failed', detail: pay.failure_note || '' });
+  }
+
+  if(st !== 'PAID' && st !== 'SETUP_REQUIRED'){
+    return _json({ ok:false, error:'not_ready_for_setup', status: st });
+  }
+
+  // Source-of-truth values come from the payment row
+  const email      = String(pay.email || '').trim().toLowerCase();
+  const product_id = String(pay.product_id || '').trim().toUpperCase();
+
+  if(!email)      return _json({ ok:false, error:'missing_email_on_payment' });
+  if(!product_id) return _json({ ok:false, error:'missing_product_id_on_payment' });
+
+  // Basic form validation
+  if(!forename || !surname || !password){
+    return _json({ ok:false, error:'missing_fields' });
+  }
+
+  // If frontend omitted optional fields, fallback to payment-row values where possible
+  const program_id2   = program_id || String(pay.program_id || '').trim();
+  const phone_number2 = phone_number || String(pay.phone_number || '').trim();
+
+  // Optional token check (only enforce if column exists & has value)
+  const storedTok = String(pay.setup_token || '').trim();
+  if(storedTok){
+    if(!setup_token) return _json({ ok:false, error:'missing_setup_token' });
+    if(setup_token !== storedTok) return _json({ ok:false, error:'setup_token_mismatch' });
+  } else {
+    if(setup_token){
+      _paymentsPatch_(reference, { setup_token: setup_token });
+    }
+  }
+
+  // 1) Create user (paid onboarding) — idempotent
+  let reg = _portalPost_({
+    action: 'self_register_paid',
+    forename, surname,
+    email,
+    password,
+    phone_number: phone_number2,
+    program_id: program_id2,
+
+    // ✅ NEW (mirrors old flow)
+    cohort: cohort,
+    username: username,
+
+    // helpful audit fields
+    product_id,
+    ua, ip
+  });
+
+  let new_user_id = '';
+  if(reg && reg.ok){
+    new_user_id = String(reg.user_id || '').trim();
+  } else {
+    const peRaw = String((reg && reg.error) || '');
+    const pe = peRaw.toLowerCase();
+
+    const isEmailExists =
+      pe.indexOf('email_exists') !== -1 ||
+      pe.indexOf('user_exists') !== -1 ||
+      pe.indexOf('already_exists') !== -1;
+
+    if(!isEmailExists){
+      _paymentsPatch_(reference, {
+        raw: _mergeRaw_(pay.raw, { setup_complete: { ok:false, step:'register', portal: reg || {} } })
+      });
+      // ✅ Important: return portal_error so the confirmation page can react (username_exists, invalid_username, etc.)
+      return _json({
+        ok:false,
+        error:'portal_register_failed',
+        portal_error: (reg && reg.error) || '',
+        raw: reg || {}
+      });
+    }
+  }
+
+  // 2) Patch payment row with any info we now have (safe if cols absent)
+  _paymentsPatch_(reference, {
+    user_id: new_user_id || String(pay.user_id || '').trim(),
+    phone_number: phone_number2,
+    program_id: program_id2,
+
+    // ✅ NEW (safe if columns exist)
+    cohort: cohort,
+    username: username,
+
+    setup_completed_utc: _iso(new Date()),
+    raw: _mergeRaw_(pay.raw, {
+      setup_complete: {
+        ok:true,
+        email: email,
+        user_id: new_user_id || '',
+        program_id: (program_id2 || ''),
+        phone_number: (phone_number2 || ''),
+        cohort: (cohort || ''),
+        username: (username || '')
+      }
+    })
+  });
+
+  // Reload updated row
+  const pay2 = _paymentsGetByReference_(reference) || pay;
+
+  // 3) Activate access
+  const act = _portalActivate_(pay2);
+
+  if(act && act.ok){
+    _paymentsPatch_(reference, {
+      status: 'ACTIVATED',
+      activated_utc: _iso(new Date()),
+      portal_subscription_id: act.subscription_id || '',
+      user_id: act.user_id || String(pay2.user_id || '').trim(),
+      raw: _mergeRaw_(pay2.raw, { activation_after_setup: act.raw || {} })
+    });
+
+    return _json({
+      ok:true,
+      status:'ACTIVATED',
+      reference: reference,
+      portal_subscription_id: act.subscription_id || ''
+    });
+  }
+
+  const detail = String((act && act.error) || '').trim() || 'activation_failed';
+  _paymentsPatch_(reference, {
+    status: (st === 'SETUP_REQUIRED') ? 'SETUP_REQUIRED' : 'PAID',
+    failure_note: 'activation_failed_after_setup: ' + detail,
+    raw: _mergeRaw_(pay2.raw, { activation_after_setup: act.raw || {}, activation_failed:true })
+  });
+
+  return _json({ ok:false, error:'activation_failed', detail: detail });
+}
+
+
+/** ============================================================
+ * API: pay_status (GET)
+ * ============================================================ */
+function apiPayStatus({ reference }){
+  const pay = _paymentsGetByReference_(reference);
+  if(!pay) return _json({ ok:false, error:'payment_not_found' });
+
+  return _json({
+    ok:true,
+    payment: {
+      reference: pay.reference || '',
+      status: pay.status || '',
+      email: pay.email || '',
+      user_id: pay.user_id || '',
+      product_id: pay.product_id || '',
+      product_name: pay.product_name || '', // safe if column exists
+      amount_minor_expected: pay.amount_minor_expected || '',
+      amount_minor_paid: pay.amount_minor_paid || '',
+      currency: pay.currency || '',
+      paid_utc: pay.paid_utc || '',
+      activated_utc: pay.activated_utc || '',
+      portal_subscription_id: pay.portal_subscription_id || '',
+      failure_note: pay.failure_note || ''
+    }
+  });
+}
+
+
+/** ========== PORTAL HELPERS ========== */
+
+// Calls PortalAuthv2 WebApp (POST form-encoded)
+function _portalPost_(payload){
+  const url = PORTAL_AUTH_URL;
+  const resp = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/x-www-form-urlencoded',
+    payload: payload,
+    muteHttpExceptions: true
+  });
+  const txt = resp.getContentText() || '';
+  try { return JSON.parse(txt); } catch(_){ return { ok:false, error:'bad_portal_json', raw:txt }; }
+}
+
+// NEW: Verify token via PortalAuthv2 doGet?action=verify&token=...
+function _portalVerifyToken_(token){
+  try{
+    const url = PORTAL_AUTH_URL + '?action=verify&token=' + encodeURIComponent(String(token||'').trim());
+    const resp = UrlFetchApp.fetch(url, { method:'get', muteHttpExceptions:true });
+    const txt = resp.getContentText() || '';
+    const j = JSON.parse(txt);
+
+    // Expect j.ok true. Payload shape may vary; we return raw as-is.
+    if(!j || !j.ok) return { ok:false, raw:j };
+    return j;
+  } catch(e){
+    return { ok:false, error:'verify_fetch_failed:' + String(e) };
+  }
+}
+
+// Activation bridge
+function _portalActivate_(payRow){
+  const product_id = String(payRow.product_id || '').trim().toUpperCase();
+  const email      = String(payRow.email || '').trim().toLowerCase();
+  const user_id    = String(payRow.user_id || '').trim();
+  const reference  = String(payRow.reference || '').trim();
+
+  if(ACTIVATION_MODE === 'PAYMENTS_ACTIVATE'){
+    const secret = _getProp_(PROP_PORTAL_PAYMENTS_SECRET);
+    if(!secret) return { ok:false, error:'missing_portal_payments_secret' };
+
+    const res = _portalPost_({
+      action: 'payments_activate',
+      secret: secret,
+      user_id: user_id,
+      email: email,
+      product_id: product_id,
+      source: 'PAYSTACK',
+      source_ref: reference
+    });
+
+return {
+  ok: !!res.ok,
+  subscription_id: res.subscription_id || '',
+  user_id: res.user_id || '',   // ✅ if PortalAuth returns it
+  error: res.error || '',
+  raw: res
+};
+    
+  }
+
+  // Fallback (NOT recommended): uses admin token to call existing assign_product
+  const adminToken = _getProp_(PROP_PORTAL_ADMIN_TOKEN);
+  if(!adminToken) return { ok:false, error:'missing_portal_admin_token' };
+
+  const res2 = _portalPost_({
+    action: 'assign_product',
+    token: adminToken,
+    user_id: user_id,
+    email: email,
+    product_id: product_id
+  });
+
+  if(res2 && res2.ok) return { ok:true, subscription_id: res2.subscription_id || '', raw: res2 };
+  if(res2 && String(res2.error||'') === 'subscription_exists'){
+    return { ok:true, subscription_id:'', raw: res2 };
+  }
+
+  return { ok:false, error: res2.error || 'assign_product_failed', raw: res2 };
+}
+
+// Read product price dynamically from PortalAuthv2 products tab
+function _getProductPricingFromPortal_(product_id){
+  try{
+    const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+    const sh = ss.getSheetByName(PORTAL_TAB_PRODUCTS);
+    if(!sh) return { ok:false, error:'portal_products_tab_missing' };
+
+    const values = sh.getDataRange().getValues();
+    if(values.length < 2) return { ok:false, error:'portal_products_empty' };
+
+    const headers = values[0].map(String);
+    const idx = {};
+    headers.forEach((h,i)=> idx[String(h).trim()] = i);
+
+    const pidCol = idx['product_id'];
+    if(pidCol === undefined) return { ok:false, error:'portal_products_missing_product_id_col' };
+
+    let row = null;
+    for(let r=1;r<values.length;r++){
+      const pid = String(values[r][pidCol] || '').trim().toUpperCase();
+      if(pid === product_id){ row = values[r]; break; }
+    }
+    if(!row) return { ok:false, error:'product_not_found' };
+
+    const price_minor = parseInt(row[idx['price_minor']], 10);
+    const currency = String(row[idx['currency']] || 'GHS').trim().toUpperCase();
+    const name = String(row[idx['name']] || '').trim();
+
+    if(!price_minor || price_minor <= 0) return { ok:false, error:'product_price_invalid' };
+
+    return { ok:true, product_id, price_minor, currency, name };
+  } catch(e){
+    return { ok:false, error:'portal_product_lookup_error: ' + String(e) };
+  }
+}
+
+
+/** ========== PAYSTACK HELPERS ========== */
+
+function _paystackInitialize_({ email, amount_minor, currency, metadata, callback_url }){
+  const secret = _getProp_(PROP_PAYSTACK_SECRET_KEY);
+  if(!secret) return { ok:false, error:'missing_paystack_secret_key' };
+
+  const payload = {
+    email: email,
+    amount: amount_minor,
+    currency: currency || 'GHS',
+    metadata: metadata || {}
+  };
+
+  if (callback_url) payload.callback_url = callback_url;
+
+  const resp = UrlFetchApp.fetch(PAYSTACK_INIT_URL, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + secret },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+
+  const txt = resp.getContentText() || '';
+  let obj = {};
+  try { obj = JSON.parse(txt); } catch(_){ obj = {}; }
+
+  if(!obj || obj.status !== true || !obj.data){
+    return { ok:false, error:(obj && obj.message) ? obj.message : 'init_failed', raw: obj };
+  }
+
+  return {
+    ok:true,
+    authorization_url: obj.data.authorization_url,
+    access_code: obj.data.access_code,
+    reference: obj.data.reference,
+    raw: obj
+  };
+}
+
+function _paystackVerify_(reference){
+  const secret = _getProp_(PROP_PAYSTACK_SECRET_KEY);
+  if(!secret) return { ok:false, error:'missing_paystack_secret_key' };
+
+  const resp = UrlFetchApp.fetch(PAYSTACK_VERIFY_URL + encodeURIComponent(reference), {
+    method: 'get',
+    headers: { Authorization: 'Bearer ' + secret },
+    muteHttpExceptions: true
+  });
+
+  const txt = resp.getContentText() || '';
+  let obj = {};
+  try { obj = JSON.parse(txt); } catch(_){ obj = {}; }
+
+  if(!obj || obj.status !== true || !obj.data){
+    return { ok:false, error:(obj && obj.message) ? obj.message : 'verify_failed', raw: obj };
+  }
+
+  const st = String(obj.data.status || '').toLowerCase();
+  if(st !== 'success'){
+    return { ok:false, error:'not_success_status:' + st, raw: obj };
+  }
+
+  const amount_minor_paid = parseInt(obj.data.amount, 10);
+  return { ok:true, amount_minor_paid, raw: obj };
+}
+
+
+/** ========== PAYMENTS SHEET HELPERS ========== */
+
+function _paymentsSheet_(){
+  // Payments tab lives in PAYMENTS_DB_ID if provided, otherwise fallback to PORTAL_DB_ID
+  const dbId = (PAYMENTS_DB_ID && String(PAYMENTS_DB_ID).trim()) ? String(PAYMENTS_DB_ID).trim() : PORTAL_DB_ID;
+  const ss = SpreadsheetApp.openById(dbId);
+  const sh = ss.getSheetByName(TAB_PAYMENTS);
+  if(!sh) throw new Error('missing_tab_' + TAB_PAYMENTS + '_in_' + dbId);
+  return sh;
+}
+
+function _headers_(sh){
+  const vals = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  return vals.map(String);
+}
+
+function _rowToObj_(headers, row){
+  const o = {};
+  headers.forEach((h,i)=> o[h] = row[i]);
+  return o;
+}
+
+function _findRowIndexBy_(sh, colName, value){
+  const headers = _headers_(sh);
+  const col = headers.indexOf(colName);
+  if(col < 0) return -1;
+
+  const last = sh.getLastRow();
+  if(last < 2) return -1;
+
+  const rng = sh.getRange(2, col+1, last-1, 1).getValues();
+  const target = String(value || '').trim();
+  for(let i=0;i<rng.length;i++){
+    if(String(rng[i][0] || '').trim() === target){
+      return i + 2;
+    }
+  }
+  return -1;
+}
+
+function _appendObj_(sh, headers, obj){
+  const row = headers.map(h => (obj[h] !== undefined ? obj[h] : ''));
+  sh.appendRow(row);
+}
+
+function _updateObj_(sh, headers, rowIndex, obj){
+  const row = headers.map(h => (obj[h] !== undefined ? obj[h] : ''));
+  sh.getRange(rowIndex, 1, 1, headers.length).setValues([row]);
+}
+
+function _paymentsGetByReference_(reference){
+  const sh = _paymentsSheet_();
+  const headers = _headers_(sh);
+  const idx = _findRowIndexBy_(sh, 'reference', reference);
+  if(idx < 0) return null;
+  const row = sh.getRange(idx,1,1,headers.length).getValues()[0];
+  return _rowToObj_(headers, row);
+}
+
+function _paymentsUpsertByReference_(reference, obj){
+  const sh = _paymentsSheet_();
+  const headers = _headers_(sh);
+  const idx = _findRowIndexBy_(sh, 'reference', reference);
+
+  if(idx < 0){
+    _appendObj_(sh, headers, obj);
+    return;
+  }
+  const row = sh.getRange(idx,1,1,headers.length).getValues()[0];
+  const cur = _rowToObj_(headers, row);
+  const merged = Object.assign({}, cur, obj);
+  _updateObj_(sh, headers, idx, merged);
+}
+
+function _paymentsPatch_(reference, patch){
+  const sh = _paymentsSheet_();
+  const headers = _headers_(sh);
+  const idx = _findRowIndexBy_(sh, 'reference', reference);
+  if(idx < 0) return;
+
+  const row = sh.getRange(idx,1,1,headers.length).getValues()[0];
+  const cur = _rowToObj_(headers, row);
+  const merged = Object.assign({}, cur, patch);
+  _updateObj_(sh, headers, idx, merged);
+}
+
+function _mergeRaw_(rawStr, addObj){
+  let base = {};
+  try { base = rawStr ? JSON.parse(String(rawStr)) : {}; } catch(_){ base = {}; }
+  const merged = Object.assign({}, base, addObj || {});
+  return JSON.stringify(merged);
+}
+
+
+/** ========== META ========== */
+
+function apiMeta(){
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get('qa_meta_v1');
+  if(hit){
+    try { return _json(JSON.parse(hit)); } catch(_){}
+  }
+
+  const programs = _getProgramsFromPortal_();
+  const products = _getPublicProductsFromPortal_();
+
+  if(programs && programs.ok === false){
+    return _json({ ok:false, error: programs.error || 'programs_meta_failed' });
+  }
+  if(products && products.ok === false){
+    return _json({ ok:false, error: products.error || 'products_meta_failed' });
+  }
+
+  const out = {
+    ok: true,
+    programs: programs.programs || [],
+    products: products.products || []
+  };
+
+  cache.put('qa_meta_v1', JSON.stringify(out), 300);
+  return _json(out);
+}
+
+// Programs: prefer "programs" tab; fallback to distinct program_id from program_course_map
+function _getProgramsFromPortal_(){
+  try{
+    const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+
+    let sh = ss.getSheetByName(PORTAL_TAB_PROGRAMS);
+    if(sh){
+      const v = sh.getDataRange().getValues();
+      if(v.length < 2) return { ok:true, programs: [] };
+
+      const headers = v[0].map(x=>String(x).trim());
+      const idx = {};
+      headers.forEach((h,i)=>idx[h]=i);
+
+      const pidCol = idx['program_id'];
+      if(pidCol === undefined) return { ok:false, programs:[], error:'programs_missing_program_id' };
+
+      const pnameCol = (idx['program_name'] !== undefined) ? idx['program_name'] : idx['name'];
+
+      const seen = {};
+      const out = [];
+      for(let r=1;r<v.length;r++){
+        const program_id = String(v[r][pidCol]||'').trim().toUpperCase();
+        if(!program_id || seen[program_id]) continue;
+        seen[program_id]=true;
+
+        const program_name = (pnameCol!==undefined) ? String(v[r][pnameCol]||'').trim() : '';
+        out.push({ program_id, program_name: program_name || program_id });
+      }
+
+      out.sort((a,b)=>a.program_name.localeCompare(b.program_name));
+      return { ok:true, programs: out };
+    }
+
+    sh = ss.getSheetByName('program_course_map');
+    if(!sh) return { ok:true, programs: [] };
+
+    const v2 = sh.getDataRange().getValues();
+    if(v2.length < 2) return { ok:true, programs: [] };
+
+    const headers2 = v2[0].map(x=>String(x).trim());
+    const pidCol2 = headers2.indexOf('program_id');
+    if(pidCol2 < 0) return { ok:false, programs:[], error:'pcmap_missing_program_id' };
+
+    const seen2 = {};
+    const out2 = [];
+    for(let r=1;r<v2.length;r++){
+      const program_id = String(v2[r][pidCol2]||'').trim().toUpperCase();
+      if(!program_id || seen2[program_id]) continue;
+      seen2[program_id]=true;
+      out2.push({ program_id, program_name: program_id });
+    }
+    out2.sort((a,b)=>a.program_name.localeCompare(b.program_name));
+    return { ok:true, programs: out2 };
+  } catch(e){
+    return { ok:false, programs:[], error:'programs_lookup_error:' + String(e) };
+  }
+}
+
+// Products: return ACTIVE, non-TRIAL only, with price fields (safe public subset)
+function _getPublicProductsFromPortal_(){
+  try{
+    const ss = SpreadsheetApp.openById(PORTAL_DB_ID);
+    const sh = ss.getSheetByName(PORTAL_TAB_PRODUCTS);
+    if(!sh) return { ok:false, products:[], error:'portal_products_tab_missing' };
+
+    const v = sh.getDataRange().getValues();
+    if(v.length < 2) return { ok:true, products: [] };
+
+    const headersRaw = v[0].map(x => String(x||'').trim());
+    const headers = headersRaw.map(h => h.toLowerCase().replace(/\s+/g,'_'));
+    const idx = {};
+    headers.forEach((h,i)=> idx[h]=i);
+
+    const pidCol    = idx['product_id'] ?? idx['id'];
+    const nameCol   = idx['name'] ?? idx['product_name'] ?? idx['plan_name'];
+    const priceCol  = idx['price_minor'] ?? idx['amount_minor'] ?? idx['price'];
+    const curCol    = idx['currency'] ?? idx['curr'];
+    const statusCol = idx['status'];
+    const kindCol   = idx['kind'] ?? idx['type'];
+
+    if(pidCol === undefined || nameCol === undefined || priceCol === undefined){
+      return { ok:false, products:[], error:'products_missing_required_cols', debug_headers: headersRaw };
+    }
+
+    const out = [];
+    for(let r=1;r<v.length;r++){
+      const product_id = String(v[r][pidCol]||'').trim().toUpperCase();
+      if(!product_id) continue;
+
+      const status = (statusCol!==undefined) ? String(v[r][statusCol]||'').trim().toUpperCase() : 'ACTIVE';
+      if(status && status !== 'ACTIVE') continue;
+
+      const kind = (kindCol!==undefined) ? String(v[r][kindCol]||'').trim().toUpperCase() : '';
+      if(kind === 'TRIAL') continue;
+
+      const name = String(v[r][nameCol]||'').trim() || product_id;
+
+      const rawPrice = v[r][priceCol];
+      const price_minor = parseInt(String(rawPrice).replace(/,/g,'').trim(), 10);
+      if(!price_minor || price_minor <= 0) continue;
+
+      const currency = (curCol!==undefined) ? String(v[r][curCol]||'GHS').trim().toUpperCase() : 'GHS';
+
+      out.push({ product_id, name, price_minor, currency });
+    }
+
+    out.sort((a,b)=>a.name.localeCompare(b.name));
+    return { ok:true, products: out };
+  } catch(e){
+    return { ok:false, products:[], error:'products_lookup_error:' + String(e) };
+  }
+}
+
+
+/** ========== UTIL ========== */
+
+function _json(obj){
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function _iso(d){ return Utilities.formatDate(d, 'Etc/UTC', "yyyy-MM-dd'T'HH:mm:ss'Z'"); }
+
+function _merge(a,b){
+  const o = {};
+  Object.keys(a||{}).forEach(k=> o[k]=a[k]);
+  Object.keys(b||{}).forEach(k=> o[k]=b[k]);
+  return o;
+}
+
+function _randToken_(){
+  // short, URL-safe token
+  var seed = Utilities.getUuid() + '|' + new Date().getTime() + '|' + Math.random();
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, seed);
+  return Utilities.base64EncodeWebSafe(bytes).replace(/=+$/,'').slice(0, 32);
+}
+
+function _addQueryParam_(url, key, value){
+  if(!url) return '';
+  var u = String(url);
+  var sep = (u.indexOf('?') === -1) ? '?' : '&';
+  return u + sep + encodeURIComponent(key) + '=' + encodeURIComponent(String(value || ''));
+}
+
+
+function _getProp_(k){
+  return PropertiesService.getScriptProperties().getProperty(k) || '';
+}
+
+function _getHeaderCI_(e, name){
+  const want = String(name || '').toLowerCase();
+  const h = (e && e.headers) ? e.headers : null;
+  if(!h) return '';
+  for (var k in h){
+    if (String(k).toLowerCase() === want) return h[k];
+  }
+  return '';
+}
+
+
+function _hmacSha512Hex_(message, secret){
+  const sigBytes = Utilities.computeHmacSha512Signature(message, secret);
+  return sigBytes.map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('');
+}
+
+/**
+ * Generate a strong shared secret for PORTAL_PAYMENTS_SECRET.
+ * Run once, then copy the output from Logs.
+ */
+function qaGeneratePortalPaymentsSecret() {
+  var seed = [
+    Utilities.getUuid(), Utilities.getUuid(), Utilities.getUuid(),
+    String(new Date().getTime()),
+    String(Math.random()), String(Math.random())
+  ].join('|');
+
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, seed);
+  var secret = Utilities.base64EncodeWebSafe(bytes).replace(/=+$/,'');
+
+  Logger.log('PORTAL_PAYMENTS_SECRET = ' + secret);
+  return secret;
+}
