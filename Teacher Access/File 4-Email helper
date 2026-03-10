@@ -1,0 +1,240 @@
+/** ============================================================
+ * QAcademy — Teacher Assess Email Helpers
+ * - Drive HTML template renderer (same as Auth)
+ * - Gmail sender wrapper (same pattern as Auth)
+ * - TA-specific email events:
+ *    • request received
+ *    • approved
+ *    • disabled
+ * ============================================================ */
+
+// ====== CONFIG (EDIT) ======
+const TA_BRAND_NAME = 'QAcademy Teacher Assess';
+const TA_SUPPORT_EMAIL = 'mybackpacc@gmail.com';     // optional
+const TA_FROM_EMAIL = ''; // optional verified alias; leave blank if not set
+
+const TA_SITE_BASE = 'https://nursing2000a.blogspot.com'; // <-- change if different
+const TA_ACCESS_REQUEST_PAGE_URL = TA_SITE_BASE + '/p/teacher-access-request.html';
+const TA_LOGIN_PAGE_URL          = TA_SITE_BASE + '/p/login_23.html';
+
+// Drive template file IDs (EDIT: these are your saved HTML files in Drive)
+const TA_EMAIL_TPL_REQUEST_RECEIVED = '1CaQHHgarRr_z0_8jfpI2kgKD0VD-WW4G';
+const TA_EMAIL_TPL_APPROVED         = '1vW2Iwabw50IGJKiUCR7SKXAByDmTzFNo';
+const TA_EMAIL_TPL_DISABLED         = '16L5oyz5T0jFB3qpN-m3Oy-wy7f39p-3j';
+
+// ====== Shared renderer (copied from Auth, unchanged) ======
+function _renderEmailFromDrive_(fileId, data){
+  if (!fileId || String(fileId).indexOf('REPLACE_WITH') !== -1) {
+    throw new Error('missing_template_id');
+  }
+
+  var file = DriveApp.getFileById(fileId);
+
+  // Force UTF-8 decode so emojis and non-ASCII characters render correctly
+  var html = file.getBlob().getDataAsString('UTF-8');
+
+  // Ensure template declares UTF-8 (defensive)
+  if (!/<meta\s+charset=/i.test(html)) {
+    if (/<head(\s[^>]*)?>/i.test(html)) {
+      html = html.replace(/<head(\s[^>]*)?>/i, function(m){
+        return m + '\n<meta charset="UTF-8">';
+      });
+    } else {
+      html = '<meta charset="UTF-8">\n' + html;
+    }
+  }
+
+  if (!data) return html;
+
+  Object.keys(data).forEach(function(key){
+    var val = (data[key] == null ? '' : String(data[key]));
+    var pattern = new RegExp('{{\\s*' + key + '\\s*}}', 'g');
+    html = html.replace(pattern, val);
+  });
+
+  // remove any unreplaced placeholders
+  html = html.replace(/{{\s*[\w.]+\s*}}/g, '');
+
+  return html;
+}
+
+// ====== Shared sender wrapper (same pattern as Auth) ======
+function _qaSendEmail_(args){
+  try{
+    var to       = String(args.to || '').trim();
+    var subject  = String(args.subject || '').trim();
+    var body     = String(args.body || '');
+    var htmlBody = args.htmlBody;
+    var name     = String(args.name || TA_BRAND_NAME || '').trim();
+
+    if(!to || !subject) return;
+
+    var replyTo  = String(args.replyTo || TA_SUPPORT_EMAIL || '').trim();
+
+    // Optional alias “from” only if verified
+    var fromWanted = String(args.from || TA_FROM_EMAIL || '').trim();
+    var fromSafe = '';
+
+    if (fromWanted) {
+      try{
+        var aliases = GmailApp.getAliases() || [];
+       var ok = aliases.map(String).map(function(s){ return String(s).toLowerCase(); })
+  .indexOf(fromWanted.toLowerCase()) >= 0;
+        if (ok) fromSafe = fromWanted;
+        else Logger.log('Alias not verified; skipping from=' + fromWanted);
+      } catch(e){
+        Logger.log('Could not read Gmail aliases; skipping from. Err=' + e);
+      }
+    }
+
+    var opts = {};
+    if (name) opts.name = name;
+    if (replyTo) opts.replyTo = replyTo;
+    if (fromSafe) opts.from = fromSafe;
+    if (htmlBody) opts.htmlBody = String(htmlBody);
+
+    GmailApp.sendEmail(to, subject, body, opts);
+    return { ok:true };
+
+  } catch(e){
+    Logger.log('_qaSendEmail_ failed: ' + e);
+    return { ok:false, error:String(e) };
+  }
+}
+
+function _escapeHtml_(s){
+  s = String(s == null ? '' : s);
+  return s
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+// ====== TA Email Events ======
+
+function _taSendTeacherRequestReceivedEmail_(user, reqMeta){
+  try {
+    if (!user || !user.email) return;
+
+    var email = String(user.email || '').trim();
+    if (!email) return;
+
+    var name = String(user.name || '').trim() || 'there';
+
+    var subject = 'Teacher access request received';
+    var plain =
+      'Hi ' + name + ',\n\n' +
+      'We received your Teacher Assess access request.\n' +
+      'An admin will review it shortly.\n\n' +
+      'You can still use My Classes while you wait.\n\n' +
+      'Open Teacher Assess:\n' + TA_ACCESS_REQUEST_PAGE_URL + '\n\n' +
+      TA_BRAND_NAME;
+
+    var htmlBody = '';
+    try {
+ htmlBody = _renderEmailFromDrive_(TA_EMAIL_TPL_REQUEST_RECEIVED, {
+  name: _escapeHtml_(name),
+  cta_url: _escapeHtml_(TA_ACCESS_REQUEST_PAGE_URL),
+  cta_text: 'Open Teacher Assess',
+  support_email: _escapeHtml_(TA_SUPPORT_EMAIL)
+});
+    } catch (e) {
+      Logger.log('TA request received template render failed: ' + e);
+      htmlBody = '';
+    }
+
+    _qaSendEmail_({
+      to: email,
+      subject: subject,
+      body: plain,
+      htmlBody: htmlBody,
+      name: TA_BRAND_NAME
+    });
+  } catch (e) {
+    Logger.log('_taSendTeacherRequestReceivedEmail_ error: ' + e);
+  }
+}
+
+function _taSendTeacherApprovedEmail_(teacherRow){
+  try {
+    if (!teacherRow) return;
+
+    var email = String(teacherRow.email || '').trim();
+    if (!email) return;
+
+    var name = String(teacherRow.display_name || '').trim() || 'there';
+
+    var subject = 'Teacher access approved';
+    var plain =
+      'Hi ' + name + ',\n\n' +
+      'Your Teacher Assess access has been approved ✅\n\n' +
+      'Log in and open Teacher Assess:\n' + TA_LOGIN_PAGE_URL + '\n\n' +
+      TA_BRAND_NAME;
+
+    var htmlBody = '';
+    try {
+ htmlBody = _renderEmailFromDrive_(TA_EMAIL_TPL_APPROVED, {
+  name: _escapeHtml_(name),
+  cta_url: _escapeHtml_(TA_LOGIN_PAGE_URL),
+  cta_text: 'Open Teacher Assess',
+  support_email: _escapeHtml_(TA_SUPPORT_EMAIL)
+});
+    } catch (e) {
+      Logger.log('TA approved template render failed: ' + e);
+      htmlBody = '';
+    }
+
+    _qaSendEmail_({
+      to: email,
+      subject: subject,
+      body: plain,
+      htmlBody: htmlBody,
+      name: TA_BRAND_NAME
+    });
+  } catch (e) {
+    Logger.log('_taSendTeacherApprovedEmail_ error: ' + e);
+  }
+}
+
+function _taSendTeacherDisabledEmail_(teacherRow){
+  try {
+    if (!teacherRow) return;
+
+    var email = String(teacherRow.email || '').trim();
+    if (!email) return;
+
+    var name = String(teacherRow.display_name || '').trim() || 'there';
+var mailto = 'mailto:' + String(TA_SUPPORT_EMAIL || '').trim();
+    var subject = 'Teacher access disabled';
+    var plain =
+      'Hi ' + name + ',\n\n' +
+      'Your Teacher Assess teacher access has been disabled.\n' +
+      'If you believe this is a mistake, please contact support.\n\n' +
+      TA_BRAND_NAME;
+
+    var htmlBody = '';
+    try {
+htmlBody = _renderEmailFromDrive_(TA_EMAIL_TPL_DISABLED, {
+  name: _escapeHtml_(name),
+  cta_url: _escapeHtml_(mailto),
+  cta_text: 'Contact support',
+  support_email: _escapeHtml_(TA_SUPPORT_EMAIL)
+});
+    } catch (e) {
+      Logger.log('TA disabled template render failed: ' + e);
+      htmlBody = '';
+    }
+
+    _qaSendEmail_({
+      to: email,
+      subject: subject,
+      body: plain,
+      htmlBody: htmlBody,
+      name: TA_BRAND_NAME
+    });
+  } catch (e) {
+    Logger.log('_taSendTeacherDisabledEmail_ error: ' + e);
+  }
+}
