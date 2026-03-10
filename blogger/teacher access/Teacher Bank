@@ -1,0 +1,2462 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Teacher Bank</title>
+
+<style>
+  :root{
+    --brand:#0b7a75;
+    --muted:#859998;
+    --ink:#1f2a28;
+    --bg:#f6f8f7;
+    --card:#ffffff;
+    --line:rgba(0,0,0,.08);
+    --soft:rgba(0,0,0,.04);
+    --danger:#b42318;
+    --warn:#b54708;
+    --ok:#067647;
+
+    --radius:16px;
+    --shadow:0 10px 30px rgba(0,0,0,.06);
+
+    /* ✅ Desktop width control */
+    --appMax: 1640px;
+    --appPad: 16px;
+  }
+
+  *{box-sizing:border-box}
+
+  html, body{width:100%}
+  body{
+    margin:0;
+    overflow-x:hidden;
+    background:linear-gradient(180deg, #f6f8f7 0%, #f3f7f6 100%);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+  }
+
+  a{color:inherit}
+
+  #qaRoot{
+    width:100vw;
+    margin-left:calc(50% - 50vw);
+    overflow-x:hidden;
+  }
+
+  .post-body, .post-body-container, .widget-content{
+    padding:0 !important;
+  }
+
+  .wrap{
+    max-width:var(--appMax);
+    margin:0 auto;
+    padding:var(--appPad);
+  }
+
+  .top{
+    position:sticky;top:0;z-index:5;
+    background:rgba(246,248,247,.82);
+    backdrop-filter:saturate(1.2) blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .top .bar{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:12px;padding:12px var(--appPad);
+    max-width:var(--appMax);margin:0 auto;
+  }
+
+  .brand{display:flex;align-items:center;gap:10px;min-width:0}
+  .logo{
+    width:34px;height:34px;border-radius:10px;
+    background:linear-gradient(135deg, var(--brand), #0e8c86);
+    box-shadow:0 6px 16px rgba(11,122,117,.25);
+  }
+  .brand h1{
+    font-size:14px;margin:0;line-height:1.1;letter-spacing:.2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .brand small{
+    display:block;color:rgba(31,42,40,.65);font-size:12px;margin-top:2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+
+  .actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  .chip{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:7px 10px;border-radius:999px;border:1px solid var(--line);
+    background:rgba(255,255,255,.8);
+    font-size:12px;color:rgba(31,42,40,.78);
+    max-width:52vw;
+  }
+  .chip b{color:rgba(31,42,40,.9);max-width:24vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dot{width:8px;height:8px;border-radius:99px;background:var(--brand)}
+  .btn{
+    appearance:none;border:1px solid var(--line);background:#fff;
+    padding:9px 12px;border-radius:12px;cursor:pointer;
+    font-weight:650;font-size:13px;
+    box-shadow:0 8px 18px rgba(0,0,0,.05);
+  }
+  .btn.primary{background:var(--brand);border-color:rgba(0,0,0,.02);color:#fff}
+  .btn.ghost{background:transparent}
+  .btn.danger{border-color:rgba(180,35,24,.25);color:var(--danger)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+
+  .grid{
+    display:grid;
+    grid-template-columns: 1.25fr .95fr;
+    gap:14px;
+    padding-top:14px;
+  }
+  @media (max-width: 980px){ .grid{grid-template-columns:1fr} }
+
+  @media (min-width: 1200px){
+    :root{ --appPad: 18px; }
+    .grid{ gap:16px; }
+  }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .card .hd{
+    padding:14px 14px 10px;
+    border-bottom:1px solid var(--line);
+    display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
+  }
+  .card .hd h2{margin:0;font-size:14px;letter-spacing:.2px}
+  .card .hd p{margin:4px 0 0;color:rgba(31,42,40,.65);font-size:12px}
+  .card .bd{padding:14px}
+
+  /* ✅ Editor header changes (Create vs Edit) */
+  #editorCard.mode-new .hd{
+    background:rgba(6,118,71,.06);
+    border-bottom-color:rgba(6,118,71,.16);
+  }
+  #editorCard.mode-edit .hd{
+    background:rgba(181,71,8,.06);
+    border-bottom-color:rgba(181,71,8,.18);
+  }
+
+  /* Filters */
+  .filters{
+    display:grid;
+    grid-template-columns: 1.2fr .7fr .7fr .7fr .7fr .7fr .5fr;
+    gap:10px;
+    align-items:end;
+  }
+  @media (max-width: 980px){ .filters{grid-template-columns:1fr 1fr} }
+
+  label{display:block;font-size:12px;color:rgba(31,42,40,.7);margin-bottom:6px}
+  input, select, textarea{
+    width:100%;
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:12px;
+    padding:10px 10px;
+    font-size:13px;
+    outline:none;
+  }
+  textarea{min-height:84px;resize:vertical}
+  input:focus, select:focus, textarea:focus{
+    border-color: rgba(11,122,117,.35);
+    box-shadow: 0 0 0 4px rgba(11,122,117,.10);
+  }
+
+  .rowActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center}
+
+  .tableWrap{padding:0}
+  table{width:100%;border-collapse:separate;border-spacing:0}
+  thead th{
+    font-size:12px;text-align:left;color:rgba(31,42,40,.65);
+    background:rgba(0,0,0,.02);
+    border-bottom:1px solid var(--line);
+    padding:10px;
+  }
+  tbody td{
+    font-size:13px;padding:10px;border-bottom:1px solid var(--line);
+    vertical-align:top;
+  }
+  tbody tr:hover td{background:rgba(0,0,0,.01)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;font-size:12px}
+  .muted{color:rgba(31,42,40,.62)}
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:4px 8px;border-radius:999px;border:1px solid var(--line);
+    background:rgba(0,0,0,.02);font-size:12px;color:rgba(31,42,40,.75);
+  }
+  .pill.ok{border-color:rgba(6,118,71,.18);background:rgba(6,118,71,.06);color:var(--ok)}
+  .pill.bad{border-color:rgba(180,35,24,.18);background:rgba(180,35,24,.06);color:var(--danger)}
+  .pill.warn{border-color:rgba(181,71,8,.18);background:rgba(181,71,8,.06);color:var(--warn)}
+  .click{cursor:pointer;font-weight:650;color:rgba(11,122,117,.95)}
+  .click:hover{text-decoration:underline}
+
+  /* ✅ Full stem display (no truncation) */
+  .stemFull{
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+    line-height:1.35;
+  }
+
+  .editorTop{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .editorTop .meta{display:flex;flex-direction:column;gap:6px;min-width:0}
+  .meta .small{font-size:12px;color:rgba(31,42,40,.65)}
+  .meta .idLine{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .meta .idLine code{
+    background:rgba(0,0,0,.03);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:4px 8px;
+  }
+
+  .formGrid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-top:12px;
+  }
+  @media (max-width: 980px){ .formGrid{grid-template-columns:1fr} }
+
+  .divider{height:1px;background:var(--line);margin:12px 0}
+  .statusBar{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:10px 14px;border-top:1px solid var(--line);
+    background:rgba(0,0,0,.015);
+  }
+  .statusMsg{
+    font-size:12px;color:rgba(31,42,40,.7);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    max-width:70%;
+  }
+  .statusMsg.ok{color:var(--ok)}
+  .statusMsg.bad{color:var(--danger)}
+  .statusMsg.warn{color:var(--warn)}
+  .empty{padding:14px;color:rgba(31,42,40,.65);font-size:13px}
+  .center{min-height:55vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .gate{max-width:520px}
+  .gate h2{margin:0 0 8px;font-size:16px}
+  .gate p{margin:0 0 14px;color:rgba(31,42,40,.7);font-size:13px;line-height:1.45}
+
+  /* ✅ Gate loader */
+  .loaderRow{display:flex;gap:10px;align-items:center;margin:10px 0 12px}
+  .spinner{
+    width:18px;height:18px;border-radius:50%;
+    border:2px solid rgba(0,0,0,.12);
+    border-top-color: rgba(11,122,117,.80);
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loaderText{font-size:13px;color:rgba(31,42,40,.75)}
+
+  /* ===== Library Picker Mode ===== */
+  body.picker .grid{ grid-template-columns:1fr; }
+  body.picker #editorCard{ display:none !important; }
+  body.picker #btnNew,
+  body.picker #btnCreateFocus,
+  body.picker #btnAddToQuiz,
+  body.picker #btnBulkCsv{ display:none !important; }
+
+  .pickBox{ width:18px;height:18px;cursor:pointer; accent-color: var(--brand); }
+
+  .pickerBar{
+    display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;
+    padding:12px;border:1px dashed rgba(11,122,117,.25);
+    background:rgba(11,122,117,.04);
+    border-radius:14px;margin-bottom:12px;
+  }
+  .pickerDock{
+    position:fixed;left:0;right:0;bottom:0;z-index:50;
+    background:rgba(255,255,255,.92);
+    backdrop-filter:saturate(1.2) blur(8px);
+    border-top:1px solid var(--line);
+  }
+  .pickerDock .inner{
+    max-width:var(--appMax);
+    margin:0 auto;
+    padding:10px var(--appPad);
+    display:flex;gap:10px;align-items:center;justify-content:space-between;
+  }
+  .pickerDock .count{ font-size:13px;font-weight:650;color:rgba(31,42,40,.85); }
+
+  .toast{
+    position:fixed;right:14px;bottom:70px;z-index:60;
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:10px 12px;box-shadow:0 18px 50px rgba(0,0,0,.12);
+    max-width:min(520px, calc(100vw - 28px));
+    display:none;
+  }
+  .toast.show{display:block}
+  .toast .t{font-weight:900;margin-bottom:4px}
+  .toast .m{font-size:12px;color:rgba(31,42,40,.75);line-height:1.3}
+
+  /* ===== Blocking “Working…” overlay (3-layer feedback) ===== */
+  #qaBusy{
+    position:fixed;inset:0;z-index:80;
+    display:none;
+    padding:16px;
+    background:rgba(0,0,0,.22);
+  }
+  #qaBusy .qaBusyPanel{
+    max-width:560px;
+    margin:18vh auto 0;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:18px;
+    box-shadow:0 18px 60px rgba(0,0,0,.18);
+    padding:14px;
+  }
+  #qaBusy .qaBusyRow{display:flex;gap:12px;align-items:flex-start}
+  #qaBusy .qaBusyIcon{
+    width:40px;height:40px;border-radius:14px;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(11,122,117,.08);
+    border:1px solid rgba(11,122,117,.18);
+    flex:0 0 auto;
+    margin-top:2px;
+  }
+  #qaBusy .qaBusyTitle{font-weight:900;font-size:14px;letter-spacing:.2px}
+  #qaBusy .qaBusyDetail{
+    font-size:12px;color:rgba(31,42,40,.72);
+    margin-top:4px;line-height:1.35;
+  }
+  #qaBusy .qaBusyBtns{
+    display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;
+    margin-top:12px;
+  }
+  #qaBusy .qaBusyBang{
+    display:none;
+    font-weight:900;
+    color:var(--danger);
+    font-size:20px;
+    line-height:1;
+  }
+  #qaBusy[data-state="busy"] .spinner{display:block}
+  #qaBusy[data-state="busy"] .qaBusyBang{display:none}
+  #qaBusy[data-state="error"] .spinner{display:none}
+  #qaBusy[data-state="error"] .qaBusyBang{display:block}
+  #qaBusy[data-state="error"] .qaBusyPanel{border-color:rgba(180,35,24,.35)}
+  #qaBusy[data-state="error"] .qaBusyIcon{
+    background:rgba(180,35,24,.08);
+    border-color:rgba(180,35,24,.18);
+  }
+  /* ✅ Gate becomes a proper blocking overlay with background blur */
+#gate{
+  position:fixed;
+  inset:0;
+  z-index:95;
+
+  /* override .wrap constraints */
+  max-width:none !important;
+  margin:0 !important;
+  padding:16px !important;
+
+  /* blur + dim what’s behind */
+  background:rgba(246,248,247,.55);
+  backdrop-filter:saturate(1.15) blur(12px);
+  -webkit-backdrop-filter:saturate(1.15) blur(12px);
+
+  /* allow scrolling if needed on small screens */
+  overflow:auto;
+}
+
+/* make centering behave correctly in full screen overlay */
+#gate .center{
+  min-height:calc(100vh - 32px);
+}
+</style>
+</head>
+
+<body>
+  <div id="qaRoot">
+
+    <div class="top">
+      <div class="bar">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div style="min-width:0">
+            <h1>QAcademy — Teacher Bank</h1>
+            <small id="subline">Checking access…</small>
+          </div>
+        </div>
+
+        <div class="actions">
+          <span class="chip" id="teacherChip" style="display:none">
+            <span class="dot"></span>
+            <span><b id="teacherName">Teacher</b> · <span id="teacherPlan">FREE</span></span>
+          </span>
+          <button class="btn ghost" id="btnDashboard" disabled>Dashboard</button>
+          <button class="btn ghost" id="btnRefresh" disabled>Refresh</button>
+          <button class="btn" id="btnBulkCsv" disabled>Bulk add (CSV)</button>
+          <button class="btn" id="btnAddToQuiz" disabled>Add questions to a quiz</button>
+          <button class="btn ghost" id="btnNew" disabled>New item</button>
+          <button class="btn" id="btnSignOut">Sign out</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="wrap" id="app" style="display:none">
+      <div class="grid">
+
+        <!-- LEFT: LIST -->
+        <section class="card">
+          <div class="hd">
+            <div>
+              <h2>Bank items</h2>
+              <p>Search and edit your question bank.</p>
+            </div>
+            <div class="rowActions">
+              <span class="pill" id="countPill">0 items</span>
+              <button class="btn primary" id="btnCreateFocus">Create</button>
+            </div>
+          </div>
+
+          <div class="bd">
+            <!-- Picker mode header (only shown in ?mode=picker) -->
+            <div id="pickerBar" class="pickerBar" style="display:none">
+              <div style="min-width:260px;flex:1">
+                <label>Target quiz (DRAFT)</label>
+                <select id="pickerQuiz">
+                  <option value="">Select a draft quiz…</option>
+                </select>
+                <div class="muted" style="font-size:12px;margin-top:6px" id="pickerQuizHint">
+                  Choose which quiz draft to append into.
+                </div>
+              </div>
+              <div class="rowActions">
+                <span class="pill" id="pickerSelectedPill">Selected: 0</span>
+              </div>
+            </div>
+
+            <div class="filters">
+              <div>
+                <label>Search</label>
+                <input id="f_q" placeholder="e.g. meningitis, airway, insulin…" />
+              </div>
+              <div>
+                <label>Status</label>
+                <select id="f_status">
+                  <option value="ACTIVE" selected>ACTIVE</option>
+                  <option value="DELETED">DELETED</option>
+                  <option value="ALL">ALL</option>
+                </select>
+              </div>
+
+              <div>
+                <label>Subject</label>
+                <select id="f_subject">
+                  <option value="">Any</option>
+                </select>
+              </div>
+              <div>
+                <label>Topic</label>
+                <select id="f_topic">
+                  <option value="">Any</option>
+                </select>
+              </div>
+
+              <div>
+                <label>Difficulty</label>
+                <select id="f_difficulty">
+                  <option value="">Any</option>
+                  <option value="Easy">Easy</option>
+                  <option value="Moderate">Moderate</option>
+                  <option value="Hard">Hard</option>
+                </select>
+              </div>
+
+              <div>
+                <label>Source type</label>
+                <select id="f_source_type">
+                  <option value="">Any</option>
+                  <option value="TEACHER">TEACHER</option>
+                  <option value="QUIZ_INLINE">QUIZ_INLINE</option>
+                  <option value="IMPORTED">IMPORTED</option>
+                </select>
+              </div>
+
+              <div>
+                <label>Limit</label>
+                <select id="f_limit">
+                  <option>25</option>
+                  <option selected>50</option>
+                  <option>100</option>
+                  <option>200</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:10px;justify-content:flex-end;align-items:center;margin-top:10px;flex-wrap:wrap">
+              <button class="btn" id="btnClearFilters">Clear</button>
+              <button class="btn primary" id="btnLoad">Load</button>
+            </div>
+          </div>
+
+          <div class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:44%">Stem</th>
+                  <th>Meta</th>
+                  <th style="width:16%">Updated</th>
+                  <th style="width:120px">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rows">
+                <tr><td colspan="4" class="empty">No data yet. Click “Refresh”.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="statusBar">
+            <div class="statusMsg" id="listMsg">Ready.</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="muted" style="font-size:12px" id="listHint"></span>
+            </div>
+          </div>
+        </section>
+
+        <!-- RIGHT: EDITOR -->
+        <section class="card mode-new" id="editorCard">
+          <div class="hd">
+            <div>
+              <h2 id="editorTitle">Create item</h2>
+              <p id="editorSub">Fill the form and save.</p>
+            </div>
+            <div class="rowActions">
+              <button class="btn danger" id="btnDelete" disabled>Delete</button>
+              <button class="btn primary" id="btnSave" disabled>Create item</button>
+            </div>
+          </div>
+
+          <div class="bd">
+            <div class="editorTop">
+              <div class="meta">
+                <div class="idLine">
+                  <span class="pill" id="modePill">NEW</span>
+                  <span class="small">ID:</span>
+                  <code class="mono" id="bankId">—</code>
+                </div>
+                <div class="small" id="timestamps">Created: — · Updated: —</div>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div>
+              <label>Stem <span class="muted">(required)</span></label>
+              <textarea id="stem" placeholder="Write the question stem here…"></textarea>
+            </div>
+
+            <div class="formGrid" style="margin-top:10px">
+              <div>
+                <label>Subject</label>
+                <input id="subject" placeholder="e.g. Nursing, Pharmacology…" />
+              </div>
+              <div>
+                <label>Topic</label>
+                <input id="topic" placeholder="e.g. Infection Control…" />
+              </div>
+              <div>
+                <label>Difficulty</label>
+                <select id="difficulty">
+                  <option value="">Select…</option>
+                  <option value="Easy">Easy</option>
+                  <option value="Moderate">Moderate</option>
+                  <option value="Hard">Hard</option>
+                </select>
+              </div>
+              <div>
+                <label>Marks</label>
+                <input id="marks" placeholder="e.g. 1" inputmode="numeric" />
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="formGrid">
+              <div>
+                <label>Option A <span class="muted">(required)</span></label>
+                <input id="option_a" placeholder="Option A…" />
+                <label style="margin-top:8px">Feedback A</label>
+                <input id="fb_a" placeholder="Optional feedback for A" />
+              </div>
+
+              <div>
+                <label>Option B <span class="muted">(required)</span></label>
+                <input id="option_b" placeholder="Option B…" />
+                <label style="margin-top:8px">Feedback B</label>
+                <input id="fb_b" placeholder="Optional feedback for B" />
+              </div>
+
+              <div>
+                <label>Option C</label>
+                <input id="option_c" placeholder="Option C…" />
+                <label style="margin-top:8px">Feedback C</label>
+                <input id="fb_c" placeholder="Optional feedback for C" />
+              </div>
+
+              <div>
+                <label>Option D</label>
+                <input id="option_d" placeholder="Option D…" />
+                <label style="margin-top:8px">Feedback D</label>
+                <input id="fb_d" placeholder="Optional feedback for D" />
+              </div>
+
+              <div>
+                <label>Option E</label>
+                <input id="option_e" placeholder="Option E…" />
+                <label style="margin-top:8px">Feedback E</label>
+                <input id="fb_e" placeholder="Optional feedback for E" />
+              </div>
+
+              <div>
+                <label>Option F</label>
+                <input id="option_f" placeholder="Option F…" />
+                <label style="margin-top:8px">Feedback F</label>
+                <input id="fb_f" placeholder="Optional feedback for F" />
+              </div>
+            </div>
+
+            <div class="formGrid" style="margin-top:10px">
+              <div>
+                <label>Correct option <span class="muted">(must match a filled option)</span></label>
+                <select id="correct">
+                  <option value="">Select…</option>
+                  <option>A</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option>
+                </select>
+              </div>
+              <div>
+                <label>Rationale image (URL)</label>
+                <input id="rationale_img" placeholder="Optional image URL…" />
+              </div>
+            </div>
+
+            <div style="margin-top:10px">
+              <label>Rationale</label>
+              <textarea id="rationale" placeholder="Explain why the correct option is correct…"></textarea>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="formGrid" id="sourceBlock">
+              <div>
+                <label>Source type</label>
+                <select id="source_type">
+                  <option value="">Select…</option>
+                  <option value="TEACHER">TEACHER</option>
+                  <option value="QUIZ_INLINE">QUIZ_INLINE</option>
+                  <option value="IMPORTED">IMPORTED</option>
+                </select>
+              </div>
+
+              <div>
+                <label>Source course id</label>
+                <input id="source_course_id" placeholder="Optional" />
+              </div>
+
+              <div>
+                <label>Source sheet id</label>
+                <input id="source_sheet_id" placeholder="Optional" />
+              </div>
+
+              <div>
+                <label>Source item id</label>
+                <input id="source_item_id" placeholder="Optional" />
+              </div>
+            </div>
+
+          </div>
+
+          <div class="statusBar">
+            <div class="statusMsg" id="editMsg">Ready.</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="muted" style="font-size:12px" id="editHint"></span>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- Gate screen -->
+    <div class="wrap" id="gate" style="display:block">
+      <div class="center">
+        <div class="card gate">
+          <div class="hd">
+            <div>
+              <h2>Teacher access</h2>
+              <p id="gateMsg">Checking your sign-in…</p>
+            </div>
+          </div>
+          <div class="bd">
+            <p class="muted" style="margin:0 0 12px">
+              This page needs a valid <span class="mono">Login  Details</span> in this browser. Sign in on the portal first, then click Retry.
+            </p>
+
+            <div class="loaderRow" id="gateLoader" style="display:none">
+              <div class="spinner" aria-hidden="true"></div>
+              <div class="loaderText" id="gateStep">Verifying...</div>
+            </div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+<button class="btn" id="btnRetry">Return to login</button>
+              <button class="btn danger" id="btnClearToken">Clear token</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Picker dock (only shown in ?mode=picker) -->
+    <div id="pickerDock" class="pickerDock" style="display:none">
+      <div class="inner">
+        <div class="count" id="pickerCount">Selected: 0</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <button class="btn" id="btnPickerClear" type="button">Clear</button>
+          <button class="btn" id="btnPickerSelectAll" type="button">Select all shown</button>
+          <button class="btn primary" id="btnPickerAdd" type="button" disabled>Add selected → Draft</button>
+          <button class="btn ghost" id="btnPickerBack" type="button" style="display:none">Back to quiz</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Blocking overlay -->
+    <div id="qaBusy" data-state="busy" role="dialog" aria-modal="true" aria-live="assertive">
+      <div class="qaBusyPanel">
+        <div class="qaBusyRow">
+          <div class="qaBusyIcon" aria-hidden="true">
+            <div class="spinner" id="qaBusySpinner"></div>
+            <div class="qaBusyBang" id="qaBusyBang">!</div>
+          </div>
+          <div style="min-width:0">
+            <div class="qaBusyTitle" id="qaBusyTitle">Working…</div>
+            <div class="qaBusyDetail" id="qaBusyDetail" style="display:none">—</div>
+          </div>
+        </div>
+        <div class="qaBusyBtns">
+          <button class="btn" id="qaBusyRetry" type="button" style="display:none">Retry</button>
+          <button class="btn primary" id="qaBusyClose" type="button" style="display:none">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite">
+      <div class="t" id="toastTitle">Notice</div>
+      <div class="m" id="toastMsg">—</div>
+    </div>
+
+  </div><!-- /qaRoot -->
+
+<script>
+/** ================================
+ * CONFIG
+ * ================================ */
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbz54M_jWoRq4cOC2gUQeRhd55AeEJ5vnELJ0gkBSodO58fr7WGa9jwk6JNwPptf8p8X/exec";
+const TOKEN_KEY = "qa_token";
+
+/** ================================
+ * Picker mode
+ * ================================ */
+const QS = new URLSearchParams(location.search);
+const IS_PICKER = String(QS.get('mode') || '').toLowerCase() === 'picker';
+const RETURN_TO = String(QS.get('return_to') || '').trim();
+let TARGET_QUIZ_ID = String(QS.get('teacher_quiz_id') || '').trim();
+
+const selectedSet = new Set();
+let selectedOrder = [];
+
+/** ================================
+ * Tiny helpers
+ * ================================ */
+const $ = (id) => document.getElementById(id);
+
+function toast(title, msg){
+  const box = $("toast");
+  const t = String(title || "Notice").trim() || "Notice";
+  const m = String(msg || "").replace(/\s*\n\s*/g, " ").trim(); // force one-line detail
+
+  $("toastTitle").textContent = t;
+  $("toastMsg").textContent = m || "—";
+  box.classList.add("show");
+  clearTimeout(box.__t);
+  box.__t = setTimeout(()=> box.classList.remove("show"), 4200);
+}
+
+function gateLoading(on, step){
+  $("gateLoader").style.display = on ? "" : "none";
+  $("gateStep").textContent = step || "Working...";
+  $("btnRetry").disabled = false;        // always allow “Return to login”
+  $("btnClearToken").disabled = !!on;    // optional: keep this disabled during verify
+}
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+function nowIso(){
+  const d = new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+}
+
+/* ✅ normalize timestamps for display (no timezone shifting) */
+function fmtTs(raw){
+  const s = String(raw || "").trim();
+  if (!s) return "—";
+
+  // already "YYYY-MM-DD HH:mm:ss" or "YYYY-MM-DD HH:mm"
+  if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}(:\d{2})?$/.test(s)){
+    return s.length === 16 ? (s + ":00") : s;
+  }
+
+  // ISO: 2026-03-01T12:11:59Z or 2026-03-01T12:11:59.000Z
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(s)){
+    let out = s.replace("T"," ");
+    out = out.replace(/(\.\d+)?Z$/,"");                // drop .000Z / Z
+    out = out.replace(/(\.\d+)?([+-]\d{2}:?\d{2})$/,""); // drop fractional + offset if present
+    return out;
+  }
+
+  // fallback: try parse then format, else return as-is
+  const d = new Date(s);
+  if (!isNaN(d.getTime())){
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  }
+  return s;
+}
+
+function setMsg(el, msg, tone){
+  el.textContent = msg || "";
+  el.classList.remove("ok","bad","warn");
+  if (tone) el.classList.add(tone);
+}
+
+/** ================================
+ * 3-layer feedback controller
+ * - Blocking overlay for multi-step actions
+ * - Toast for outcomes
+ * - Persistent “last action” status line
+ * ================================ */
+const FEED = (() => {
+  const overlay = $("qaBusy");
+  const oTitle = $("qaBusyTitle");
+  const oDetail = $("qaBusyDetail");
+  const oClose = $("qaBusyClose");
+  const oRetry = $("qaBusyRetry");
+
+  let busy = false;
+  let lastScope = "list";
+  let restore = null;
+  let retryFn = null;
+
+  const DISABLE_IDS = [
+    "btnRefresh","btnBulkCsv","btnAddToQuiz","btnNew","btnSignOut",
+    "btnCreateFocus","btnLoad","btnClearFilters",
+    "btnSave","btnDelete","btnDashboard",
+    "btnPickerClear","btnPickerSelectAll","btnPickerAdd","btnPickerBack",
+    "pickerQuiz"
+  ];
+
+  function isAppVisible(){
+    const app = $("app");
+    const gate = $("gate");
+    return !!app && app.style.display !== "none" && !!gate && gate.style.display === "none";
+  }
+
+  function scopeEls(scope){
+    const s = (scope === "edit") ? "edit" : "list"; // picker uses list line
+    return {
+      msg: s === "edit" ? $("editMsg") : $("listMsg"),
+      hint: s === "edit" ? $("editHint") : $("listHint")
+    };
+  }
+
+  function composeHint(detail){
+    const d = String(detail || "").replace(/\s*\n\s*/g, " ").trim();
+    return d ? `${d} | ${nowIso()}` : nowIso();
+  }
+
+  function lockUI(on){
+    const prev = [];
+    DISABLE_IDS.forEach(id => {
+      const el = $(id);
+      if (!el) return;
+      prev.push([el, el.disabled]);
+      el.disabled = !!on;
+    });
+
+    const tableWrap = document.querySelector(".tableWrap");
+    if (tableWrap) tableWrap.style.pointerEvents = on ? "none" : "";
+
+    const editor = $("editorCard");
+    if (editor) editor.style.pointerEvents = on ? "none" : "";
+
+    restore = () => {
+      prev.forEach(([el, was]) => { el.disabled = was; });
+      if (tableWrap) tableWrap.style.pointerEvents = "";
+      if (editor) editor.style.pointerEvents = "";
+      restore = null;
+    };
+  }
+
+  function openBusy(scope, title, detail){
+    if (!isAppVisible()) return false; // gate screen uses gate loader
+    if (busy) return false;
+
+    busy = true;
+    lastScope = scope || "list";
+    retryFn = null;
+
+    lockUI(true);
+    overlay.dataset.state = "busy";
+    oTitle.textContent = title || "Working…";
+
+    const det = String(detail || "").replace(/\s*\n\s*/g, " ").trim();
+    oDetail.textContent = det;
+    oDetail.style.display = det ? "" : "none";
+
+    oRetry.style.display = "none";
+    oClose.style.display = "none";
+    overlay.style.display = "";
+
+    // Also reflect “in progress” on the relevant status line
+    const { msg, hint } = scopeEls(lastScope);
+    setMsg(msg, oTitle.textContent, "warn");
+    hint.textContent = det || "";
+
+    return true;
+  }
+
+  function closeOverlayAndUnlock(){
+    overlay.style.display = "none";
+    overlay.dataset.state = "busy";
+    if (restore) restore();
+    busy = false;
+    retryFn = null;
+  }
+
+  function done(scope, statusMsg, detail, opts){
+    opts = opts || {};
+    const tone = opts.tone || "ok";
+    const toastTitle = (opts.toastTitle != null) ? opts.toastTitle : statusMsg;
+    const toastDetail = (opts.toastDetail != null) ? opts.toastDetail : detail;
+
+    if (busy){
+      // Always close the overlay for completion (success or non-fatal outcome)
+      closeOverlayAndUnlock();
+    }
+
+    const { msg, hint } = scopeEls(scope || lastScope);
+    setMsg(msg, String(statusMsg || "Done.").trim() || "Done.", tone);
+    hint.textContent = composeHint(detail);
+
+    if (opts.toast !== false){
+      toast(toastTitle || "Done", toastDetail || "");
+    }
+  }
+
+  function error(scope, title, detail, opts){
+    opts = opts || {};
+    const s = scope || lastScope;
+
+    if (!isAppVisible()){
+      // Fallback: no overlay on gate screen
+      const { msg, hint } = scopeEls(s);
+      setMsg(msg, String(title || "Error.").trim() || "Error.", "bad");
+      hint.textContent = composeHint(detail);
+      toast(title || "Error", detail || "");
+      return;
+    }
+
+    // If we weren't already busy, still lock the UI and show overlay
+    if (!busy){
+      busy = true;
+      lastScope = s;
+      lockUI(true);
+      overlay.style.display = "";
+    }
+
+    overlay.dataset.state = "error";
+    oTitle.textContent = String(title || "Something went wrong.").trim() || "Something went wrong.";
+    const det = String(detail || "").replace(/\s*\n\s*/g, " ").trim();
+    oDetail.textContent = det;
+    oDetail.style.display = det ? "" : "none";
+
+    // Persistent status line
+    const { msg, hint } = scopeEls(s);
+    setMsg(msg, oTitle.textContent, "bad");
+    hint.textContent = composeHint(det);
+
+    toast(opts.toastTitle || oTitle.textContent, opts.toastDetail || det);
+
+    // Buttons (Close always, Retry optionally)
+    oClose.style.display = "";
+    oRetry.style.display = (typeof opts.retry === "function") ? "" : "none";
+    retryFn = (typeof opts.retry === "function") ? opts.retry : null;
+  }
+
+  oClose.addEventListener("click", () => {
+    closeOverlayAndUnlock();
+  });
+
+  oRetry.addEventListener("click", async () => {
+    if (!retryFn) return;
+    // switch back to busy state (still locked)
+    overlay.dataset.state = "busy";
+    oRetry.style.display = "none";
+    oClose.style.display = "none";
+    oTitle.textContent = "Retrying…";
+    oDetail.textContent = "";
+    oDetail.style.display = "none";
+
+    try{
+      await retryFn();
+    }catch(ex){
+      error(lastScope, "Retry failed.", String(ex && (ex.message || ex) || ex));
+    }
+  });
+
+  return {
+    isBusy: () => busy,
+    uiBusy: openBusy,
+    uiDone: done,
+    uiError: error
+  };
+})();
+
+function getToken(){
+  const t = localStorage.getItem(TOKEN_KEY);
+  return (t && String(t).trim()) ? String(t).trim() : "";
+}
+
+function clearToken(){
+  localStorage.removeItem(TOKEN_KEY);
+}
+function currentRelativeUrl(){
+  try{
+    return (location.pathname || "/") + (location.search || "") + (location.hash || "");
+  }catch(_){
+    return "/";
+  }
+}
+
+function goToLogin(){
+  const rt = encodeURIComponent(currentRelativeUrl());
+  location.href = "/p/login_23.html?return_to=" + rt;
+}
+async function taPost(action, params){
+  const token = getToken();
+  const body = new URLSearchParams();
+  body.set("action", action);
+  if (token) body.set("token", token);
+
+  Object.keys(params || {}).forEach(k => {
+    const v = params[k];
+    if (v === undefined || v === null) return;
+    body.set(k, String(v));
+  });
+
+  let res, text, data;
+  try{
+    res = await fetch(WEBAPP_URL, { method:"POST", body, cache:"no-store" });
+    text = await res.text();
+  }catch(err){
+    throw new Error("network_error: " + (err && err.message ? err.message : String(err)));
+  }
+
+  try{ data = JSON.parse(text); } catch(_){
+    throw new Error("bad_json_response");
+  }
+
+  return data;
+}
+
+/* keep JSON helper exactly “simple” (no custom headers) */
+async function taPostJSON(action, payload){
+  const token = getToken();
+  const bodyObj = Object.assign({}, payload || {}, { action, token });
+
+  let res, text, data;
+  try{
+    res = await fetch(WEBAPP_URL, {
+      method: "POST",
+      mode: "cors",
+      cache: "no-store",
+      body: JSON.stringify(bodyObj)
+    });
+    text = await res.text();
+  }catch(err){
+    throw new Error("network_error: " + (err && err.message ? err.message : String(err)));
+  }
+
+  try{ data = JSON.parse(text); } catch(_){
+    throw new Error("bad_json_response");
+  }
+
+  return data;
+}
+
+function esc(s){
+  return String(s || "")
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+
+function cleanDisplay(v){
+  // 1) normalize/trim
+  let s = String(v ?? "").trim();
+  if (!s) return "";
+
+  // 2) decode HTML entities if present
+  if (s.includes("&")) {
+    const t = document.createElement("textarea");
+    t.innerHTML = s;
+    s = (t.value || "").trim();
+  }
+
+  // 3) collapse whitespace
+  s = s.replace(/\s+/g, " ").trim();
+  if (!s) return "";
+
+  // 4) treat placeholder dashes as empty
+  const dashLike = new Set(["—", "–", "-", "―"]);
+  if (dashLike.has(s)) return "";
+
+  return s;
+}
+function normalizeField(v){
+  return String(v == null ? "" : v).trim();
+}
+
+/** ================================
+ * Picker helpers
+ * ================================ */
+function parseDraftItemsJson(raw){
+  if (!raw) return { items: [] };
+  if (typeof raw === 'object'){
+    const arr = Array.isArray(raw.items) ? raw.items : [];
+    return { items: arr.map(x=>String(x||'').trim()).filter(Boolean) };
+  }
+  try{
+    const obj = JSON.parse(String(raw));
+    const arr = Array.isArray(obj.items) ? obj.items : (Array.isArray(obj) ? obj : []);
+    return { items: arr.map(x=>String(x||'').trim()).filter(Boolean) };
+  }catch(_){
+    return { items: [] };
+  }
+}
+
+function mergeAppendUnique(existing, picked){
+  const out = Array.isArray(existing) ? existing.slice() : [];
+  const seen = new Set(out.map(x=>String(x||'').trim()).filter(Boolean));
+  let added = 0, skipped = 0;
+
+  (picked || []).forEach(id=>{
+    id = String(id||'').trim();
+    if (!id) return;
+    if (seen.has(id)) skipped++;
+    else { seen.add(id); out.push(id); added++; }
+  });
+
+  return { items: out, added, skipped };
+}
+
+function pickerUpdateUI(){
+  if (!IS_PICKER) return;
+  const n = selectedOrder.length;
+  $("pickerSelectedPill").textContent = `Selected: ${n}`;
+  $("pickerCount").textContent = `Selected: ${n}`;
+  $("btnPickerAdd").disabled = FEED.isBusy() ? true : !(TARGET_QUIZ_ID && n > 0);
+
+  const backBtn = $("btnPickerBack");
+  backBtn.style.display = "";
+  backBtn.textContent = RETURN_TO ? "Back to quiz" : "Exit";
+}
+
+function pickerToggle(id, checked){
+  id = String(id||'').trim();
+  if (!id) return;
+
+  if (checked){
+    if (!selectedSet.has(id)){
+      selectedSet.add(id);
+      selectedOrder.push(id);
+    }
+  } else {
+    if (selectedSet.has(id)){
+      selectedSet.delete(id);
+      selectedOrder = selectedOrder.filter(x=> x !== id);
+    }
+  }
+  pickerUpdateUI();
+}
+
+function pickerClear(){
+  if (!IS_PICKER) return;
+  const prev = selectedOrder.length;
+
+  selectedSet.clear();
+  selectedOrder = [];
+  pickerUpdateUI();
+  applyFiltersAndRender();
+
+  FEED.uiDone("list",
+    "Selection cleared.",
+    prev ? `Cleared ${prev} selected item(s).` : "No items were selected.",
+    { toastTitle: "Selection cleared.", toastDetail: prev ? `Cleared ${prev} selected item(s).` : "No items were selected.", tone:"ok" }
+  );
+}
+
+/* ✅ Select all shown (current rendered page) */
+function pickerSelectAllShown(){
+  if (!IS_PICKER) return;
+  const tbody = $("rows");
+  const boxes = tbody ? Array.from(tbody.querySelectorAll('input[data-pick]')) : [];
+  if (!boxes.length){
+    FEED.uiDone("list", "Nothing to select.", "No questions are currently shown.", { tone:"warn", toastTitle:"Nothing to select.", toastDetail:"No questions are currently shown." });
+    return;
+  }
+
+  let added = 0;
+  boxes.forEach(cb=>{
+    const id = String(cb.getAttribute("data-pick") || "").trim();
+    if (!id) return;
+    cb.checked = true;
+    if (!selectedSet.has(id)){
+      selectedSet.add(id);
+      selectedOrder.push(id);
+      added++;
+    }
+  });
+
+  pickerUpdateUI();
+
+  if (added){
+    FEED.uiDone("list",
+      `Selected ${added} item(s).`,
+      `Total selected: ${selectedOrder.length}.`,
+      { toastTitle:"Selected.", toastDetail:`Added ${added} from this page - Total selected: ${selectedOrder.length}.` }
+    );
+  } else {
+    FEED.uiDone("list",
+      "No new selections.",
+      `Total selected: ${selectedOrder.length}.`,
+      { tone:"warn", toastTitle:"No new selections.", toastDetail:`All shown items were already selected - Total selected: ${selectedOrder.length}.` }
+    );
+  }
+}
+
+/** ================================
+ * Bank caching (teacher_id + status bucket) — 10 min TTL
+ * ================================ */
+const BANK_CACHE_TTL_MS = 10 * 60 * 1000;
+const BANK_CACHE_PREFIX = "qa_teacher_bank_cache_v1";
+const BANK_META_PREFIX  = "qa_teacher_bank_meta_v1";
+
+function _bucketKey_(status){
+  const s = String(status || "ACTIVE").trim().toUpperCase();
+  if (s === "DELETED") return "DELETED";
+  if (s === "ALL") return "ALL";
+  return "ACTIVE";
+}
+
+function _bankLsKey_(teacher_id, bucket){
+  return `${BANK_CACHE_PREFIX}:${String(teacher_id||"").trim()}:${_bucketKey_(bucket)}`;
+}
+function _metaLsKey_(teacher_id){
+  return `${BANK_META_PREFIX}:${String(teacher_id||"").trim()}`;
+}
+
+function _isFresh_(savedAtMs){
+  const n = Number(savedAtMs || 0);
+  return !!n && (Date.now() - n) < BANK_CACHE_TTL_MS;
+}
+
+function canonSourceType(v){
+  const s = String(v || "").trim().toUpperCase();
+  if (!s) return "";
+  if (s === "IMPORT" || s === "IMPORTED") return "IMPORTED";
+  if (s === "QUIZ_INLINE") return "QUIZ_INLINE";
+  if (s === "TEACHER") return "TEACHER";
+  return s;
+}
+function canonDifficulty(v){
+  const t = String(v || "").trim().toLowerCase();
+  if (!t) return "";
+  if (t === "easy") return "Easy";
+  if (t === "moderate" || t === "medium") return "Moderate";
+  if (t === "hard" || t === "difficult") return "Hard";
+  return String(v || "").trim();
+}
+
+function toListSummary(obj){
+  obj = obj || {};
+  return {
+    bank_item_id: normalizeField(obj.bank_item_id),
+    status: String(obj.status || "").trim().toUpperCase() || "ACTIVE",
+    stem: normalizeField(obj.stem),
+    correct: normalizeField(obj.correct).toUpperCase(),
+    subject: normalizeField(obj.subject),
+    topic: normalizeField(obj.topic),
+    difficulty: canonDifficulty(obj.difficulty),
+    marks: normalizeField(obj.marks),
+    source_type: canonSourceType(obj.source_type),
+    created_at: normalizeField(obj.created_at),
+    updated_at: normalizeField(obj.updated_at),
+  };
+}
+
+function _readJsonLS_(key){
+  try{
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  }catch(_){ return null; }
+}
+
+function _writeJsonLS_(key, obj){
+  try{
+    localStorage.setItem(key, JSON.stringify(obj));
+    return true;
+  }catch(_){
+    return false;
+  }
+}
+
+let metaCache = null;
+
+function setCurrentBucket(bucket){
+  currentBucket = _bucketKey_(bucket);
+  listCache = (bucketMem[currentBucket] && Array.isArray(bucketMem[currentBucket].items))
+    ? bucketMem[currentBucket].items
+    : [];
+}
+
+function hydrateBucketFromStorage(bucket){
+  const b = _bucketKey_(bucket);
+  const key = _bankLsKey_(teacher.user_id, b);
+  const payload = _readJsonLS_(key);
+  if (!payload || !payload.items || !_isFresh_(payload.saved_at)) return false;
+
+  bucketMem[b] = { items: Array.isArray(payload.items) ? payload.items : [], saved_at: Number(payload.saved_at||0) };
+  setCurrentBucket(b);
+
+  rebuildSubjectTopicOptions(listCache);
+
+  // Persistent last action
+  FEED.uiDone("list", "Loaded from cache.", `${listCache.length} item(s).`, {
+    toast:false,
+    tone:"ok",
+    toastTitle:"Loaded from cache.",
+    toastDetail:`${listCache.length} item(s).`
+  });
+
+  return true;
+}
+
+function persistBucketToStorage(bucket){
+  const b = _bucketKey_(bucket);
+  const key = _bankLsKey_(teacher.user_id, b);
+  const payload = { saved_at: Date.now(), items: bucketMem[b].items || [] };
+
+  const ok = _writeJsonLS_(key, payload);
+  if (!ok){
+    $("listHint").textContent = "Cache note: storage full, using memory only.";
+  }
+}
+
+function hydrateMetaFromStorage(){
+  const key = _metaLsKey_(teacher.user_id);
+  const payload = _readJsonLS_(key);
+  if (!payload || !payload.meta || !_isFresh_(payload.saved_at)) return false;
+  metaCache = payload.meta;
+  fillSelectFromArray($("f_subject"), metaCache.subjects || [], $("f_subject").value);
+  fillSelectFromArray($("f_topic"), metaCache.topics || [], $("f_topic").value);
+  fillSelectFromArray($("f_source_type"), metaCache.source_types || [], $("f_source_type").value);
+  return true;
+}
+
+function persistMetaToStorage(){
+  const key = _metaLsKey_(teacher.user_id);
+  _writeJsonLS_(key, { saved_at: Date.now(), meta: metaCache || null });
+}
+
+function fillSelectFromArray(selectEl, arr, keepValue){
+  const current = keepValue ?? selectEl.value;
+  const safeArr = Array.isArray(arr) ? arr : [];
+
+  selectEl.innerHTML =
+    `<option value="">Any</option>` +
+    safeArr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+
+  setSelectValue(selectEl, current);
+}
+
+async function loadMeta(){
+  if (teacher && teacher.user_id && hydrateMetaFromStorage()) return;
+
+  try{
+    const data = await taPost("bank.meta", { include_deleted: "0" });
+    if (!data || !data.ok || !data.meta) return;
+
+    metaCache = data.meta;
+    persistMetaToStorage();
+
+    fillSelectFromArray($("f_subject"), metaCache.subjects || [], $("f_subject").value);
+    fillSelectFromArray($("f_topic"), metaCache.topics || [], $("f_topic").value);
+    fillSelectFromArray($("f_source_type"), metaCache.source_types || [], $("f_source_type").value);
+  }catch(_){
+    // silent: list-derived options will kick in after list load
+  }
+}
+
+/* Preserve unknown/custom values safely (for selects) */
+function setSelectValue(selectEl, rawValue){
+  const v = normalizeField(rawValue);
+  if (!v){
+    selectEl.value = "";
+    return;
+  }
+  const has = Array.from(selectEl.options).some(o => o.value === v);
+  if (!has){
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    if (selectEl.options.length > 0) selectEl.insertBefore(opt, selectEl.options[1] || null);
+    else selectEl.appendChild(opt);
+  }
+  selectEl.value = v;
+}
+
+/* Build Subject/Topic dropdown options from listCache */
+function rebuildSubjectTopicOptions(items){
+  const subjSel = $("f_subject");
+  const topicSel = $("f_topic");
+
+  const keepSubject = subjSel.value;
+  const keepTopic = topicSel.value;
+
+  const subjects = new Set();
+  const topics = new Set();
+
+  (items || []).forEach(it => {
+    const s = normalizeField(it.subject);
+    const t = normalizeField(it.topic);
+    if (s) subjects.add(s);
+    if (t) topics.add(t);
+  });
+
+  const subjArr = Array.from(subjects).sort((a,b) => a.localeCompare(b));
+  const topicArr = Array.from(topics).sort((a,b) => a.localeCompare(b));
+
+  subjSel.innerHTML = `<option value="">Any</option>` + subjArr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+  topicSel.innerHTML = `<option value="">Any</option>` + topicArr.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join("");
+
+  setSelectValue(subjSel, keepSubject);
+  setSelectValue(topicSel, keepTopic);
+}
+
+function pillForStatus(st){
+  st = String(st || "").toUpperCase();
+  if (st === "ACTIVE") return `<span class="pill ok">ACTIVE</span>`;
+  if (st === "DELETED") return `<span class="pill bad">DELETED</span>`;
+  if (st === "DRAFT") return `<span class="pill warn">DRAFT</span>`;
+  return `<span class="pill">${esc(st || "—")}</span>`;
+}
+
+function setSourceBlockMode(isEdit){
+  const block = $("sourceBlock");
+  if (block) block.style.display = isEdit ? "" : "none";
+
+  const sel = $("source_type");
+  if (sel) sel.disabled = true;
+
+  ["source_course_id","source_sheet_id","source_item_id"].forEach(id => {
+    const el = $(id);
+    if (el) el.readOnly = true;
+  });
+}
+
+/** ================================
+ * App state
+ * ================================ */
+let teacher = null;
+let listCache = [];
+
+const bucketMem = {
+  ACTIVE: { items: [], saved_at: 0 },
+  DELETED:{ items: [], saved_at: 0 },
+  ALL:    { items: [], saved_at: 0 }
+};
+let currentBucket = "ACTIVE";
+
+let currentId = "";
+let currentOriginal = null;
+
+let filtersWired = false;
+
+/** ================================
+ * Picker UI init
+ * ================================ */
+async function loadPickerQuizDropdown(){
+  if (!IS_PICKER) return;
+
+  $("pickerBar").style.display = "";
+  $("pickerDock").style.display = "";
+  document.body.classList.add("picker");
+
+  $("btnPickerBack").addEventListener("click", ()=>{
+    if (RETURN_TO){
+      location.href = RETURN_TO;
+      return;
+    }
+    const u = new URL(location.href);
+    u.searchParams.delete("mode");
+    u.searchParams.delete("teacher_quiz_id");
+    u.searchParams.delete("return_to");
+    const qs = u.searchParams.toString();
+    location.href = u.pathname + (qs ? ("?" + qs) : "") + (u.hash || "");
+  });
+
+  $("btnPickerClear").addEventListener("click", pickerClear);
+  $("btnPickerSelectAll").addEventListener("click", pickerSelectAllShown);
+
+  $("pickerQuiz").addEventListener("change", ()=>{
+    TARGET_QUIZ_ID = String($("pickerQuiz").value || "").trim();
+    pickerUpdateUI();
+  });
+
+  async function pickerAddSelectedToDraft(){
+    if (!IS_PICKER) return;
+    if (FEED.isBusy()) return;
+
+    const totalSelected = selectedOrder.length;
+
+    if (!TARGET_QUIZ_ID){
+      FEED.uiDone("list", "Quiz not selected.", "Select a DRAFT quiz first.", { tone:"warn", toastTitle:"Pick a quiz.", toastDetail:"Select a DRAFT quiz first." });
+      return;
+    }
+    if (!totalSelected){
+      FEED.uiDone("list", "No questions selected.", "Tick at least 1 question.", { tone:"warn", toastTitle:"No selection.", toastDetail:"Tick at least 1 question." });
+      return;
+    }
+
+    FEED.uiBusy("list", `Adding ${totalSelected} item(s) to draft…`, `Quiz: ${TARGET_QUIZ_ID}`);
+
+    try{
+      const g = await taPost("teacher.quiz.get", { teacher_quiz_id: TARGET_QUIZ_ID });
+      if (!g || !g.ok || !g.quiz){
+        FEED.uiError("list", "Add to draft failed.", "Could not load the target quiz.", { retry: pickerAddSelectedToDraft });
+        return;
+      }
+
+      const status = String(g.quiz.status || "").toUpperCase();
+      if (status && status !== "DRAFT"){
+        FEED.uiDone("list", "Cannot add to draft.", `Quiz is ${status}. Only DRAFT can be edited.`, {
+          tone:"warn",
+          toastTitle:"Quiz locked.",
+          toastDetail:`Quiz is ${status}. Only DRAFT can be edited.`
+        });
+        return;
+      }
+
+      const cur = parseDraftItemsJson(g.quiz.draft_items_json);
+      const merged = mergeAppendUnique(cur.items, selectedOrder);
+
+      if (!merged.added){
+        FEED.uiDone("list",
+          "No new items added.",
+          `All ${totalSelected} selected already exist in the draft.`,
+          { tone:"warn", toastTitle:"No new items.", toastDetail:`All ${totalSelected} selected already exist in the draft.` }
+        );
+        // keep selection? your current flow clears it; keep the same behavior
+        pickerClear();
+        return;
+      }
+
+      const patchObj = { draft_items_json: JSON.stringify({ items: merged.items }) };
+
+      const u = await taPostJSON("teacher.quiz.update", {
+        teacher_quiz_id: TARGET_QUIZ_ID,
+        patch: patchObj
+      });
+
+      if (!u || !u.ok){
+        FEED.uiError("list", "Add to draft failed.", (u && u.error) ? String(u.error) : "unknown_error", { retry: pickerAddSelectedToDraft });
+        return;
+      }
+
+      const oneLine = `Added ${merged.added} • Skipped ${merged.skipped} duplicate(s).`;
+
+      FEED.uiDone("list",
+        `Added ${merged.added} to draft.`,
+        oneLine,
+        { toastTitle:"Added to draft.", toastDetail: oneLine, tone:"ok" }
+      );
+
+      pickerClear();
+    } catch(e){
+      FEED.uiError("list", "Add to draft failed.", String(e && (e.message || e) || e), { retry: pickerAddSelectedToDraft });
+    } finally {
+      pickerUpdateUI();
+    }
+  }
+
+  $("btnPickerAdd").addEventListener("click", pickerAddSelectedToDraft);
+
+  let drafts = [];
+  try{
+    const r = await taPost("teacher.quizzes.list", { q:"", status:"DRAFT", limit:"200" });
+    const items =
+      (r && r.ok && Array.isArray(r.items)) ? r.items :
+      (r && r.ok && r.data && Array.isArray(r.data.items)) ? r.data.items :
+      [];
+    drafts = Array.isArray(items) ? items : [];
+  } catch(e){
+    drafts = [];
+  }
+
+  const sel = $("pickerQuiz");
+  const opts = drafts.map(q=>{
+    const id = String(q.teacher_quiz_id || "").trim();
+    const title = String(q.title || "").trim() || "(Untitled)";
+    return { id, label: title };
+  }).filter(x=>x.id);
+
+  sel.innerHTML =
+    `<option value="">Select a draft quiz…</option>` +
+    opts.map(o=> `<option value="${esc(o.id)}">${esc(o.label)}</option>`).join("");
+
+  if (TARGET_QUIZ_ID){
+    sel.value = TARGET_QUIZ_ID;
+  }
+
+  $("pickerQuizHint").textContent = opts.length
+    ? "Select a quiz draft to append your selected questions into."
+    : "No DRAFT quizzes found. Create a quiz first.";
+
+  pickerUpdateUI();
+}
+
+/** ================================
+ * Gate
+ * ================================ */
+async function verifyGate(){
+  const token = getToken();
+  if (!token){
+    $("btnDashboard").disabled = true;
+    $("subline").textContent = "Signed out";
+    $("teacherChip").style.display = "none";
+    $("app").style.display = "none";
+    $("gate").style.display = "block";
+    $("gateMsg").textContent = "You're signed out in this browser. Sign in on the portal, then click Retry.";
+    gateLoading(false);
+    return false;
+  }
+
+  $("gate").style.display = "block";
+  $("app").style.display = "none";
+  $("gateMsg").textContent = "Verifying teacher access...";
+  gateLoading(true, "Verifying access...");
+
+  let data;
+  try{
+    data = await taPost("teacher.verify", {});
+  }catch(err){
+    gateLoading(false);
+    $("gateMsg").textContent = "Couldn’t reach the service. Check your connection and click Retry.";
+    $("subline").textContent = "Network error";
+    toast("Network error", "Could not reach the service.");
+    return false;
+  }
+
+  if (!data || !data.ok){
+    gateLoading(false);
+    const reason = data && data.error ? data.error : "verify_failed";
+    $("gateMsg").textContent = "Access denied: " + reason;
+    $("subline").textContent = "Access denied";
+    $("btnDashboard").disabled = true;
+    toast("Access denied", String(reason));
+    return false;
+  }
+
+  teacher = {
+    user_id: data.user && data.user.user_id ? data.user.user_id : "",
+    name: data.user && data.user.name ? data.user.name : "Teacher",
+    email: data.user && data.user.email ? data.user.email : "",
+    plan_type: data.teacher && data.teacher.plan_type ? data.teacher.plan_type : "FREE",
+    role: data.user && data.user.role ? data.user.role : ""
+  };
+
+  $("teacherName").textContent = teacher.name || "Teacher";
+  $("teacherPlan").textContent = teacher.plan_type || "FREE";
+  $("teacherChip").style.display = "inline-flex";
+  $("subline").textContent = teacher.email ? teacher.email : ("Role: " + (teacher.role || "—"));
+$("btnDashboard").disabled = false;
+  $("btnRefresh").disabled = false;
+  $("btnBulkCsv").disabled = IS_PICKER;
+  $("btnAddToQuiz").disabled = IS_PICKER;
+  $("btnNew").disabled = IS_PICKER;
+  $("btnSave").disabled = IS_PICKER;
+
+  gateLoading(true, "Loading filters..");
+  await loadMeta();
+
+  if (IS_PICKER){
+    gateLoading(true, "Loading draft quizzes..");
+    await loadPickerQuizDropdown();
+  }
+
+  gateLoading(true, "Loading bank...");
+  const hasActiveCache = teacher && teacher.user_id ? hydrateBucketFromStorage("ACTIVE") : false;
+  setCurrentBucket("ACTIVE");
+
+  if (!hasActiveCache){
+    await loadList(true);
+  } else {
+    applyFiltersAndRender();
+  }
+
+  wireInstantFilters();
+  if (!IS_PICKER) newItem();
+
+  $("gate").style.display = "none";
+  $("app").style.display = "block";
+  gateLoading(false);
+
+  return true;
+}
+
+/** ================================
+ * List
+ * ================================ */
+function getFilters(){
+  return {
+    q: $("f_q").value.trim(),
+    status: $("f_status").value.trim(),
+    subject: $("f_subject").value.trim(),
+    topic: $("f_topic").value.trim(),
+    difficulty: $("f_difficulty").value.trim(),
+    source_type: $("f_source_type").value.trim(),
+    limit: $("f_limit").value.trim(),
+  };
+}
+
+function renderRows(items){
+  const tbody = $("rows");
+
+  if (!items || !items.length){
+    tbody.innerHTML = `<tr><td colspan="4" class="empty">No results. Try different filters.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = items.map(it => {
+    const id = esc(it.bank_item_id || "");
+    const stemTxt = esc(normalizeField(it.stem || ""));
+    const subj = cleanDisplay(it.subject);
+    const topic = cleanDisplay(it.topic);
+    const subjTopicLine =
+      [subj, topic].filter(Boolean).map(esc).join(" · ") || "Uncategorised";
+
+    const diff = cleanDisplay(canonDifficulty(it.difficulty));
+    const marksVal = cleanDisplay(it.marks);
+    const marks = marksVal ? `${marksVal} mark(s)` : "";
+    const diffMarksLine =
+      [diff, marks].filter(Boolean).map(esc).join(" · ") || "—";
+
+    const stype = esc(it.source_type || "—");
+    const updated = esc(fmtTs(it.updated_at || ""));
+    const statusHtml = pillForStatus(it.status);
+
+    if (IS_PICKER){
+      const checked = selectedSet.has(it.bank_item_id) ? "checked" : "";
+      return `
+        <tr>
+          <td>
+            <div style="display:flex;gap:10px;align-items:flex-start">
+              <input class="pickBox" type="checkbox" data-pick="${id}" ${checked}/>
+              <div style="min-width:0">
+                <div class="stemFull" style="font-weight:800">${stemTxt || "<span class='muted'>—</span>"}</div>
+                <div class="muted mono" style="margin-top:6px">${id}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              ${statusHtml}
+              <div class="muted" style="font-size:12px">${subjTopicLine}</div>
+              <div class="muted" style="font-size:12px">${diffMarksLine}</div>
+              <div class="muted" style="font-size:12px">Source: ${stype}</div>
+            </div>
+          </td>
+          <td class="muted" style="font-size:12px">${updated || "—"}</td>
+          <td class="muted" style="font-size:12px;text-align:right">—</td>
+        </tr>
+      `;
+    }
+
+    return `
+      <tr>
+        <td>
+          <div class="click stemFull" data-edit="${id}" title="Edit this item">${stemTxt || "<span class='muted'>—</span>"}</div>
+          <div class="muted mono" style="margin-top:6px">${id}</div>
+        </td>
+        <td>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            ${statusHtml}
+            <div class="muted" style="font-size:12px">${subjTopicLine}</div>
+            <div class="muted" style="font-size:12px">${diffMarksLine}</div>
+            <div class="muted" style="font-size:12px">Source: ${stype}</div>
+          </div>
+        </td>
+        <td class="muted" style="font-size:12px">${updated || "—"}</td>
+        <td>
+          <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+            <button class="btn" data-edit="${id}">Edit</button>
+            <button class="btn danger" data-del="${id}">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  if (IS_PICKER){
+    tbody.querySelectorAll("[data-pick]").forEach(cb=>{
+      cb.addEventListener("change", ()=>{
+        const id = cb.getAttribute("data-pick");
+        pickerToggle(id, cb.checked);
+      });
+    });
+    pickerUpdateUI();
+    return;
+  }
+
+  tbody.querySelectorAll("[data-edit]").forEach(el => {
+    el.addEventListener("click", async () => {
+      if (FEED.isBusy()) return;
+      const id = el.getAttribute("data-edit");
+      await loadItem(id);
+    });
+  });
+
+  tbody.querySelectorAll("[data-del]").forEach(el => {
+    el.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (FEED.isBusy()) return;
+      const id = el.getAttribute("data-del");
+      await deleteItem(id);
+    });
+  });
+}
+
+function filterItemsClient(items, f){
+  let out = Array.isArray(items) ? items.slice() : [];
+
+  const subj = normalizeField(f.subject);
+  const topic = normalizeField(f.topic);
+  const diff = canonDifficulty(f.difficulty);
+  const src  = canonSourceType(f.source_type);
+
+  if (subj) out = out.filter(it => normalizeField(it.subject) === subj);
+  if (topic) out = out.filter(it => normalizeField(it.topic) === topic);
+  if (diff) out = out.filter(it => canonDifficulty(it.difficulty) === diff);
+  if (src)  out = out.filter(it => canonSourceType(it.source_type) === src);
+
+  const qraw = normalizeField(f.q).toLowerCase();
+  if (qraw){
+    const tokens = qraw.split(/\s+/).filter(Boolean);
+    out = out.filter(it => {
+      const hay = [
+        it.stem, it.subject, it.topic, it.difficulty, it.source_type, it.marks
+      ].map(x => String(x||"").toLowerCase()).join(" ");
+      return tokens.every(t => hay.includes(t));
+    });
+  }
+
+  out.sort((a,b) => String(b.updated_at||"").localeCompare(String(a.updated_at||"")));
+  return out;
+}
+
+function applyFiltersAndRender(){
+  const f = getFilters();
+  const bucket = _bucketKey_(f.status);
+
+  if (bucket !== currentBucket){
+    setCurrentBucket(bucket);
+    if (!bucketMem[bucket].items.length){
+      const ok = teacher && teacher.user_id ? hydrateBucketFromStorage(bucket) : false;
+      if (!ok){
+        $("rows").innerHTML = `<tr><td colspan="4" class="empty">No cached data for ${esc(bucket)}. Click “Refresh” to sync from server.</td></tr>`;
+        $("countPill").textContent = "0 items";
+        FEED.uiDone("list", `No cache for ${bucket}.`, "Refresh to sync from server.", { tone:"warn", toast:false });
+        return;
+      }
+    }
+  }
+
+  const filtered = filterItemsClient(listCache, f);
+
+  const lim = parseInt(String(f.limit||"50"), 10);
+  const limit = (!isNaN(lim) && lim > 0) ? lim : 50;
+
+  const sliced = filtered.slice(0, limit);
+  renderRows(sliced);
+
+  $("countPill").textContent = `${sliced.length} shown / ${filtered.length} match / ${listCache.length} total`;
+  // IMPORTANT: do not overwrite listMsg/listHint here (keeps “last action” persistent).
+}
+
+async function loadList(silent){
+  const f = getFilters();
+  const bucket = _bucketKey_(f.status);
+
+  const showOverlay = !silent && $("gate").style.display === "none" && $("app").style.display !== "none";
+  if (showOverlay){
+    FEED.uiBusy("list", "Refreshing bank...", "Syncing from server.");
+  }
+
+  let data;
+  try{
+    data = await taPost("bank.items.list", {
+      status: bucket,
+      q: "",
+      subject: "",
+      topic: "",
+      difficulty: "",
+      source_type: "",
+      limit: "1000"
+    });
+  }catch(err){
+    if (showOverlay){
+      FEED.uiError("list", "Refresh failed.", "Network error while syncing.", { retry: async()=> loadList(false) });
+    } else {
+      setMsg($("listMsg"), "Refresh failed.", "bad");
+      $("listHint").textContent = "Network error • " + nowIso();
+      toast("Refresh failed", "Network error while syncing.");
+    }
+    return;
+  }
+
+  if (!data || !data.ok){
+    const reason = (data && data.error) ? String(data.error) : "unknown_error";
+    if (showOverlay){
+      FEED.uiError("list", "Refresh failed.", reason, { retry: async()=> loadList(false) });
+    } else {
+      setMsg($("listMsg"), "Refresh failed.", "bad");
+      $("listHint").textContent = reason + " • " + nowIso();
+      toast("Refresh failed", reason);
+    }
+    return;
+  }
+
+  const raw = Array.isArray(data.items) ? data.items : [];
+  const normalized = raw.map(it => ({
+    ...it,
+    status: String(it.status||"").trim().toUpperCase() || "ACTIVE",
+    difficulty: canonDifficulty(it.difficulty),
+    source_type: canonSourceType(it.source_type),
+  }));
+
+  bucketMem[bucket] = { items: normalized, saved_at: Date.now() };
+  persistBucketToStorage(bucket);
+
+  setCurrentBucket(bucket);
+  rebuildSubjectTopicOptions(listCache);
+
+  applyFiltersAndRender();
+
+  const detail = `${listCache.length} item(s) synced.`;
+  if (showOverlay){
+    FEED.uiDone("list", "Refreshed.", detail, { toastTitle:"Refreshed.", toastDetail: detail });
+  } else if (!silent) {
+    setMsg($("listMsg"), "Refreshed.", "ok");
+    $("listHint").textContent = detail + " • " + nowIso();
+    toast("Refreshed.", detail);
+  }
+}
+
+/** ================================
+ * Editor
+ * ================================ */
+function setMode(isEdit){
+  const card = $("editorCard");
+  if (isEdit){
+    card.classList.remove("mode-new");
+    card.classList.add("mode-edit");
+    $("editorTitle").textContent = "Edit item";
+    $("editorSub").textContent = "Make changes and save.";
+    $("modePill").textContent = "EDIT";
+    $("modePill").className = "pill warn";
+    $("btnDelete").disabled = false;
+    $("btnSave").textContent = "Save changes";
+  } else {
+    card.classList.remove("mode-edit");
+    card.classList.add("mode-new");
+    $("editorTitle").textContent = "Create item";
+    $("editorSub").textContent = "Fill the form and save.";
+    $("modePill").textContent = "NEW";
+    $("modePill").className = "pill ok";
+    $("btnDelete").disabled = true;
+    $("btnSave").textContent = "Create item";
+  }
+  setSourceBlockMode(isEdit);
+}
+
+function readForm(){
+  return {
+    stem: normalizeField($("stem").value),
+
+    option_a: normalizeField($("option_a").value),
+    fb_a: normalizeField($("fb_a").value),
+    option_b: normalizeField($("option_b").value),
+    fb_b: normalizeField($("fb_b").value),
+    option_c: normalizeField($("option_c").value),
+    fb_c: normalizeField($("fb_c").value),
+    option_d: normalizeField($("option_d").value),
+    fb_d: normalizeField($("fb_d").value),
+    option_e: normalizeField($("option_e").value),
+    fb_e: normalizeField($("fb_e").value),
+    option_f: normalizeField($("option_f").value),
+    fb_f: normalizeField($("fb_f").value),
+
+    correct: normalizeField($("correct").value).toUpperCase(),
+
+    rationale: normalizeField($("rationale").value),
+    rationale_img: normalizeField($("rationale_img").value),
+
+    subject: normalizeField($("subject").value),
+    topic: normalizeField($("topic").value),
+    difficulty: normalizeField($("difficulty").value),
+    marks: normalizeField($("marks").value),
+
+    source_type: normalizeField($("source_type").value),
+    source_course_id: normalizeField($("source_course_id").value),
+    source_sheet_id: normalizeField($("source_sheet_id").value),
+    source_item_id: normalizeField($("source_item_id").value)
+  };
+}
+
+function fillForm(obj){
+  obj = obj || {};
+  $("stem").value = normalizeField(obj.stem);
+
+  $("option_a").value = normalizeField(obj.option_a);
+  $("fb_a").value = normalizeField(obj.fb_a);
+  $("option_b").value = normalizeField(obj.option_b);
+  $("fb_b").value = normalizeField(obj.fb_b);
+  $("option_c").value = normalizeField(obj.option_c);
+  $("fb_c").value = normalizeField(obj.fb_c);
+  $("option_d").value = normalizeField(obj.option_d);
+  $("fb_d").value = normalizeField(obj.fb_d);
+  $("option_e").value = normalizeField(obj.option_e);
+  $("fb_e").value = normalizeField(obj.fb_e);
+  $("option_f").value = normalizeField(obj.option_f);
+  $("fb_f").value = normalizeField(obj.fb_f);
+
+  $("correct").value = normalizeField(obj.correct).toUpperCase();
+
+  $("rationale").value = normalizeField(obj.rationale);
+  $("rationale_img").value = normalizeField(obj.rationale_img);
+
+  $("subject").value = normalizeField(obj.subject);
+  $("topic").value = normalizeField(obj.topic);
+
+  setSelectValue($("difficulty"), obj.difficulty);
+  $("marks").value = normalizeField(obj.marks);
+
+  setSelectValue($("source_type"), canonSourceType(obj.source_type));
+  $("source_course_id").value = normalizeField(obj.source_course_id);
+  $("source_sheet_id").value = normalizeField(obj.source_sheet_id);
+  $("source_item_id").value = normalizeField(obj.source_item_id);
+}
+
+function setMeta(id, obj){
+  $("bankId").textContent = id ? id : "Pending";
+  const c = obj && obj.created_at ? fmtTs(obj.created_at) : "";
+  const u = obj && obj.updated_at ? fmtTs(obj.updated_at) : "";
+
+  const cClean = cleanDisplay(c);
+  const uClean = cleanDisplay(u);
+
+  $("timestamps").textContent =
+    (cClean || uClean)
+      ? `Created: ${cClean || "—"} | Updated: ${uClean || "—"}`
+      : "Not saved yet.";
+}
+
+function newItem(){
+  currentId = "";
+  currentOriginal = null;
+  setMode(false);
+  fillForm({
+    stem:"",
+    option_a:"", option_b:"", option_c:"", option_d:"", option_e:"", option_f:"",
+    fb_a:"", fb_b:"", fb_c:"", fb_d:"", fb_e:"", fb_f:"",
+    correct:"",
+    rationale:"",
+    rationale_img:"",
+    subject:"",
+    topic:"",
+    difficulty:"",
+    marks:"1",
+    source_type:"TEACHER",
+    source_course_id:"",
+    source_sheet_id:"",
+    source_item_id:""
+  });
+  setMeta("", null);
+
+  // Keep last meaningful outcome in editMsg; only update hint (context)
+  $("editHint").textContent = "Ready to create . " + nowIso();
+  $("stem").focus();
+}
+
+async function loadItem(bank_item_id){
+  if (!bank_item_id) return;
+  if (FEED.isBusy()) return;
+
+  FEED.uiBusy("edit", "Loading item...", `Item: ${bank_item_id}`);
+
+  let data;
+  try{
+    data = await taPost("bank.item.get", { bank_item_id });
+  }catch(err){
+    FEED.uiError("edit", "Load failed.", "Network error while loading the item.", { retry: async()=> loadItem(bank_item_id) });
+    return;
+  }
+
+  if (!data || !data.ok || !data.item){
+    const reason = (data && data.error) ? String(data.error) : "unknown_error";
+    FEED.uiError("edit", "Load failed.", reason, { retry: async()=> loadItem(bank_item_id) });
+    return;
+  }
+
+  currentId = bank_item_id;
+  currentOriginal = data.item;
+
+  setMode(true);
+  fillForm(currentOriginal);
+  setMeta(currentId, currentOriginal);
+
+  FEED.uiDone("edit", "Loaded.", `Item: ${currentId}`, { toastTitle:"Loaded.", toastDetail:`Item ${currentId} is ready to edit.` });
+  $("stem").focus();
+}
+
+function validateClient(form){
+  if (!form.stem) return "Stem is required.";
+  if (!form.option_a) return "Option A is required.";
+  if (!form.option_b) return "Option B is required.";
+  const allowed = ["A","B","C","D","E","F"];
+  if (!form.correct || !allowed.includes(form.correct)) return "Choose a correct option (A–F).";
+
+  const map = {
+    A: form.option_a, B: form.option_b, C: form.option_c,
+    D: form.option_d, E: form.option_e, F: form.option_f
+  };
+  const nonEmpty = Object.keys(map).filter(k => !!map[k]);
+  if (nonEmpty.length < 2) return "Provide at least two options.";
+  if (!map[form.correct]) return "Correct option points to an empty option.";
+
+  return "";
+}
+
+function diffPatch(original, form){
+  const patch = {};
+  original = original || {};
+
+  Object.keys(form).forEach(k => {
+    const a = normalizeField(original[k]);
+    const b = normalizeField(form[k]);
+    if (a !== b) patch[k] = b;
+  });
+
+  ["source_type","source_course_id","source_sheet_id","source_item_id"].forEach(k => {
+    if (k in patch) delete patch[k];
+  });
+
+  return patch;
+}
+
+async function saveItem(){
+  if (FEED.isBusy()) return;
+
+  const form = readForm();
+  const err = validateClient(form);
+  if (err){
+    setMsg($("editMsg"), err, "bad");
+    $("editHint").textContent = "Fix required • " + nowIso();
+    toast("Fix required", err);
+    return;
+  }
+
+  try{
+    if (!currentId){
+      FEED.uiBusy("edit", "Creating item…", "Saving to your bank.");
+
+      const createPayload = Object.assign({}, form);
+      ["source_type","source_course_id","source_sheet_id","source_item_id"].forEach(k => delete createPayload[k]);
+
+      const data = await taPost("bank.item.create", createPayload);
+
+      if (!data || !data.ok){
+        const reason = (data && data.error) ? String(data.error) : "unknown_error";
+        FEED.uiError("edit", "Create failed.", reason, { retry: async()=> saveItem() });
+        return;
+      }
+
+      const newId = data.bank_item_id;
+
+      // multi-step: fetch full item for accurate cache + editor state
+      const got = await taPost("bank.item.get", { bank_item_id: newId });
+      if (got && got.ok && got.item){
+        const full = got.item;
+        const sum = toListSummary(full);
+
+        ["ACTIVE","ALL"].forEach(b => {
+          const arr = bucketMem[b].items || [];
+          bucketMem[b].items = [sum, ...arr.filter(x => String(x.bank_item_id||"") !== sum.bank_item_id)];
+          bucketMem[b].saved_at = Date.now();
+          persistBucketToStorage(b);
+        });
+
+        if (currentBucket === "ACTIVE" || currentBucket === "ALL"){
+          setCurrentBucket(currentBucket);
+          rebuildSubjectTopicOptions(listCache);
+          applyFiltersAndRender();
+        }
+
+        currentId = newId;
+        currentOriginal = full;
+        setMode(true);
+        fillForm(full);
+        setMeta(newId, full);
+      } else {
+        // still set id so the teacher sees the item id
+        currentId = newId;
+        setMode(true);
+        setMeta(newId, { created_at: nowIso(), updated_at: nowIso() });
+      }
+
+      FEED.uiDone("edit", "Created.", `Saved item ${newId}.`, { toastTitle:"Created.", toastDetail:`Saved item ${newId}.` });
+
+    } else {
+      const patch = diffPatch(currentOriginal, form);
+      if (!Object.keys(patch).length){
+        setMsg($("editMsg"), "No changes to save.", "warn");
+        $("editHint").textContent = "No update needed • " + nowIso();
+        toast("No changes", "Nothing to save.");
+        return;
+      }
+
+      FEED.uiBusy("edit", "Saving item…", `Item: ${currentId}`);
+
+      const data = await taPost("bank.item.update", Object.assign({ bank_item_id: currentId }, patch));
+      if (!data || !data.ok){
+        const reason = (data && data.error) ? String(data.error) : "unknown_error";
+        FEED.uiError("edit", "Save failed.", reason, { retry: async()=> saveItem() });
+        return;
+      }
+
+      const got = await taPost("bank.item.get", { bank_item_id: currentId });
+      if (got && got.ok && got.item){
+        const full = got.item;
+        const sum = toListSummary(full);
+
+        ["ACTIVE","ALL"].forEach(b => {
+          const arr = bucketMem[b].items || [];
+          const exists = arr.some(x => String(x.bank_item_id||"") === sum.bank_item_id);
+          bucketMem[b].items = exists
+            ? arr.map(x => (String(x.bank_item_id||"") === sum.bank_item_id ? sum : x))
+            : [sum, ...arr];
+
+          bucketMem[b].items.sort((a,b2)=>String(b2.updated_at||"").localeCompare(String(a.updated_at||"")));
+          bucketMem[b].saved_at = Date.now();
+          persistBucketToStorage(b);
+        });
+
+        setCurrentBucket(currentBucket);
+        rebuildSubjectTopicOptions(listCache);
+        applyFiltersAndRender();
+
+        currentOriginal = full;
+        fillForm(full);
+        setMeta(currentId, full);
+      }
+
+      FEED.uiDone("edit", "Saved.", `Updated item ${currentId}.`, { toastTitle:"Saved.", toastDetail:`Updated item ${currentId}.` });
+    }
+
+  } catch(ex){
+    FEED.uiError("edit", "Save failed.", String(ex && (ex.message || ex) || ex));
+  } finally {
+    // button states are restored by FEED; keep editor delete state correct
+    $("btnDelete").disabled = !currentId || IS_PICKER;
+  }
+}
+
+async function deleteItem(bank_item_id){
+  if (!bank_item_id) return;
+  if (FEED.isBusy()) return;
+
+  const ok = confirm("Delete this bank item? (This is a soft delete.)");
+  if (!ok) return;
+
+  FEED.uiBusy("list", "Deleting item…", `Item: ${bank_item_id}`);
+
+  let data;
+  try{
+    data = await taPost("bank.item.delete", { bank_item_id });
+  }catch(err){
+    FEED.uiError("list", "Delete failed.", "Network error while deleting.", { retry: async()=> deleteItem(bank_item_id) });
+    return;
+  }
+
+  if (!data || !data.ok){
+    const reason = (data && data.error) ? String(data.error) : "unknown_error";
+    FEED.uiError("list", "Delete failed.", reason, { retry: async()=> deleteItem(bank_item_id) });
+    return;
+  }
+
+  if (currentId && currentId === bank_item_id){
+    newItem();
+  }
+
+  const id = String(bank_item_id||"").trim();
+
+  const delApply = (arr, mode) => {
+    arr = Array.isArray(arr) ? arr : [];
+    if (mode === "REMOVE") return arr.filter(x => String(x.bank_item_id||"") !== id);
+    if (mode === "MARK_DELETED") {
+      return arr.map(x => {
+        if (String(x.bank_item_id||"") !== id) return x;
+        return { ...x, status:"DELETED", updated_at: x.updated_at || nowIso() };
+      });
+    }
+    return arr;
+  };
+
+  bucketMem.ACTIVE.items = delApply(bucketMem.ACTIVE.items, "REMOVE");
+  bucketMem.ACTIVE.saved_at = Date.now();
+  persistBucketToStorage("ACTIVE");
+
+  let found = null;
+  const inAll = (bucketMem.ALL.items || []).find(x => String(x.bank_item_id||"") === id);
+  if (inAll) found = { ...inAll, status:"DELETED" };
+
+  if (found){
+    bucketMem.DELETED.items = [found, ...(bucketMem.DELETED.items||[]).filter(x => String(x.bank_item_id||"") !== id)];
+    bucketMem.DELETED.saved_at = Date.now();
+    persistBucketToStorage("DELETED");
+  }
+
+  bucketMem.ALL.items = delApply(bucketMem.ALL.items, "MARK_DELETED");
+  bucketMem.ALL.saved_at = Date.now();
+  persistBucketToStorage("ALL");
+
+  setCurrentBucket(currentBucket);
+  rebuildSubjectTopicOptions(listCache);
+  applyFiltersAndRender();
+
+  FEED.uiDone("list", "Deleted.", `Item ${bank_item_id} moved to DELETED.`, { toastTitle:"Deleted.", toastDetail:`Item ${bank_item_id} moved to DELETED.` });
+}
+
+/** ================================
+ * Events
+ * ================================ */
+function wireInstantFilters(){
+  if (filtersWired) return;
+  filtersWired = true;
+
+  const deb = (fn, ms) => {
+    let t = null;
+    return (...args) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...args), ms);
+    };
+  };
+
+  $("f_q").addEventListener("input", deb(applyFiltersAndRender, 150));
+  ["f_status","f_subject","f_topic","f_difficulty","f_source_type","f_limit"].forEach(id => {
+    $(id).addEventListener("change", applyFiltersAndRender);
+  });
+}
+
+$("btnRetry").addEventListener("click", goToLogin);
+$("btnClearToken").addEventListener("click", () => {
+  clearToken();
+  goToLogin();
+});
+
+$("btnSignOut").addEventListener("click", () => {
+  clearToken();
+  goToLogin();
+});
+$("btnDashboard").addEventListener("click", () => {
+  location.href = "/p/teacher-dashboard.html";
+});
+$("btnRefresh").addEventListener("click", async () => {
+  if (FEED.isBusy()) return;
+  await loadList(false);
+});
+
+$("btnBulkCsv").addEventListener("click", () => {
+  const rt = encodeURIComponent(location.href);
+  location.href = `/p/teacher-bank-import.html?return_to=${rt}`;
+});
+
+$("btnAddToQuiz").addEventListener("click", () => {
+  const u = new URL(location.href);
+  u.searchParams.set("mode", "picker");
+  u.searchParams.delete("teacher_quiz_id");
+  u.searchParams.delete("return_to");
+  const qs = u.searchParams.toString();
+  location.href = u.pathname + (qs ? ("?" + qs) : "") + (u.hash || "");
+});
+
+$("btnLoad").addEventListener("click", () => { applyFiltersAndRender(); });
+
+$("btnClearFilters").addEventListener("click", () => {
+  $("f_q").value = "";
+  $("f_status").value = "ACTIVE";
+  $("f_subject").value = "";
+  $("f_topic").value = "";
+  $("f_difficulty").value = "";
+  $("f_source_type").value = "";
+  $("f_limit").value = "50";
+  applyFiltersAndRender();
+  toast("Filters cleared.", "Showing default view.");
+});
+
+$("btnNew").addEventListener("click", () => {
+  if (FEED.isBusy()) return;
+  newItem();
+});
+$("btnCreateFocus").addEventListener("click", () => {
+  if (FEED.isBusy()) return;
+  newItem();
+});
+$("btnSave").addEventListener("click", saveItem);
+
+$("btnDelete").addEventListener("click", async () => {
+  if (!currentId) return;
+  if (FEED.isBusy()) return;
+  await deleteItem(currentId);
+});
+
+document.addEventListener("keydown", (e) => {
+  const isMac = navigator.platform.toLowerCase().includes("mac");
+  const mod = isMac ? e.metaKey : e.ctrlKey;
+  if (mod && e.key.toLowerCase() === "s"){
+    e.preventDefault();
+    if (FEED.isBusy()) return;
+    if (!$("btnSave").disabled) saveItem();
+  }
+});
+
+/** Boot */
+verifyGate();
+</script>
+</body>
+</html>
