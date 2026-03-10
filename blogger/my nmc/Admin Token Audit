@@ -1,0 +1,688 @@
+<!-- QAcademy — Admin Token & Session Audit -->
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<style>
+  :root{
+    --brand:#0b7a75;
+    --brand-soft:#e0f2f1;
+    --muted:#6b7b7a;
+    --ink:#0f172a;
+    --paper:#ffffff;
+    --line:#e2e8f0;
+    --danger:#b42318;
+    --danger-soft:#fff5f5;
+    --ok:#166534;
+    --ok-soft:#ecfdf3;
+  }
+
+  .qa-token-shell{
+    max-width:1100px;
+    margin:32px auto 40px;
+    padding:0 12px 24px;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    color:var(--ink);
+  }
+
+  .qa-token-header{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    align-items:flex-start;
+    margin-bottom:16px;
+  }
+  .qa-token-title{
+    font-size:22px;
+    font-weight:800;
+    letter-spacing:.2px;
+  }
+  .qa-token-sub{
+    font-size:13px;
+    color:var(--muted);
+    margin-top:4px;
+    max-width:520px;
+  }
+  .qa-token-badge{
+    padding:4px 8px;
+    border-radius:999px;
+    font-size:11px;
+    background:var(--brand-soft);
+    color:var(--brand);
+    border:1px solid rgba(11,122,117,.3);
+    white-space:nowrap;
+  }
+
+  .qa-token-card{
+    background:var(--paper);
+    border-radius:16px;
+    border:1px solid var(--line);
+    box-shadow:0 8px 24px rgba(15,23,42,.06);
+    padding:14px 14px 16px;
+  }
+
+  .qa-token-filters{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:flex-end;
+    margin-bottom:10px;
+  }
+  .qa-token-field{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    min-width:170px;
+  }
+  .qa-token-label{
+    font-size:12px;
+    color:var(--muted);
+  }
+  .qa-token-input{
+    padding:7px 9px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    font-size:13px;
+    min-width:0;
+  }
+  .qa-token-input:focus{
+    outline:none;
+    border-color:#cde7e4;
+    box-shadow:0 0 0 3px rgba(11,122,117,.15);
+  }
+
+  .qa-token-checkbox-row{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  .qa-token-btn{
+    padding:8px 14px;
+    border-radius:10px;
+    border:1px solid var(--brand);
+    background:linear-gradient(180deg,#0b7a75,#0a6a67);
+    color:#fff;
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .qa-token-btn:disabled{
+    opacity:.7;
+    cursor:progress;
+  }
+  .qa-token-btn.secondary{
+    background:#fff;
+    border-color:#cbd5e1;
+    color:var(--ink);
+  }
+
+  .qa-token-status{
+    margin:8px 0 6px;
+    font-size:12px;
+    padding:8px 10px;
+    border-radius:10px;
+    display:none;
+  }
+  .qa-token-status.ok{
+    background:var(--ok-soft);
+    color:var(--ok);
+    border:1px solid #bbf7d0;
+  }
+  .qa-token-status.err{
+    background:var(--danger-soft);
+    color:var(--danger);
+    border:1px solid #fecaca;
+  }
+
+  .qa-token-summary{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin:6px 0 4px;
+    font-size:11px;
+    color:var(--muted);
+  }
+  .qa-token-chip{
+    padding:3px 8px;
+    border-radius:999px;
+    background:#f9fafb;
+    border:1px solid #e5e7eb;
+  }
+
+  .qa-token-table-wrap{
+    margin-top:6px;
+    border-radius:12px;
+    border:1px solid #e5e7eb;
+    overflow:auto;
+    max-height:520px;
+  }
+  table.qa-token-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:12px;
+    min-width:820px;
+  }
+  .qa-token-table thead{
+    background:#f9fafb;
+    position:sticky;
+    top:0;
+    z-index:1;
+  }
+  .qa-token-table th,
+  .qa-token-table td{
+    padding:7px 8px;
+    border-bottom:1px solid #e5e7eb;
+    text-align:left;
+    vertical-align:middle;
+  }
+  .qa-token-table th{
+    font-weight:600;
+    color:#64748b;
+    font-size:11px;
+  }
+  .qa-token-table tbody tr:nth-child(even){
+    background:#fcfcfd;
+  }
+  .qa-token-table tbody tr:hover{
+    background:#f1f5f9;
+  }
+  .qa-token-email{
+    font-weight:600;
+    color:#0f172a;
+  }
+  .qa-token-name{
+    font-weight:500;
+  }
+  .qa-token-role{
+    font-size:11px;
+    padding:2px 6px;
+    border-radius:999px;
+    border:1px solid #e5e7eb;
+    text-transform:uppercase;
+  }
+  .qa-token-role.admin{
+    border-color:rgba(202,138,4,.4);
+    background:#fffbeb;
+    color:#92400e;
+  }
+  .qa-token-role.support{
+    border-color:rgba(59,130,246,.4);
+    background:#eff6ff;
+    color:#1d4ed8;
+  }
+
+  .qa-token-active-chip{
+    font-size:11px;
+    padding:2px 7px;
+    border-radius:999px;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+  }
+  .qa-token-active-chip.active{
+    background:var(--ok-soft);
+    color:var(--ok);
+    border:1px solid #bbf7d0;
+  }
+  .qa-token-active-chip.inactive{
+    background:#f9fafb;
+    color:#4b5563;
+    border:1px solid #e5e7eb;
+  }
+
+  .qa-token-small{
+    font-size:11px;
+    color:#6b7280;
+  }
+
+  .qa-token-empty{
+    padding:16px 10px;
+    text-align:center;
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  /* Access flags */
+  .qa-token-guard{
+    margin:20px auto;
+    padding:12px 14px;
+    border-radius:12px;
+    border:1px solid #fee2e2;
+    background:#fef2f2;
+    color:#991b1b;
+    font-size:13px;
+    max-width:640px;
+  }
+
+  /* Revoke action button */
+  .qa-token-action-btn{
+    font-size:11px;
+    padding:4px 8px;
+    border-radius:999px;
+    border:1px solid rgba(180,35,24,.85);
+    background:var(--danger-soft);
+    color:var(--danger);
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .qa-token-action-btn:disabled{
+    opacity:.6;
+    cursor:default;
+  }
+
+  @media (max-width:720px){
+    .qa-token-header{
+      flex-direction:column;
+      align-items:flex-start;
+    }
+  }
+</style>
+
+<div class="qa-token-shell" id="qa-token-shell">
+  <div class="qa-token-header">
+    <div>
+      <div class="qa-token-title">Admin — Session Tokens</div>
+      <div class="qa-token-sub">
+        View active and recent sessions across the portal. Use this to spot unusual activity
+        and understand where users are signed in.
+      </div>
+    </div>
+    <div>
+      <span class="qa-token-badge" id="qa-token-admin-badge">Checking admin…</span>
+    </div>
+  </div>
+
+  <div id="qa-token-guard" class="qa-token-guard" style="display:none;"></div>
+
+  <div class="qa-token-card" id="qa-token-card" style="display:none;">
+    <!-- Filters -->
+    <div class="qa-token-filters">
+      <div class="qa-token-field">
+        <label class="qa-token-label" for="qa-filter-email">Filter by email</label>
+        <input id="qa-filter-email" type="email" class="qa-token-input" placeholder="student@example.com">
+      </div>
+
+      <div class="qa-token-field">
+        <label class="qa-token-label" for="qa-filter-userid">Filter by user_id</label>
+        <input id="qa-filter-userid" type="text" class="qa-token-input" placeholder="U_xxxxxxxx">
+      </div>
+
+      <div class="qa-token-field" style="max-width:120px;">
+        <label class="qa-token-label" for="qa-filter-limit">Limit</label>
+        <input id="qa-filter-limit" type="number" min="1" max="500" class="qa-token-input" value="200">
+      </div>
+
+      <div class="qa-token-field" style="flex:1;min-width:140px;">
+        <div class="qa-token-checkbox-row" style="margin-top:18px;">
+          <input id="qa-filter-active" type="checkbox" checked>
+          <label for="qa-filter-active">Active sessions only</label>
+        </div>
+      </div>
+
+      <div class="qa-token-field" style="min-width:120px;">
+        <button id="qa-token-refresh" type="button" class="qa-token-btn">Refresh</button>
+      </div>
+    </div>
+
+    <div id="qa-token-status" class="qa-token-status"></div>
+
+    <div class="qa-token-summary" id="qa-token-summary" style="display:none;">
+      <span class="qa-token-chip" id="qa-token-count"></span>
+      <span class="qa-token-chip" id="qa-token-active-count"></span>
+      <span class="qa-token-chip" id="qa-token-filter-note"></span>
+    </div>
+
+    <div class="qa-token-table-wrap" id="qa-token-table-wrap">
+      <table class="qa-token-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Email</th>
+            <th>Program / Role</th>
+            <th>Device</th>
+            <th>Login via</th>
+            <th>Issued</th>
+            <th>Last seen</th>
+            <th>Expires</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="qa-token-tbody">
+          <tr><td colspan="10" class="qa-token-empty">Loading sessions…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var WEB_APP_URL    = "https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec";
+  var TOKEN_KEY      = "qa_token";
+  var LOGIN_SLUG     = "login_23";
+  var DASHBOARD_SLUG = "dashboard_23";
+
+  var shell      = document.getElementById("qa-token-shell");
+  var guardBox   = document.getElementById("qa-token-guard");
+  var card       = document.getElementById("qa-token-card");
+  var adminBadge = document.getElementById("qa-token-admin-badge");
+  var statusBox  = document.getElementById("qa-token-status");
+
+  var filterEmail   = document.getElementById("qa-filter-email");
+  var filterUserId  = document.getElementById("qa-filter-userid");
+  var filterLimit   = document.getElementById("qa-filter-limit");
+  var filterActive  = document.getElementById("qa-filter-active");
+  var btnRefresh    = document.getElementById("qa-token-refresh");
+
+  var summaryRow    = document.getElementById("qa-token-summary");
+  var summaryCount  = document.getElementById("qa-token-count");
+  var summaryActive = document.getElementById("qa-token-active-count");
+  var summaryNote   = document.getElementById("qa-token-filter-note");
+
+  var tbody         = document.getElementById("qa-token-tbody");
+
+  function showGuard(msgHtml){
+    guardBox.innerHTML = msgHtml;
+    guardBox.style.display = "block";
+    card.style.display = "none";
+    adminBadge.textContent = "Access denied";
+  }
+
+  function setStatus(text, kind){
+    if(!text){
+      statusBox.style.display = "none";
+      return;
+    }
+    statusBox.textContent = text;
+    statusBox.className = "qa-token-status " + (kind === "ok" ? "ok" : "err");
+    statusBox.style.display = "block";
+  }
+
+  function fmtDate(iso){
+    if(!iso) return "";
+    var d = new Date(iso);
+    if(isNaN(d.getTime())) return iso;
+    return d.toLocaleString(undefined, {
+      year:"2-digit", month:"2-digit", day:"2-digit",
+      hour:"2-digit", minute:"2-digit"
+    });
+  }
+
+  function renderActiveChip(isActive){
+    var cls = isActive ? "active" : "inactive";
+    var text = isActive ? "Active" : "Inactive";
+    return '<span class="qa-token-active-chip ' + cls + '">' + text + '</span>';
+  }
+
+  function renderActionsCell(row){
+    if(!row.active){
+      return '<span class="qa-token-small" style="color:#9ca3af;">—</span>';
+    }
+    if(!row.token){
+      return '<span class="qa-token-small" style="color:#9ca3af;">—</span>';
+    }
+    return '<button type="button" class="qa-token-action-btn" data-token="' +
+      escapeHtml(row.token) + '">Revoke</button>';
+  }
+
+  function escapeHtml(str){
+    if(str == null) return "";
+    return String(str)
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#39;");
+  }
+
+  function renderTokens(tokens, filters){
+    tbody.innerHTML = "";
+    if(!tokens || !tokens.length){
+      tbody.innerHTML = '<tr><td colspan="10" class="qa-token-empty">No sessions found for this filter.</td></tr>';
+      summaryRow.style.display = "none";
+      return;
+    }
+
+    var activeCount = tokens.filter(function(t){ return !!t.active; }).length;
+    summaryCount.textContent  = "Total sessions: " + tokens.length;
+    summaryActive.textContent = "Active: " + activeCount;
+
+    var notes = [];
+    if(filters.filter_email) notes.push("email = " + filters.filter_email);
+    if(filters.filter_user_id) notes.push("user_id = " + filters.filter_user_id);
+    if(filters.active_only) notes.push("active only");
+    if(filters.limit) notes.push("limit " + filters.limit);
+    summaryNote.textContent = notes.length ? ("Filters: " + notes.join(" · ")) : "Filters: none";
+    summaryRow.style.display = "flex";
+
+    tokens.forEach(function(row){
+      var tr = document.createElement("tr");
+
+      var roleClass = "";
+      var roleText  = (row.role || "").toUpperCase();
+      if(roleText === "ADMIN")   roleClass = "admin";
+      if(roleText === "SUPPORT") roleClass = "support";
+
+      var name = row.name || "";
+      if(!name && row.email){
+        name = row.email.split("@")[0];
+      }
+
+      tr.innerHTML =
+        '<td><div class="qa-token-name">' + escapeHtml(name) + '</div>' +
+          '<div class="qa-token-small">' + escapeHtml(row.user_id || "") + '</div></td>' +
+
+        '<td><div class="qa-token-email">' + escapeHtml(row.email || "") + '</div></td>' +
+
+        '<td>' +
+          '<div class="qa-token-small">Program: ' + escapeHtml(row.program_id || "-") + '</div>' +
+          '<div class="qa-token-role ' + roleClass + '">' + (roleText || "STUDENT") + '</div>' +
+        '</td>' +
+
+        '<td><div class="qa-token-small">' + escapeHtml(row.device_label || "") + '</div></td>' +
+
+        '<td><div class="qa-token-small">' + escapeHtml((row.login_via || "").toLowerCase()) + '</div></td>' +
+
+        '<td><div class="qa-token-small">' + escapeHtml(fmtDate(row.issued_utc || "")) + '</div></td>' +
+        '<td><div class="qa-token-small">' + escapeHtml(fmtDate(row.last_seen_utc || "")) + '</div></td>' +
+        '<td><div class="qa-token-small">' + escapeHtml(fmtDate(row.expires_utc || "")) + '</div></td>' +
+
+        '<td>' + renderActiveChip(row.active) + '</td>' +
+        '<td>' + renderActionsCell(row) + '</td>';
+
+      tbody.appendChild(tr);
+    });
+
+    wireTokenRowActions();
+  }
+
+  function wireTokenRowActions(){
+    var buttons = tbody.querySelectorAll(".qa-token-action-btn");
+    buttons.forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var t = this.getAttribute("data-token") || "";
+        if(!t) return;
+        onRevokeClick(t, this);
+      });
+    });
+  }
+
+  async function onRevokeClick(targetToken, buttonEl){
+    var token = localStorage.getItem(TOKEN_KEY);
+    if(!token){
+      setStatus("No admin token found in browser storage. Please log in again.", "err");
+      return;
+    }
+
+    var confirmed = window.confirm(
+      "Revoke this session token?\n\n" +
+      "This will sign the user out on that device and prevent further use of this session."
+    );
+    if(!confirmed) return;
+
+    try{
+      setStatus("Revoking session…", "");
+      if(buttonEl){
+        buttonEl.disabled = true;
+      }
+
+      var body = new URLSearchParams({
+        action:       "admin_revoke_token",
+        token:        token,
+        target_token: targetToken
+      });
+
+      var res = await fetch(WEB_APP_URL, {
+        method:"POST",
+        headers:{ "Content-Type":"application/x-www-form-urlencoded" },
+        body: body
+      });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      var data = await res.json();
+
+      if(!data || !data.ok){
+        var err = (data && data.error) || "unknown_error";
+        setStatus("Could not revoke token: " + err, "err");
+        if(buttonEl) buttonEl.disabled = false;
+        return;
+      }
+
+      setStatus("Session revoked successfully.", "ok");
+      // Reload list so status/active flags update
+      loadTokens();
+    }catch(e){
+      setStatus("Error revoking token: " + e.message, "err");
+      if(buttonEl) buttonEl.disabled = false;
+    }
+  }
+
+  async function loadTokens(){
+    setStatus("", "");
+    var token = localStorage.getItem(TOKEN_KEY);
+    if(!token){
+      setStatus("No token found in browser storage.", "err");
+      tbody.innerHTML = '<tr><td colspan="10" class="qa-token-empty">No token in this browser. Please log in first.</td></tr>';
+      return;
+    }
+
+    btnRefresh.disabled = true;
+    btnRefresh.textContent = "Loading…";
+
+    var fEmail   = (filterEmail.value || "").trim();
+    var fUserId  = (filterUserId.value || "").trim();
+    var fLimit   = (filterLimit.value || "").trim();
+    var fActive  = filterActive.checked ? "true" : "";
+
+    try{
+      var body = new URLSearchParams({
+        action:       "list_tokens",
+        token:        token,
+        filter_email: fEmail,
+        filter_user_id: fUserId,
+        active_only:  fActive,
+        limit:        fLimit || ""
+      });
+
+      var res = await fetch(WEB_APP_URL, {
+        method:"POST",
+        headers:{ "Content-Type":"application/x-www-form-urlencoded" },
+        body: body
+      });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      var data = await res.json();
+
+      if(!data || !data.ok){
+        var err = (data && data.error) || "unknown_error";
+        if(err === "forbidden"){
+          showGuard("You are signed in but not an admin. This page is restricted to admin accounts.");
+          return;
+        }
+        setStatus("Could not load tokens: " + err, "err");
+        tbody.innerHTML = '<tr><td colspan="10" class="qa-token-empty">Error loading tokens.</td></tr>';
+        return;
+      }
+
+      var tokens = data.tokens || [];
+      renderTokens(tokens, {
+        filter_email:  fEmail,
+        filter_user_id:fUserId,
+        active_only:   !!filterActive.checked,
+        limit:         fLimit || ""
+      });
+      setStatus("Token list loaded successfully.", "ok");
+    }catch(e){
+      setStatus("Network or server error: " + e.message, "err");
+      tbody.innerHTML = '<tr><td colspan="10" class="qa-token-empty">Error loading tokens.</td></tr>';
+    }finally{
+      btnRefresh.disabled = false;
+      btnRefresh.textContent = "Refresh";
+    }
+  }
+
+  async function init(){
+    var token = localStorage.getItem(TOKEN_KEY);
+    if(!token){
+      adminBadge.textContent = "Not signed in";
+      showGuard(
+        'No portal token was found. Please <a href="/p/' + LOGIN_SLUG +
+        '.html">log in</a> first.'
+      );
+      return;
+    }
+
+    try{
+      var body = new URLSearchParams({ action:"verify", token:token });
+      var res = await fetch(WEB_APP_URL, {
+        method:"POST",
+        headers:{ "Content-Type":"application/x-www-form-urlencoded" },
+        body: body
+      });
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      var data = await res.json();
+
+      if(!data || !data.ok){
+        adminBadge.textContent = "Token invalid";
+        showGuard(
+          'Your session is not valid. Please <a href="/p/' + LOGIN_SLUG +
+          '.html">log in</a> again.'
+        );
+        return;
+      }
+
+      if(!data.flags || !data.flags.is_admin){
+        adminBadge.textContent = "Not admin";
+        showGuard(
+          'You are signed in as a student account. This page is restricted to admin accounts. ' +
+          'You can return to your <a href="/p/' + DASHBOARD_SLUG + '.html">dashboard</a>.'
+        );
+        return;
+      }
+
+      var userName = (data.user && data.user.name) || "";
+      adminBadge.textContent = "Admin: " + userName;
+
+      // Guard passes → show card and load data
+      guardBox.style.display = "none";
+      card.style.display = "block";
+
+      loadTokens();
+    }catch(e){
+      adminBadge.textContent = "Error";
+      showGuard(
+        'Error verifying your session: ' + e.message +
+        '. Try refreshing the page or logging in again.'
+      );
+    }
+  }
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+
+  btnRefresh.addEventListener("click", loadTokens);
+})();
+</script>
