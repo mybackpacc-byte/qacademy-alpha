@@ -1,0 +1,1597 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QAcademy — Review</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:'Inter',system-ui,sans-serif;
+      line-height:1.5;
+      overflow-x:hidden;
+    }
+    body.qaNoScroll{ overflow:hidden; }
+
+    /* ✅ Scope box-sizing to app */
+    .qaApp, .qaApp * { box-sizing:border-box; }
+
+    /* ✅ FULL-BLEED BREAKOUT + scoped tokens */
+    .qaApp{
+      --brand:#0b7a75; --brand-dark:#085f5c;
+      --text:#1a2e2b; --text-light:#4a6a66;
+      --bg:#f8faf9; --card:#ffffff; --border:#e0e6e4;
+      --danger:#c53030; --warn:#d69e2e; --success:#38a169;
+
+      --shadow-xs:0 1px 2px rgba(0,0,0,0.06);
+      --shadow-sm:0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md:0 4px 12px rgba(0,0,0,0.10);
+      --shadow-lg:0 14px 44px rgba(0,0,0,0.14);
+
+      --transition: all .2s ease;
+      --maxw:1720px; /* ✅ match runner wide desktop */
+
+      /* Safe-area + edge padding (used by menus + loader) */
+      --safeL: env(safe-area-inset-left, 0px);
+      --safeR: env(safe-area-inset-right, 0px);
+      --safeT: env(safe-area-inset-top, 0px);
+      --safeB: env(safe-area-inset-bottom, 0px);
+      --edgePad: 12px;
+
+      min-height:100vh;
+      background:var(--bg);
+      color:var(--text);
+
+      width:100vw;
+      margin-left: calc(50% - 50vw);
+      margin-right: calc(50% - 50vw);
+
+      overflow: visible;
+      position: relative;
+    }
+
+    /* Loader overlay (UI-only) */
+    .qaApp .qaLoader{
+      position:fixed;
+      inset:0;
+      z-index:2000;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:
+        calc(16px + var(--safeT))
+        calc(16px + var(--safeR))
+        calc(16px + var(--safeB))
+        calc(16px + var(--safeL));
+      background: rgba(248,250,249,.78);
+      backdrop-filter: blur(10px);
+    }
+    .qaApp .qaLoader.show{ display:flex; }
+
+    .qaApp .qaLoaderCard{
+      width:min(560px, calc(100vw - 32px - var(--safeL) - var(--safeR)));
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:20px;
+      background:rgba(255,255,255,.92);
+      box-shadow: var(--shadow-lg);
+      padding:18px;
+    }
+    .qaApp .qaLoaderTop{
+      display:flex;
+      gap:12px;
+      align-items:center;
+    }
+    .qaApp .qaSpinner{
+      width:42px;height:42px;border-radius:999px;
+      border:3px solid rgba(11,122,117,.18);
+      border-top-color: rgba(11,122,117,.85);
+      animation: qaSpin 0.9s linear infinite;
+      flex:0 0 auto;
+    }
+    @keyframes qaSpin{ to{ transform:rotate(360deg); } }
+
+    .qaApp .qaLoaderTitle{
+      font-weight:950;
+      letter-spacing:-0.01em;
+      margin:0;
+      font-size:1.05rem;
+    }
+    .qaApp .qaLoaderSub{
+      margin:2px 0 0;
+      color:var(--text-light);
+      font-weight:800;
+      font-size:.92rem;
+    }
+    .qaApp .qaSkel{
+      margin-top:14px;
+      border-radius:14px;
+      border:1px solid rgba(0,0,0,.08);
+      background:linear-gradient(90deg, rgba(0,0,0,.05), rgba(0,0,0,.02), rgba(0,0,0,.05));
+      background-size:200% 100%;
+      animation: qaShimmer 1.2s ease infinite;
+      height:14px;
+    }
+    .qaApp .qaSkel.s2{ height:12px; opacity:.9; width:88%; }
+    .qaApp .qaSkel.s3{ height:12px; opacity:.85; width:76%; }
+    @keyframes qaShimmer{
+      0%{background-position:200% 0}
+      100%{background-position:-200% 0}
+    }
+
+    /* Topbar */
+    .qaApp .topbar{
+      position: -webkit-sticky;
+      position: sticky;
+      top:0; z-index:100;
+      background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,249,0.92));
+      backdrop-filter: blur(12px);
+      border-bottom:1px solid var(--border);
+      box-shadow:var(--shadow-sm);
+    }
+    .qaApp .topbar .wrap{
+      max-width:var(--maxw);
+      margin:0 auto;
+      padding:12px 128px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .qaApp .brand{font-weight:900;font-size:1.05rem;color:var(--brand)}
+    .qaApp .muted{color:var(--text-light)}
+    .qaApp .sep{opacity:.45;margin:0 6px}
+
+    .qaApp .btn{
+      padding:10px 12px;
+      border-radius:12px;
+      font-weight:900;
+      border:1px solid var(--border);
+      background:#fff;
+      color:var(--text);
+      cursor:pointer;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      transition: var(--transition);
+      box-shadow:var(--shadow-xs);
+    }
+    .qaApp .btn:hover{background:#f8faf9}
+    .qaApp .btn:active{transform:translateY(1px)}
+    .qaApp .btnPrimary{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 8px 22px rgba(11,122,117,.22)}
+    .qaApp .btnPrimary:hover{background:var(--brand-dark)}
+    .qaApp .btnSmall{padding:9px 11px;border-radius:12px;font-weight:900}
+
+    /* Chips */
+    .qaApp .chipSubtle{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:6px 10px;
+      font-weight:900;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.08);
+      background:rgba(255,255,255,.78);
+      color:var(--text);
+      box-shadow:var(--shadow-xs);
+    }
+    .qaApp .chipTiny{
+      padding:5px 8px;
+      font-size:.82rem;
+      font-weight:850;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.08);
+      background:#fff;
+      color:var(--text-light);
+    }
+    .qaApp .chipStatus{
+      padding:6px 10px;
+      font-size:.9rem;
+      font-weight:900;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.10);
+      background:#fff;
+      color:var(--text);
+    }
+    .qaApp .chipStatus.ok{border-color:rgba(56,161,105,.30); background:rgba(56,161,105,.06); color:var(--success)}
+    .qaApp .chipStatus.bad{border-color:rgba(197,48,48,.30); background:rgba(197,48,48,.05); color:var(--danger)}
+
+    .qaApp .pillRow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+    /* Menus */
+    .qaApp .menu{position:relative;display:inline-flex}
+    .qaApp .menuPanel{
+      position:absolute;right:0;top:calc(100% + 10px);
+      width:min(360px, calc(100vw - 24px - var(--safeL) - var(--safeR)));
+      background:#fff;border:1px solid var(--border);
+      border-radius:16px;
+      box-shadow:var(--shadow-lg);
+      padding:12px;
+      display:none;
+      z-index:999;
+      transform-origin: top right;
+    }
+    .qaApp .menuPanel.wide{
+      width:min(520px, calc(100vw - 24px - var(--safeL) - var(--safeR)));
+    }
+    .qaApp .menuPanel.open{display:block}
+    .qaApp .menuTitle{font-weight:950;margin-bottom:8px}
+    .qaApp .row{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    .qaApp .row + .row{margin-top:10px}
+    .qaApp .field{display:flex;align-items:center;gap:10px}
+    .qaApp select, .qaApp input[type="text"]{
+      padding:10px 10px;border-radius:12px;border:1px solid var(--border);
+      outline:none;background:#fff;font-weight:800
+    }
+    .qaApp label.ck{display:flex;align-items:center;gap:10px;font-weight:850}
+    .qaApp label.ck input{width:18px;height:18px}
+
+    /* Segmented controls (topbar) — allow dropdown panels to render */
+    .qaApp .segControl{
+      display:flex;
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:14px;
+      background:rgba(255,255,255,.85);
+      box-shadow:var(--shadow-xs);
+      overflow: visible;
+    }
+    .qaApp .segControl .menu{display:flex}
+    .qaApp .segControl .menu .btn{
+      border:0;
+      border-right:1px solid rgba(0,0,0,.08);
+      border-radius:0;
+      box-shadow:none;
+      background:transparent;
+    }
+    .qaApp .segControl .menu:first-child .btn{
+      border-top-left-radius:14px;
+      border-bottom-left-radius:14px;
+    }
+    .qaApp .segControl .menu:last-child .btn{
+      border-right:0;
+      border-top-right-radius:14px;
+      border-bottom-right-radius:14px;
+    }
+    .qaApp .segControl .menu .btn:hover{background:rgba(11,122,117,.06)}
+    .qaApp .segControl .menu .btn.isOpen{
+      background:rgba(11,122,117,.10);
+      color:var(--brand-dark);
+    }
+
+    /* runner-style container + grid */
+    .qaApp .qaContainer{
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 24px 128px;
+    }
+    .qaApp .gridLayout{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:24px;
+      align-items:start;
+    }
+    @media (min-width: 992px){
+      .qaApp .gridLayout{ grid-template-columns: 360px minmax(0, 1fr); }
+    }
+
+    .qaApp .card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:24px;
+      box-shadow:var(--shadow-md);
+    }
+
+    /* Sidebar */
+    .qaApp .qaSidebar{
+      position:sticky;
+      top:84px;
+      align-self:start;
+      padding:16px;
+      z-index:10;
+    }
+    .qaApp .qaSidebar h3{font-size:1rem;font-weight:950;margin:0 0 10px}
+    .qaApp .legend{
+      display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+      padding:10px 10px;
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:14px;
+      background:linear-gradient(180deg,#fff,#fbfdfc);
+      margin:10px 0 10px;
+    }
+    .qaApp .legendItem{display:inline-flex;gap:8px;align-items:center;font-weight:850;color:var(--text-light);font-size:.9rem}
+    .qaApp .dot{
+      width:10px;height:10px;border-radius:999px;display:inline-block;
+      border:1px solid rgba(0,0,0,.12);
+      background:#fff;
+    }
+    .qaApp .dot.ok{background:rgba(56,161,105,.22); border-color:rgba(56,161,105,.35)}
+    .qaApp .dot.bad{background:rgba(197,48,48,.18); border-color:rgba(197,48,48,.30)}
+    .qaApp .dot.cur{background:rgba(11,122,117,.18); border-color:rgba(11,122,117,.30)}
+
+    .qaApp .grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+      gap:8px;
+    }
+    .qaApp .gbtn{
+      border:1px solid rgba(0,0,0,.10);
+      background:#fff;
+      border-radius:14px;
+      padding:10px 0;
+      font-weight:950;
+      cursor:pointer;
+      text-align:center;
+      user-select:none;
+      transition: var(--transition);
+      box-shadow:var(--shadow-xs);
+    }
+    .qaApp .gbtn:hover{background:#f8faf9}
+    .qaApp .gbtn.ok{border-color:rgba(56,161,105,.35);background:rgba(56,161,105,.10)}
+    .qaApp .gbtn.bad{border-color:rgba(197,48,48,.30);background:rgba(197,48,48,.08)}
+    .qaApp .gbtn.cur{outline:3px solid rgba(11,122,117,.22)}
+    .qaApp .gbtn.dim{opacity:.40}
+
+    .qaApp .notice{
+      padding:14px;border-radius:14px;background:#fef9e7;border:1px solid #f7e1b5
+    }
+
+    .qaApp .scoreBox{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+      flex-wrap:wrap;padding:14px;border:1px solid rgba(0,0,0,.08);
+      border-radius:16px;background:linear-gradient(180deg,#fff,#fbfdfc);margin-top:12px
+    }
+    .qaApp .scoreBig{font-size:1.25rem;font-weight:950;color:var(--brand)}
+
+    /* Pager polish */
+    .qaApp .pager{
+      margin-top:14px;
+      display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+      padding:12px;
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:16px;
+      background:linear-gradient(180deg,#fff,#fbfdfc);
+      box-shadow:var(--shadow-xs);
+      position:relative;
+      z-index:5;
+    }
+    .qaApp .pagerLeftWrap{display:flex;flex-direction:column;gap:4px}
+    .qaApp .kbdHint{
+      display:inline-flex;gap:8px;align-items:center;
+      font-weight:850;
+      font-size:.86rem;
+      color:var(--text-light);
+    }
+    .qaApp .kbdKey{
+      font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-weight:900;
+      font-size:.82rem;
+      padding:2px 8px;
+      border-radius:10px;
+      border:1px solid rgba(0,0,0,.10);
+      background:#fff;
+      color:var(--text);
+    }
+    @media (min-width: 992px){
+      .qaApp .pager{ position:sticky; top:84px; z-index:15; }
+    }
+
+    /* Question cards */
+    .qaApp .qItem{
+      margin-top:14px;
+      border:1px solid rgba(0,0,0,.08);
+      border-radius:18px;
+      padding:18px;
+      background:linear-gradient(180deg,#ffffff,#fbfdfc);
+      box-shadow:var(--shadow-xs);
+    }
+    .qaApp .qHead{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      justify-content:space-between;
+      flex-wrap:wrap;
+    }
+    .qaApp .qNum{
+      font-weight:950;
+      letter-spacing:-0.01em;
+    }
+    .qaApp .qMetaRow{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+
+    .qaApp .qDivider{
+      height:1px;
+      background:linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,.10), rgba(0,0,0,0));
+      margin:14px 0;
+    }
+
+    .qaApp .stem{
+      font-weight:900;
+      font-size:1.05rem;
+      line-height:1.55;
+      letter-spacing:-0.01em;
+      margin:14px 0 0;
+      white-space:pre-wrap;
+    }
+    @media (min-width: 992px){
+      .qaApp .stem{ font-size:1.10rem; }
+    }
+
+    /* Options */
+    .qaApp .opt{
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:16px;
+      padding:14px 14px;
+      margin:12px 0;
+      background:#fff;
+      box-shadow:var(--shadow-xs);
+      transition: var(--transition);
+    }
+    @media (hover:hover){
+      .qaApp .opt:hover{ transform:translateY(-2px); box-shadow:var(--shadow-md); }
+    }
+    .qaApp .optRow{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+    }
+    .qaApp .optKey{
+      min-width:34px;
+      height:34px;
+      border-radius:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight:950;
+      color:var(--brand);
+      border:1px solid rgba(11,122,117,.22);
+      background:rgba(11,122,117,.06);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
+      flex:0 0 auto;
+    }
+    .qaApp .optText{flex:1; white-space:pre-wrap; font-weight:700; color:var(--text)}
+    .qaApp .optBadges{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-left:auto}
+    .qaApp .tag{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.10);
+      background:#fff;
+      font-weight:900;
+      font-size:.80rem;
+      color:var(--text-light);
+      white-space:nowrap;
+    }
+    .qaApp .tag.ok{border-color:rgba(56,161,105,.28); background:rgba(56,161,105,.08); color:#1d6f44}
+    .qaApp .tag.warn{border-color:rgba(214,158,46,.30); background:rgba(214,158,46,.10); color:#8a5a00}
+    .qaApp .tag.bad{border-color:rgba(197,48,48,.26); background:rgba(197,48,48,.08); color:#8b1c1c}
+
+    .qaApp .optFb{margin-top:10px;color:var(--text-light);font-weight:750;font-size:.95rem;white-space:pre-wrap}
+
+    .qaApp .opt.chosen{border-color:rgba(214,158,46,.45)}
+    .qaApp .opt.correct{border-color:rgba(56,161,105,.45)}
+    .qaApp .opt.wrongChosen{border-color:rgba(197,48,48,.35)}
+    .qaApp .opt.correct{background:linear-gradient(180deg, rgba(56,161,105,.07), #fff)}
+    .qaApp .opt.chosen{background:linear-gradient(180deg, rgba(214,158,46,.07), #fff)}
+    .qaApp .opt.wrongChosen{background:linear-gradient(180deg, rgba(197,48,48,.06), #fff)}
+
+    /* Rationale accordion */
+    .qaApp .ratWrap{
+      border:1px dashed rgba(0,0,0,.16);
+      border-radius:16px;
+      background:#fbfbfb;
+      overflow:hidden;
+    }
+    .qaApp .ratToggle{
+      width:100%;
+      padding:12px 12px;
+      background:linear-gradient(180deg,#fff,#fbfdfc);
+      border:0;
+      border-bottom:1px dashed rgba(0,0,0,.12);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      cursor:pointer;
+      font-weight:950;
+      color:var(--text);
+      text-align:left;
+    }
+    .qaApp .ratToggle .left{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    }
+    .qaApp .ratChevron{
+      width:26px;height:26px;border-radius:10px;
+      display:flex;align-items:center;justify-content:center;
+      border:1px solid rgba(0,0,0,.10);
+      background:#fff;
+      color:var(--text-light);
+      font-weight:950;
+      flex:0 0 auto;
+      transition: var(--transition);
+    }
+    .qaApp .ratWrap.open .ratChevron{ transform:rotate(180deg); color:var(--brand); border-color:rgba(11,122,117,.25); background:rgba(11,122,117,.06); }
+    .qaApp .ratBody{ padding:12px 12px 14px; }
+    .qaApp .ratText{ color:var(--text-light); font-weight:750; white-space:pre-wrap; }
+
+    /* Lazy-loaded image with tap-to-expand */
+    .qaApp .ratImgToggle{
+      width:100%;
+      margin-top:12px;
+      padding:0;
+      border:1px solid rgba(0,0,0,.10);
+      border-radius:16px;
+      background:#fff;
+      cursor:zoom-in;
+      overflow:hidden;
+      position:relative;
+      box-shadow:var(--shadow-xs);
+      display:block;
+      text-align:left;
+    }
+    .qaApp .ratImgToggle img{
+      width:100%;
+      display:block;
+      object-fit:contain;
+      background:#fff;
+      height:auto;
+    }
+    .qaApp .ratImgToggle:not(.expanded) img{ max-height:360px; }
+    .qaApp .ratImgToggle.expanded{ cursor:zoom-out; }
+    .qaApp .ratImgToggle.expanded img{ max-height:none; }
+
+    .qaApp .ratImgOverlay{
+      position:absolute;
+      left:0; right:0; bottom:0;
+      padding:10px 12px;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:950;
+      font-size:.90rem;
+      color:#fff;
+      background:linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.45));
+      pointer-events:none;
+    }
+    .qaApp .imgSkeleton{
+      margin-top:12px;
+      height:180px;
+      border-radius:16px;
+      border:1px solid rgba(0,0,0,.10);
+      background:linear-gradient(90deg, rgba(0,0,0,.04), rgba(0,0,0,.02), rgba(0,0,0,.04));
+      background-size:200% 100%;
+      animation: shimmer 1.4s ease infinite;
+    }
+    @keyframes shimmer{
+      0%{background-position:200% 0}
+      100%{background-position:-200% 0}
+    }
+
+    /* Mobile */
+    .qaApp .fab{
+      position:fixed;right:14px;bottom:14px;z-index:50;
+      padding:12px 14px;border-radius:999px;
+      border:1px solid var(--border);
+      background:var(--brand);color:#fff;font-weight:950;
+      box-shadow:var(--shadow-lg);
+      display:none;
+      cursor:pointer;
+      transition: var(--transition);
+    }
+    .qaApp .fab:hover{background:var(--brand-dark)}
+
+    .qaApp .sheetBack{
+      position:fixed;inset:0;z-index:160;
+      background:rgba(0,0,0,.35);
+      display:none;
+      align-items:flex-end;
+      justify-content:center;
+      padding:12px;
+    }
+    .qaApp .sheet{
+      width:min(720px, 100%);
+      background:#fff;border:1px solid var(--border);
+      border-radius:18px;
+      box-shadow:var(--shadow-lg);
+      padding:12px;
+      max-height:70vh;
+      overflow:auto;
+    }
+
+    /* ✅ Mobile/tablet */
+    @media (max-width: 991px){
+      .qaApp .qaSidebar{ display:none; }
+      .qaApp .fab{ display:inline-flex; }
+
+      .qaApp .topbar .wrap{
+        padding-left: calc(24px + var(--safeL));
+        padding-right: calc(24px + var(--safeR));
+      }
+      .qaApp .qaContainer{
+        padding-left: calc(24px + var(--safeL));
+        padding-right: calc(24px + var(--safeR));
+        padding-top: 20px;
+      }
+      .qaApp .segControl{ width:100%; justify-content:space-between; }
+      .qaApp .segControl .menu{ flex:1; }
+      .qaApp .segControl .menu .btn{ width:100%; justify-content:center; }
+
+      /* Small extra safety so panel shadows never look clipped */
+      .qaApp .menuPanel{
+        max-width: calc(100vw - 24px - var(--safeL) - var(--safeR));
+      }
+    }
+
+    @media (max-width: 700px){
+      .qaApp .topbar .wrap{
+        padding-left: calc(16px + var(--safeL));
+        padding-right: calc(16px + var(--safeR));
+        gap: 10px;
+      }
+      .qaApp .qaContainer{
+        padding-left: calc(16px + var(--safeL));
+        padding-right: calc(16px + var(--safeR));
+        padding-top: 16px;
+      }
+      .qaApp .card{ padding: 16px; }
+      .qaApp .qItem{ padding: 14px; }
+      .qaApp .stem{ font-size:1.02rem; }
+      .qaApp .opt{ padding: 12px; border-radius: 16px; }
+      .qaApp .optKey{ min-width:32px; height:32px; border-radius:12px; }
+      .qaApp .tag{ font-size:.78rem; }
+      .qaApp .pager{ position:static; }
+    }
+  </style>
+</head>
+<body>
+<div class="qaApp">
+
+  <!-- Loader overlay (UI-only) -->
+  <div class="qaLoader" id="qaLoader" aria-live="polite" aria-busy="true">
+    <div class="qaLoaderCard" role="status">
+      <div class="qaLoaderTop">
+        <div class="qaSpinner" aria-hidden="true"></div>
+        <div>
+          <div class="qaLoaderTitle" id="qaLoaderTitle">Loading review...</div>
+          <div class="qaLoaderSub" id="qaLoaderSub">Please wait</div>
+        </div>
+      </div>
+      <div class="qaSkel"></div>
+      <div class="qaSkel s2"></div>
+      <div class="qaSkel s3"></div>
+    </div>
+  </div>
+
+  <div class="topbar">
+    <div class="wrap">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <a class="btn" id="btnBackResults" href="/p/teacher-quiz-results.html">← Results</a>
+        <div class="brand">Review</div>
+        <span class="chipSubtle" id="uiRightMeta">Loading...</span>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div class="segControl" aria-label="Review controls">
+          <div class="menu">
+            <button class="btn btnSmall" id="btnMenuView" type="button">View ▾</button>
+            <div class="menuPanel" id="menuView">
+              <div class="menuTitle">View</div>
+              <div class="row">
+                <div class="field">
+                  <div style="font-weight:950">Questions per page</div>
+                </div>
+                <select id="selPageSize">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="5">5</option>
+                  <option value="10">10</option>
+                </select>
+              </div>
+
+              <div class="row">
+                <label class="ck"><input type="checkbox" id="ckShowFeedback"> Show option feedback</label>
+              </div>
+              <div class="row">
+                <label class="ck"><input type="checkbox" id="ckShowChips" checked> Show topic/difficulty</label>
+              </div>
+              <div class="row">
+                <label class="ck"><input type="checkbox" id="ckShowImages" checked> Show rationale images</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="menu">
+            <button class="btn btnSmall" id="btnMenuFilters" type="button">Filters ▾</button>
+            <div class="menuPanel" id="menuFilters">
+              <div class="menuTitle">Filters</div>
+
+              <div class="row">
+                <div class="field" style="gap:8px;flex-wrap:wrap">
+                  <button class="btn btnSmall" type="button" id="fltAll">All</button>
+                  <button class="btn btnSmall" type="button" id="fltCorrect">Correct</button>
+                  <button class="btn btnSmall" type="button" id="fltWrong">Wrong</button>
+                </div>
+                <button class="btn btnSmall" type="button" id="btnClearFilters">Clear</button>
+              </div>
+
+              <details style="margin-top:10px">
+                <summary style="cursor:pointer;font-weight:950">Difficulty</summary>
+                <div id="fltDiffs" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap"></div>
+              </details>
+
+              <details style="margin-top:10px">
+                <summary style="cursor:pointer;font-weight:950">Topic</summary>
+                <div id="fltTopics" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap"></div>
+              </details>
+
+              <div class="muted" id="fltSummary" style="margin-top:10px"></div>
+            </div>
+          </div>
+
+          <div class="menu">
+            <button class="btn btnSmall" id="btnMenuMe" type="button">My details ▾</button>
+            <div class="menuPanel wide" id="menuMe">
+              <div class="menuTitle">My profile & submission details</div>
+              <div id="uiMyDetails" class="muted">Loading...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="qaContainer">
+    <div class="gridLayout">
+
+      <aside class="card qaSidebar">
+        <h3>Question Map</h3>
+        <div class="muted" id="uiMapHint" style="margin-bottom:10px">Tap a number to jump.</div>
+
+        <div class="legend" aria-label="Legend">
+          <div class="legendItem"><span class="dot ok"></span> Correct</div>
+          <div class="legendItem"><span class="dot bad"></span> Incorrect</div>
+          <div class="legendItem"><span class="dot cur"></span> Viewing</div>
+        </div>
+
+        <div class="grid" id="uiGrid"></div>
+      </aside>
+
+      <div class="card">
+        <h2 id="uiTitle" style="font-size:1.35rem;font-weight:950;margin:0 0 6px;letter-spacing:-0.01em;">Loading...</h2>
+        <div class="muted" id="uiSub">Please wait</div>
+
+        <div id="uiTop"></div>
+
+        <div class="pager" id="uiPager" style="display:none">
+          <div class="pagerLeftWrap">
+            <div class="muted" id="uiPagerLeft">—</div>
+            <div class="kbdHint" aria-hidden="true">
+              <span class="kbdKey">←</span>
+              <span class="kbdKey">→</span>
+              <span>Navigate</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button class="btn btnSmall" type="button" id="btnPrev">← Prev</button>
+            <button class="btn btnSmall" type="button" id="btnNext">Next →</button>
+          </div>
+        </div>
+
+        <div id="uiList" style="margin-top:10px;"></div>
+
+        <div style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+          <a class="btn" href="https://nursing2000a.blogspot.com/p/my-classes.html">Back to My Classes</a>
+          <a class="btn btnPrimary" id="btnToResults2" href="/p/teacher-quiz-results.html">Back to Results</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <button class="fab" id="btnFabMap" type="button">Question Map</button>
+
+  <div class="sheetBack" id="sheetBack">
+    <div class="sheet" role="dialog" aria-modal="true">
+      <div class="row" style="margin-bottom:10px">
+        <div style="font-weight:950">Question Map</div>
+        <button class="btn btnSmall" type="button" id="btnCloseSheet">Close</button>
+      </div>
+      <div class="grid" id="uiGridMobile"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const TA_URL = "https://script.google.com/macros/s/AKfycbz54M_jWoRq4cOC2gUQeRhd55AeEJ5vnELJ0gkBSodO58fr7WGa9jwk6JNwPptf8p8X/exec";
+  const TOKEN_KEY = "qa_token";
+  const RESULTS_PAGE = "/p/teacher-quiz-results.html";
+  const DASHBOARD_URL = "/p/my-classes.html";
+
+  const LS_PAGE_SIZE = "qa_review_pagesize";
+  const LS_SHOW_FB   = "qa_review_showfb";
+  const LS_SHOW_CHIP = "qa_review_showchips";
+  const LS_SHOW_IMG  = "qa_review_showimages";
+
+  const state = {
+    token:'',
+    class_id:'',
+    teacher_quiz_id:'',
+    attempt_id:'',
+    data:null,
+
+    allItems: [],
+    filtered: [],
+    cursor: 0,
+
+    pageSize: 1,
+    showFeedback: false,
+    showChips: true,
+    showImages: true,
+
+    correctness: 'ALL', // ALL | CORRECT | WRONG
+    diffSet: new Set(),
+    topicSet: new Set(),
+    diffAvail: [],
+    topicAvail: []
+  };
+
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const qp = k => new URL(location.href).searchParams.get(k)?.trim() || '';
+  const readToken = () => localStorage.getItem(TOKEN_KEY)?.trim() || '';
+
+  function buildUrl(path, params){
+    const u = new URL(path, location.origin);
+    Object.entries(params||{}).forEach(([k,v]) => { if (v!=null && String(v).trim()!=='') u.searchParams.set(k, String(v)); });
+    return u.toString();
+  }
+
+  async function apiCall(action, data={}){
+    const body = new URLSearchParams();
+    body.set('action', action);
+    if (state.token) body.set('token', state.token);
+    Object.entries(data).forEach(([k,v]) => { if (v !== undefined && v !== null) body.set(k, String(v)); });
+    const res = await fetch(TA_URL, { method:'POST', body });
+    return await res.json();
+  }
+
+  function clampPageSize(n){
+    const v = parseInt(n, 10);
+    if (![1,2,5,10].includes(v)) return 1;
+    return v;
+  }
+
+  function loadPrefs(){
+    state.pageSize = clampPageSize(localStorage.getItem(LS_PAGE_SIZE) || '1');
+    state.showFeedback = (localStorage.getItem(LS_SHOW_FB) === '1');
+    state.showChips = (localStorage.getItem(LS_SHOW_CHIP) !== '0');
+    state.showImages = (localStorage.getItem(LS_SHOW_IMG) !== '0');
+
+    $('#selPageSize').value = String(state.pageSize);
+    $('#ckShowFeedback').checked = state.showFeedback;
+    $('#ckShowChips').checked = state.showChips;
+    $('#ckShowImages').checked = state.showImages;
+  }
+
+  function savePrefs(){
+    localStorage.setItem(LS_PAGE_SIZE, String(state.pageSize));
+    localStorage.setItem(LS_SHOW_FB, state.showFeedback ? '1' : '0');
+    localStorage.setItem(LS_SHOW_CHIP, state.showChips ? '1' : '0');
+    localStorage.setItem(LS_SHOW_IMG, state.showImages ? '1' : '0');
+  }
+
+  /* Loader (UI-only) */
+  function setLoading(on, title, sub){
+    const overlay = $('#qaLoader');
+    if (!overlay) return;
+
+    if (title != null) $('#qaLoaderTitle').textContent = String(title);
+    if (sub != null) $('#qaLoaderSub').textContent = String(sub);
+
+    overlay.classList.toggle('show', !!on);
+    document.body.classList.toggle('qaNoScroll', !!on);
+
+    // Optional header hint (no logic changes)
+    const meta = $('#uiRightMeta');
+    if (meta && !!on) meta.textContent = 'Loading...';
+  }
+
+  function closeAllMenus(){
+    ['menuView','menuFilters','menuMe'].forEach(id => {
+      const p = $('#'+id);
+      p.classList.remove('open');
+      // reset any inline clamp styles so desktop stays clean
+      p.style.left = '';
+      p.style.right = '';
+      p.style.transform = '';
+    });
+    ['btnMenuView','btnMenuFilters','btnMenuMe'].forEach(id => $('#'+id).classList.remove('isOpen'));
+  }
+
+  /* Mobile dropdown clamp (UI-only) */
+  function pxVar(el, name){
+    const v = getComputedStyle(el).getPropertyValue(name).trim();
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function positionMenu(panelId){
+    const p = $('#'+panelId);
+    if (!p || !p.classList.contains('open')) return;
+
+    const isMobile = window.matchMedia && window.matchMedia('(max-width: 991px)').matches;
+    if (!isMobile) {
+      p.style.left = '';
+      p.style.right = '';
+      p.style.transform = '';
+      return;
+    }
+
+    const btnId =
+      panelId === 'menuView' ? 'btnMenuView' :
+      panelId === 'menuFilters' ? 'btnMenuFilters' :
+      'btnMenuMe';
+
+    const btn = $('#'+btnId);
+    if (!btn) return;
+
+    const menu = btn.closest('.menu') || btn.parentElement;
+    if (!menu) return;
+
+    // Ensure we can measure
+    const app = $('.qaApp');
+    const safeL = pxVar(app, '--safeL');
+    const safeR = pxVar(app, '--safeR');
+    const edgePad = Math.max(12, pxVar(app, '--edgePad') || 12);
+
+    const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+    const menuRect = menu.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    const panelRect = p.getBoundingClientRect();
+    const w = panelRect.width || Math.min(360, vw - (edgePad*2));
+
+    const minLeft = edgePad + safeL;
+    const maxLeft = Math.max(minLeft, vw - edgePad - safeR - w);
+
+    // Default anchor: align panel right edge to button right edge
+    let left = btnRect.right - w;
+    left = Math.min(Math.max(left, minLeft), maxLeft);
+
+    p.style.right = 'auto';
+    p.style.left = (left - menuRect.left) + 'px';
+    p.style.transform = 'none';
+  }
+
+  function toggleMenu(panelId){
+    const p = $('#'+panelId);
+    const open = p.classList.contains('open');
+    closeAllMenus();
+    if (!open) {
+      p.classList.add('open');
+      if (panelId === 'menuView') $('#btnMenuView').classList.add('isOpen');
+      if (panelId === 'menuFilters') $('#btnMenuFilters').classList.add('isOpen');
+      if (panelId === 'menuMe') $('#btnMenuMe').classList.add('isOpen');
+
+      // Clamp after it becomes measurable
+      requestAnimationFrame(() => positionMenu(panelId));
+    }
+  }
+
+  function renderLocked(msg){
+    $('#uiTop').innerHTML = `<div class="notice"><strong>Review not available.</strong><br><span class="muted">${esc(msg || 'Review is not available right now.')}</span></div>`;
+    $('#uiPager').style.display = 'none';
+    $('#uiList').innerHTML = '';
+    $('#uiGrid').innerHTML = '';
+    $('#uiGridMobile').innerHTML = '';
+  }
+
+  function computeAvailFilters(items){
+    const d = {};
+    const t = {};
+
+    items.forEach(it => {
+      const dd = String(it.difficulty || '').trim();
+      const tt = String(it.topic || '').trim();
+      if (dd) d[dd] = (d[dd]||0) + 1;
+      if (tt) t[tt] = (t[tt]||0) + 1;
+    });
+
+    state.diffAvail = Object.keys(d).sort((a,b)=>a.localeCompare(b, undefined, {sensitivity:'base'})).map(k => ({ key:k, n:d[k] }));
+    state.topicAvail = Object.keys(t).sort((a,b)=>a.localeCompare(b, undefined, {sensitivity:'base'})).map(k => ({ key:k, n:t[k] }));
+  }
+
+  function applyFilters(){
+    const base = state.allItems.slice();
+    let out = base;
+
+    if (state.correctness === 'CORRECT') out = out.filter(x => !!x.is_correct);
+    if (state.correctness === 'WRONG') out = out.filter(x => !x.is_correct);
+
+    if (state.diffSet.size) {
+      out = out.filter(x => state.diffSet.has(String(x.difficulty || '').trim()));
+    }
+    if (state.topicSet.size) {
+      out = out.filter(x => state.topicSet.has(String(x.topic || '').trim()));
+    }
+
+    state.filtered = out;
+
+    if (state.cursor >= state.filtered.length) state.cursor = Math.max(0, state.filtered.length - 1);
+    state.cursor = Math.max(0, state.cursor);
+    state.cursor = Math.floor(state.cursor / state.pageSize) * state.pageSize;
+  }
+
+  function filterSummary(){
+    const bits = [];
+    if (state.correctness !== 'ALL') bits.push(state.correctness === 'CORRECT' ? 'Correct' : 'Wrong');
+    if (state.diffSet.size) bits.push('Difficulty: ' + [...state.diffSet].join(', '));
+    if (state.topicSet.size) bits.push('Topic: ' + [...state.topicSet].join(', '));
+    return bits.length ? bits.join(' • ') : 'No filters applied.';
+  }
+
+  function renderFilterUI(){
+    const diffs = $('#fltDiffs');
+    const tops = $('#fltTopics');
+    diffs.innerHTML = '';
+    tops.innerHTML = '';
+
+    state.diffAvail.forEach(x => {
+      const id = 'd_' + x.key.replace(/\W+/g,'_');
+      const checked = state.diffSet.has(x.key);
+      diffs.insertAdjacentHTML('beforeend', `
+        <label class="ck" style="border:1px solid var(--border);padding:8px 10px;border-radius:12px;background:#fff">
+          <input type="checkbox" id="${esc(id)}" ${checked?'checked':''} data-diff="${esc(x.key)}">
+          ${esc(x.key)} <span class="muted">(${esc(x.n)})</span>
+        </label>
+      `);
+    });
+
+    state.topicAvail.forEach(x => {
+      const id = 't_' + x.key.replace(/\W+/g,'_');
+      const checked = state.topicSet.has(x.key);
+      tops.insertAdjacentHTML('beforeend', `
+        <label class="ck" style="border:1px solid var(--border);padding:8px 10px;border-radius:12px;background:#fff">
+          <input type="checkbox" id="${esc(id)}" ${checked?'checked':''} data-topic="${esc(x.key)}">
+          ${esc(x.key)} <span class="muted">(${esc(x.n)})</span>
+        </label>
+      `);
+    });
+
+    $('#fltSummary').textContent = filterSummary();
+
+    diffs.querySelectorAll('input[type="checkbox"][data-diff]').forEach(el => {
+      el.addEventListener('change', () => {
+        const k = el.getAttribute('data-diff') || '';
+        if (!k) return;
+        if (el.checked) state.diffSet.add(k); else state.diffSet.delete(k);
+        applyFilters(); render();
+      });
+    });
+
+    tops.querySelectorAll('input[type="checkbox"][data-topic]').forEach(el => {
+      el.addEventListener('change', () => {
+        const k = el.getAttribute('data-topic') || '';
+        if (!k) return;
+        if (el.checked) state.topicSet.add(k); else state.topicSet.delete(k);
+        applyFilters(); render();
+      });
+    });
+  }
+
+  function jumpToIndex(ix){
+    const i = Math.max(0, Math.min(ix, state.filtered.length - 1));
+    state.cursor = Math.floor(i / state.pageSize) * state.pageSize;
+    render();
+    closeSheet();
+  }
+
+  function renderGrid(){
+    const grid = $('#uiGrid');
+    const gridM = $('#uiGridMobile');
+    grid.innerHTML = '';
+    gridM.innerHTML = '';
+
+    const items = state.filtered;
+    if (!items.length) return;
+
+    const start = state.cursor;
+    const end = Math.min(start + state.pageSize - 1, items.length - 1);
+
+    const viewLabel = (state.pageSize === 1)
+      ? `Viewing: Q${start + 1} of ${items.length}`
+      : `Viewing: Q${start + 1}-Q${end + 1} of ${items.length}`;
+    $('#uiMapHint').textContent = `Tap a number to jump. ${viewLabel}`;
+
+    items.forEach((it, idx) => {
+      const answered = !!String(it.chosen || '').trim();
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+
+      let cls = 'gbtn';
+      if (answered) cls += ' ' + (it.is_correct ? 'ok' : 'bad');
+      else cls += ' dim';
+
+      btn.className = cls;
+      if (idx >= start && idx <= end) btn.classList.add('cur');
+
+      btn.textContent = String(it.position || (idx+1));
+      btn.title = answered ? (it.is_correct ? 'Correct' : 'Incorrect') : 'Not answered';
+
+      btn.addEventListener('click', () => jumpToIndex(idx));
+      grid.appendChild(btn);
+
+      const btn2 = btn.cloneNode(true);
+      btn2.addEventListener('click', () => jumpToIndex(idx));
+      gridM.appendChild(btn2);
+    });
+  }
+
+  function renderMyDetails(){
+    const d = (state.data && state.data.my_details) ? state.data.my_details : null;
+    if (!d) { $('#uiMyDetails').textContent = '—'; return; }
+
+    const cp = d.class_profile || null;
+    const as = d.attempt_submitted || null;
+
+    function section(title, entries){
+      const rows = (entries || []).map(e => `
+        <div style="display:flex;gap:10px;justify-content:space-between;align-items:flex-start;border-top:1px solid var(--border);padding-top:10px;margin-top:10px">
+          <div style="font-weight:950">${esc(e.label || e.key || '')}</div>
+          <div class="muted" style="text-align:right;max-width:62%">${esc(e.value || '')}</div>
+        </div>
+      `).join('');
+      return `
+        <div style="margin-top:10px">
+          <div style="font-weight:950">${esc(title)}</div>
+          ${rows || `<div class="muted" style="margin-top:8px">—</div>`}
+        </div>
+      `;
+    }
+
+    const html = `
+      ${cp ? `
+        <div class="muted">Name: <strong style="color:var(--text)">${esc(cp.display_name || '—')}</strong></div>
+        ${section('Class profile', cp.entries)}
+      ` : `<div class="muted">Class profile: —</div>`}
+
+      ${as ? section('Submission details', as.entries) : ''}
+    `;
+
+    $('#uiMyDetails').innerHTML = html;
+  }
+
+  function renderTopSummary(){
+    const d = state.data || {};
+    const qm = d.quiz_meta || {};
+    const am = d.attempt_meta || {};
+    const allowed = !!d.review_allowed;
+
+    $('#uiTitle').textContent = (qm.title ? (qm.title + ' - Review') : 'Review');
+    $('#uiSub').textContent =
+      (qm.subject ? qm.subject + ' . ' : '') +
+      (qm.preset ? ('Preset: ' + qm.preset) : '');
+
+    const aNo = am.attempt_no ? ('Attempt ' + am.attempt_no) : 'Attempt';
+    const st = am.status ? am.status : (d.status || '');
+    $('#uiRightMeta').textContent = st ? (aNo + ' . ' + st) : aNo;
+
+    const backUrl = buildUrl(RESULTS_PAGE, {
+      class_id: state.class_id,
+      teacher_quiz_id: state.teacher_quiz_id,
+      attempt_id: (am.attempt_id || state.attempt_id || '')
+    });
+    $('#btnBackResults').href = backUrl;
+    $('#btnToResults2').href = backUrl;
+
+    const top = $('#uiTop');
+    top.innerHTML = '';
+
+    if (!allowed) {
+      const msg = (d.review_block_reason && d.review_block_reason.message) ? d.review_block_reason.message : 'Review is not available.';
+      top.innerHTML = `<div class="notice"><strong>Review not available.</strong><br><span class="muted">${esc(msg)}</span></div>`;
+      return;
+    }
+
+    const showRes = !!d.show_results;
+    const disp = d.display_score || null;
+
+    let scoreLine = 'Review is enabled for this quiz.';
+    let scoreHtml = '';
+    if (showRes && disp && (disp.percent != null || disp.score_marks != null)) {
+      let left = '';
+      if (disp.score_marks != null && disp.total_marks != null) left += `${esc(disp.score_marks)} / ${esc(disp.total_marks)} `;
+      if (disp.percent != null) left += `(${esc(disp.percent)}%)`;
+      scoreHtml = `<div class="scoreBig">${left.trim()}</div>`;
+      const gl = d.grade_label ? ` . ${esc(d.grade_label)}` : '';
+      const pf = d.pass_status ? ` . ${esc(d.pass_status)}` : '';
+      scoreLine = `Released${pf}${gl}`;
+    } else {
+      scoreHtml = `<div style="font-weight:950;color:var(--brand)">Review</div>`;
+      scoreLine = 'Score may be hidden depending on teacher settings.';
+    }
+
+    top.innerHTML = `
+      <div class="scoreBox">
+        <div>
+          ${scoreHtml}
+          <div class="muted">${esc(scoreLine)}</div>
+        </div>
+        <div class="chipStatus ok">Available</div>
+      </div>
+    `;
+  }
+
+  function renderPager(){
+    const total = state.filtered.length;
+    if (!total) {
+      $('#uiPager').style.display = 'none';
+      return;
+    }
+
+    $('#uiPager').style.display = 'flex';
+
+    const start = state.cursor;
+    const end = Math.min(start + state.pageSize - 1, total - 1);
+
+    const label = (state.pageSize === 1)
+      ? `Question ${start + 1} of ${total}`
+      : `Showing ${start + 1}-${end + 1} of ${total}`;
+
+    $('#uiPagerLeft').textContent = label;
+
+    $('#btnPrev').disabled = (start <= 0);
+    $('#btnNext').disabled = (end >= total - 1);
+  }
+
+  function renderQuestions(){
+    const list = $('#uiList');
+    list.innerHTML = '';
+
+    const items = state.filtered;
+    if (!items.length) {
+      list.innerHTML = `<div class="notice"><strong>No matching questions.</strong><br><span class="muted">Try clearing filters.</span></div>`;
+      return;
+    }
+
+    const start = state.cursor;
+    const end = Math.min(start + state.pageSize, items.length);
+    const page = items.slice(start, end);
+
+    page.forEach((it, idx) => {
+      const chosen = String(it.chosen || '').trim();
+      const correct = String(it.correct || '').trim();
+      const ok = !!it.is_correct;
+
+      const chips = [];
+      if (state.showChips) {
+        if (it.topic) chips.push(`<span class="chipTiny">${esc(it.topic)}</span>`);
+        if (it.difficulty) chips.push(`<span class="chipTiny">${esc(it.difficulty)}</span>`);
+      }
+
+      const opts = Array.isArray(it.options) ? it.options : [];
+      const optsHtml = opts.map(o => {
+        const key = String(o.key || '').trim();
+        let cls = 'opt';
+        if (key && chosen && key === chosen && key === correct) cls += ' correct chosen';
+        else if (key && chosen && key === chosen && key !== correct) cls += ' wrongChosen chosen';
+        else if (key && correct && key === correct) cls += ' correct';
+        else if (key && chosen && key === chosen) cls += ' chosen';
+
+        const tags = [];
+        if (key && chosen && key === chosen) tags.push(`<span class="tag warn">Chosen</span>`);
+        if (key && correct && key === correct) tags.push(`<span class="tag ok">Correct</span>`);
+        if (key && chosen && key === chosen && key !== correct) tags.push(`<span class="tag bad">Wrong</span>`);
+
+        const fb = state.showFeedback ? String(o.feedback || '').trim() : '';
+        return `
+          <div class="${cls}">
+            <div class="optRow">
+              <div class="optKey">${esc(key)}</div>
+              <div class="optText">${esc(o.text || '')}</div>
+              ${tags.length ? `<div class="optBadges">${tags.join('')}</div>` : ``}
+            </div>
+            ${fb ? `<div class="optFb">${esc(fb)}</div>` : ``}
+          </div>
+        `;
+      }).join('');
+
+      const rText = String(it.rationale || '—').trim() || '—';
+      const rImg = (state.showImages && it.rationale_img) ? String(it.rationale_img || '').trim() : '';
+
+      list.insertAdjacentHTML('beforeend', `
+        <div class="qItem">
+          <div class="qHead">
+            <div>
+              <div class="qNum">Question ${esc(it.position || (start + idx + 1))}</div>
+
+              ${chips.length ? `
+                <div class="qMetaRow">
+                  <div class="pillRow">${chips.join('')}</div>
+                </div>
+              ` : ``}
+            </div>
+
+            <div class="chipStatus ${ok ? 'ok' : 'bad'}">${ok ? 'Correct' : 'Incorrect'}</div>
+          </div>
+
+          <div class="stem">${esc(it.stem || '')}</div>
+
+          <div class="qDivider"></div>
+
+          ${optsHtml}
+
+          <div class="qDivider"></div>
+
+          <div class="ratWrap" data-hasimg="${rImg ? '1' : '0'}">
+            <button class="ratToggle" type="button" aria-expanded="false">
+              <span class="left">
+                <span style="font-weight:950">Rationale</span>
+                <span class="muted" style="font-weight:850">Show rationale</span>
+              </span>
+              <span class="ratChevron">⌄</span>
+            </button>
+
+            <div class="ratBody" hidden>
+              <div class="ratText">${esc(rText)}</div>
+
+              ${rImg ? `
+                <div class="imgSkeleton" data-skel="1" aria-hidden="true"></div>
+                <button type="button" class="ratImgToggle" aria-expanded="false" data-img="${esc(rImg)}">
+                  <img alt="Rationale image" data-src="${esc(rImg)}" decoding="async" />
+                  <div class="ratImgOverlay">Tap to expand</div>
+                </button>
+              ` : ``}
+            </div>
+          </div>
+        </div>
+      `);
+    });
+  }
+
+  function render(){
+    renderTopSummary();
+
+    const d = state.data || {};
+    if (!d.review_allowed) {
+      $('#uiPager').style.display = 'none';
+      $('#uiList').innerHTML = '';
+      renderMyDetails();
+      return;
+    }
+
+    applyFilters();
+    $('#fltSummary').textContent = filterSummary();
+
+    renderPager();
+    renderQuestions();
+    renderGrid();
+    renderMyDetails();
+  }
+
+  function openSheet(){
+    $('#sheetBack').style.display = 'flex';
+  }
+  function closeSheet(){
+    $('#sheetBack').style.display = 'none';
+  }
+
+  function bindUI(){
+    $('#btnMenuView').addEventListener('click', () => toggleMenu('menuView'));
+    $('#btnMenuFilters').addEventListener('click', () => toggleMenu('menuFilters'));
+    $('#btnMenuMe').addEventListener('click', () => toggleMenu('menuMe'));
+
+    document.addEventListener('click', (e) => {
+      const t = e.target;
+      if (t.closest && t.closest('.menu')) return;
+      closeAllMenus();
+    });
+
+    window.addEventListener('resize', () => {
+      ['menuView','menuFilters','menuMe'].forEach(id => positionMenu(id));
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeAllMenus();
+        closeSheet();
+        return;
+      }
+
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        const ae = document.activeElement;
+        const tag = (ae && ae.tagName) ? ae.tagName.toLowerCase() : '';
+        const isTyping = (tag === 'input' || tag === 'textarea' || tag === 'select') || (ae && ae.isContentEditable);
+        const menuOpen = ['menuView','menuFilters','menuMe'].some(id => $('#'+id).classList.contains('open'));
+        const sheetOpen = ($('#sheetBack').style.display === 'flex');
+        if (isTyping || menuOpen || sheetOpen) return;
+
+        if (e.key === 'ArrowLeft') {
+          if (!$('#btnPrev').disabled) $('#btnPrev').click();
+        } else {
+          if (!$('#btnNext').disabled) $('#btnNext').click();
+        }
+      }
+    });
+
+    $('#selPageSize').addEventListener('change', () => {
+      state.pageSize = clampPageSize($('#selPageSize').value);
+      savePrefs();
+      state.cursor = Math.floor(state.cursor / state.pageSize) * state.pageSize;
+      render();
+    });
+
+    $('#ckShowFeedback').addEventListener('change', () => {
+      state.showFeedback = !!$('#ckShowFeedback').checked;
+      savePrefs();
+      renderQuestions();
+    });
+
+    $('#ckShowChips').addEventListener('change', () => {
+      state.showChips = !!$('#ckShowChips').checked;
+      savePrefs();
+      renderQuestions();
+    });
+
+    $('#ckShowImages').addEventListener('change', () => {
+      state.showImages = !!$('#ckShowImages').checked;
+      savePrefs();
+      renderQuestions();
+    });
+
+    $('#fltAll').addEventListener('click', () => { state.correctness='ALL'; render(); });
+    $('#fltCorrect').addEventListener('click', () => { state.correctness='CORRECT'; render(); });
+    $('#fltWrong').addEventListener('click', () => { state.correctness='WRONG'; render(); });
+
+    $('#btnClearFilters').addEventListener('click', () => {
+      state.correctness='ALL';
+      state.diffSet = new Set();
+      state.topicSet = new Set();
+      renderFilterUI();
+      render();
+    });
+
+    $('#btnPrev').addEventListener('click', () => {
+      state.cursor = Math.max(0, state.cursor - state.pageSize);
+      render();
+    });
+    $('#btnNext').addEventListener('click', () => {
+      state.cursor = Math.min(Math.max(0, state.filtered.length - 1), state.cursor + state.pageSize);
+      state.cursor = Math.floor(state.cursor / state.pageSize) * state.pageSize;
+      render();
+    });
+
+    $('#btnFabMap').addEventListener('click', openSheet);
+    $('#btnCloseSheet').addEventListener('click', closeSheet);
+    $('#sheetBack').addEventListener('click', (e) => {
+      if (e.target === $('#sheetBack')) closeSheet();
+    });
+
+    // Rationale accordion + lazy-load images (UI-only)
+    $('#uiList').addEventListener('click', (e) => {
+      const t = e.target;
+
+      const toggle = t.closest && t.closest('.ratToggle');
+      if (toggle) {
+        const wrap = toggle.closest('.ratWrap');
+        if (!wrap) return;
+
+        const body = wrap.querySelector('.ratBody');
+        const isOpen = wrap.classList.toggle('open');
+
+        toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        if (body) body.hidden = !isOpen;
+
+        const hint = toggle.querySelector('.left .muted');
+        if (hint) hint.textContent = isOpen ? 'Hide rationale' : 'Show rationale';
+
+        // Lazy-load image only when expanded
+        if (isOpen) {
+          const img = wrap.querySelector('img[data-src]');
+          if (img) {
+            const curAttr = img.getAttribute('src');
+            const cur = (curAttr == null) ? '' : String(curAttr).trim();
+            if (!cur) {
+              img.setAttribute('src', img.getAttribute('data-src') || '');
+            }
+            const sk = wrap.querySelector('[data-skel="1"]');
+            img.addEventListener('load', () => { if (sk) sk.style.display = 'none'; }, { once:true });
+            img.addEventListener('error', () => { if (sk) sk.style.display = 'none'; }, { once:true });
+          }
+        }
+
+        return;
+      }
+
+      const imgBtn = t.closest && t.closest('.ratImgToggle');
+      if (imgBtn) {
+        const exp = imgBtn.classList.toggle('expanded');
+        imgBtn.setAttribute('aria-expanded', exp ? 'true' : 'false');
+
+        const overlay = imgBtn.querySelector('.ratImgOverlay');
+        if (overlay) overlay.textContent = exp ? 'Tap to collapse' : 'Tap to expand';
+
+        return;
+      }
+    });
+  }
+
+  async function init(){
+    loadPrefs();
+    bindUI();
+
+    // Loader on initial flow (UI-only)
+    setLoading(true, 'Loading review...', 'Fetching your attempt');
+
+    state.class_id = qp('class_id');
+    state.teacher_quiz_id = qp('teacher_quiz_id');
+    state.attempt_id = qp('attempt_id');
+    state.token = readToken();
+
+    if (!state.token) {
+      setLoading(false);
+      $('#uiTitle').textContent = 'Sign in required';
+      $('#uiSub').textContent = 'Please sign in from the dashboard first.';
+      renderLocked('No token found. Go back to My Classes and sign in.');
+      return;
+    }
+    if (!state.class_id || !state.teacher_quiz_id) {
+      setLoading(false);
+      $('#uiTitle').textContent = 'Invalid link';
+      $('#uiSub').textContent = 'Missing class_id or teacher_quiz_id.';
+      renderLocked('Invalid link parameters.');
+      return;
+    }
+
+    let rres = null;
+    try{
+      rres = await apiCall('candidate.attempt.review.get', {
+        class_id: state.class_id,
+        teacher_quiz_id: state.teacher_quiz_id,
+        attempt_id: state.attempt_id || ''
+      });
+    }catch(err){
+      setLoading(false);
+      $('#uiTitle').textContent = 'Review';
+      $('#uiSub').textContent = 'Unable to load.';
+      renderLocked('Network error. Please refresh and try again.');
+      return;
+    }
+
+    if (!rres || !rres.ok) {
+      setLoading(false);
+      $('#uiTitle').textContent = 'Review';
+      $('#uiSub').textContent = 'Unable to load.';
+      renderLocked((rres && (rres.message || rres.error)) || 'Review is not available.');
+      return;
+    }
+
+    state.data = rres;
+
+    const am = rres.attempt_meta || {};
+    const newAttemptId = (am.attempt_id || rres.attempt_id || '').trim();
+    if (newAttemptId && newAttemptId !== state.attempt_id) {
+      state.attempt_id = newAttemptId;
+      const u = new URL(location.href);
+      u.searchParams.set('attempt_id', newAttemptId);
+      history.replaceState({}, '', u.toString());
+    }
+
+    state.allItems = Array.isArray(rres.review_items) ? rres.review_items : [];
+    computeAvailFilters(state.allItems);
+    renderFilterUI();
+
+    render();
+    setLoading(false);
+  }
+
+  init();
+</script>
+</body>
+</html>
