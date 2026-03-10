@@ -1,0 +1,3945 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Teacher Quizzes</title>
+
+<style>
+  :root{
+    --brand:#0b7a75;
+    --muted:#859998;
+    --ink:#1f2a28;
+    --bg:#f6f8f7;
+    --card:#ffffff;
+    --line:rgba(0,0,0,.10);
+    --soft:rgba(0,0,0,.04);
+    --warn:#b45309;
+    --danger:#b91c1c;
+    --ok:#067647;
+
+    /* Wider desktop */
+    --pageMax:1560px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  a{color:var(--brand);text-decoration:none}
+  .topbar{
+    position:sticky;top:0;z-index:10;
+    background:rgba(246,248,247,.92);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  
+  :root{
+  --pageMax: 1600px;
+  --pagePad: 18px;
+}
+
+/* full-bleed shell to escape Blogger center column */
+.qaApp{
+  width:100vw;
+  margin-left:calc(50% - 50vw);
+  background:var(--bg);
+  min-height:100vh;
+  overflow-x:clip;
+}
+
+/* avoid horizontal scrollbars from full-bleed */
+body{overflow-x:hidden}
+
+/* keep your inner layout but allow it to be wider */
+.qaApp .topbar .inner,
+.qaApp .wrap{
+  max-width:var(--pageMax);
+  margin:0 auto;
+}
+
+.qaApp .topbar .inner{padding:12px var(--pagePad)}
+.qaApp .wrap{padding:14px var(--pagePad) 32px}
+
+/* prevent grid children from forcing overflow/clipping */
+.grid > *, .qGrid > *{min-width:0}
+
+/* slightly more adaptive desktop columns */
+@media (min-width: 1200px){
+  .grid{grid-template-columns:minmax(380px, 480px) 1fr;}
+}
+@media (max-width: 980px){
+  .qaApp{width:100%;margin-left:0}
+}
+
+  .topbar .inner{
+    max-width:var(--pageMax);margin:0 auto;padding:12px 16px;
+    display:flex;align-items:center;gap:12px;justify-content:space-between;
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.2px;}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--brand)}
+  .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .btn{
+    border:1px solid var(--line);background:#fff;border-radius:12px;
+    padding:9px 12px;font-weight:700;cursor:pointer;
+  }
+  .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .btn.ghost{background:transparent}
+  .btn.danger{background:#fff;border-color:rgba(185,28,28,.35);color:var(--danger)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    border:1px solid var(--line);background:rgba(255,255,255,.75);
+    padding:6px 10px;border-radius:999px;font-weight:700;font-size:12px;
+  }
+  .chip.ok{border-color:rgba(6,118,71,.22);color:var(--ok)}
+  .chip.warn{border-color:rgba(180,83,9,.25);color:var(--warn)}
+  .chip.danger{border-color:rgba(185,28,28,.25);color:var(--danger)}
+  .wrap{max-width:var(--pageMax);margin:0 auto;padding:14px 16px 32px}
+  .grid{
+    display:grid;gap:14px;
+    grid-template-columns: 420px 1fr;
+    align-items:start;
+  }
+  @media (max-width: 980px){ .grid{grid-template-columns:1fr} }
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:18px;
+    box-shadow:0 8px 26px rgba(0,0,0,.05);
+    overflow:hidden;
+  }
+  .card .hd{
+    padding:12px 14px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  }
+  .card .hd h2{margin:0;font-size:14px;letter-spacing:.2px}
+  .card .bd{padding:14px}
+  .muted{color:rgba(31,42,40,.7)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .col{display:flex;flex-direction:column;gap:6px}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:520px){ .split{grid-template-columns:1fr} }
+  label{font-size:12px;font-weight:800;color:rgba(31,42,40,.75)}
+  input, select, textarea{
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:10px 11px;
+    background:#fff;
+    color:var(--ink);
+    outline:none;
+  }
+  textarea{min-height:74px;resize:vertical}
+  input:focus, select:focus, textarea:focus{
+    border-color: rgba(11,122,117,.35);
+    box-shadow: 0 0 0 4px rgba(11,122,117,.10);
+  }
+
+  .hint{font-size:12px;color:rgba(31,42,40,.65);line-height:1.35}
+  .list{display:flex;flex-direction:column;gap:10px;}
+  .item{
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:12px;
+    background:rgba(255,255,255,.75);
+    display:flex;gap:10px;justify-content:space-between;align-items:flex-start;
+    cursor:pointer;
+  }
+  .item:hover{border-color:rgba(11,122,117,.35)}
+  .item.active{border-color:rgba(11,122,117,.65);box-shadow:0 0 0 3px rgba(11,122,117,.12)}
+  .item .t{font-weight:900}
+  .item .s{font-size:12px;color:rgba(31,42,40,.68);margin-top:2px;line-height:1.25}
+  .item .right{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  .hr{height:1px;background:var(--line);margin:12px 0}
+  .toast{
+    position:fixed;right:14px;bottom:14px;z-index:50;
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:10px 12px;box-shadow:0 18px 50px rgba(0,0,0,.12);
+    max-width:min(520px, calc(100vw - 28px));
+    display:none;
+  }
+  .toast.show{display:block}
+  .toast .t{font-weight:900;margin-bottom:4px}
+  .toast .m{font-size:12px;color:rgba(31,42,40,.75);line-height:1.3}
+  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--soft);padding:2px 6px;border-radius:8px;border:1px solid var(--line)}
+  .mini{font-size:12px}
+
+  .fieldRow{
+    border:1px dashed rgba(0,0,0,.18);
+    border-radius:14px;padding:10px;background:rgba(0,0,0,.02);
+    display:grid;gap:10px;grid-template-columns: 1.2fr .7fr .55fr;
+    align-items:end;
+  }
+  @media (max-width:860px){ .fieldRow{grid-template-columns:1fr} }
+  .fieldRow .row2{grid-column:1 / -1}
+  
+  /* =========================
+ * Grade bands editor
+ * ========================= */
+.bandRow{
+  border:1px dashed rgba(0,0,0,.18);
+  border-radius:14px;
+  padding:10px;
+  background:rgba(0,0,0,.02);
+  display:grid;
+  gap:10px;
+  grid-template-columns: 140px 1fr 110px;
+  align-items:end;
+}
+@media (max-width:860px){
+  .bandRow{grid-template-columns:1fr}
+}
+.bandRow .bandActions{
+  display:flex;
+  justify-content:flex-end;
+}
+
+  .pill{display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center;}
+  .pill .tag{
+    border:1px solid var(--line);background:rgba(255,255,255,.8);
+    border-radius:999px;padding:6px 10px;font-weight:800;font-size:12px;
+  }
+
+  .clsBox{
+    border:1px solid var(--line);
+    border-radius:14px;padding:10px;background:rgba(255,255,255,.75);
+    display:flex;flex-direction:column;gap:8px;
+    max-height:420px;overflow:auto;
+  }
+  .clsRow{
+    display:flex;align-items:center;gap:10px;justify-content:space-between;
+    padding:8px 10px;border-radius:12px;border:1px solid transparent;
+    background:rgba(255,255,255,.5);
+  }
+  .clsRow:hover{border-color:rgba(11,122,117,.25)}
+  .clsRow .l{display:flex;gap:10px;align-items:flex-start}
+  .clsRow input[type="checkbox"]{width:auto;margin-top:2px}
+  .badge{
+    font-size:11px;font-weight:900;
+    border:1px solid var(--line);border-radius:999px;padding:4px 8px;
+    background:rgba(0,0,0,.03);
+  }
+  .subnote{font-size:12px;color:rgba(31,42,40,.65)}
+
+  /* =========================
+   * QUESTIONS MODULE (Bank + Draft + Inline) — shared styles
+   * ========================= */
+  .qCard{
+    border:1px solid var(--line);
+    border-radius:16px;
+    background:rgba(255,255,255,.85);
+    overflow:hidden;
+  }
+  .qCard .qHd{
+    padding:10px 12px;border-bottom:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .qCard .qHd b{font-size:13px}
+  .qCard .qBd{padding:12px}
+  .qBox{
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:#fff;
+    overflow:auto;
+    max-height:420px;
+  }
+  .qRow{
+    padding:10px 10px;
+    border-bottom:1px solid var(--line);
+    display:flex;gap:10px;justify-content:space-between;align-items:flex-start;
+  }
+  .qRow:last-child{border-bottom:none}
+  .qRow:hover{background:rgba(0,0,0,.01)}
+  .qStem{font-size:13px;font-weight:900;line-height:1.25}
+  .qMeta{font-size:12px;color:rgba(31,42,40,.68);margin-top:4px;line-height:1.25}
+  .qBtns{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .qSmall{padding:7px 10px;border-radius:12px;font-size:12px;font-weight:800}
+  .qPill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:6px 10px;border-radius:999px;border:1px solid var(--line);
+    background:rgba(0,0,0,.02);font-size:12px;font-weight:900;
+  }
+  .qPill.ok{border-color:rgba(6,118,71,.18);background:rgba(6,118,71,.06);color:var(--ok)}
+  .qPill.warn{border-color:rgba(180,83,9,.18);background:rgba(180,83,9,.06);color:var(--warn)}
+  .qPill.bad{border-color:rgba(185,28,28,.18);background:rgba(185,28,28,.06);color:var(--danger)}
+  .qTbl{width:100%;border-collapse:separate;border-spacing:0}
+  .qTbl th{
+    font-size:12px;text-align:left;color:rgba(31,42,40,.65);
+    background:rgba(0,0,0,.02);
+    border-bottom:1px solid var(--line);
+    padding:10px;
+  }
+  .qTbl td{
+    font-size:13px;padding:10px;border-bottom:1px solid var(--line);vertical-align:top;
+  }
+  .qTbl tr:hover td{background:rgba(0,0,0,.01)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;font-size:12px}
+
+  /* =========================
+   * EDITOR TABS + PANES (NEW)
+   * ========================= */
+  .subhd{
+    padding:10px 14px;
+    border-bottom:1px solid var(--line);
+    background:rgba(255,255,255,.65);
+  }
+  .tabs{
+    display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+  }
+  .tab{
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.9);
+    border-radius:999px;
+    padding:8px 12px;
+    font-weight:900;
+    cursor:pointer;
+    font-size:12px;
+  }
+  .tab.active{
+    background:rgba(11,122,117,.10);
+    border-color:rgba(11,122,117,.35);
+    box-shadow:0 0 0 3px rgba(11,122,117,.10);
+  }
+  .tab:disabled{opacity:.55;cursor:not-allowed}
+  .strip{
+    margin-top:10px;
+    display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between;
+  }
+  .strip .left, .strip .right{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .pane{display:none}
+  .pane.active{display:block}
+  .paneTitle{
+    font-weight:950;
+    margin:0 0 6px 0;
+    font-size:13px;
+  }
+  .stickyFooter{
+    position:sticky;
+    bottom:0;
+    background:rgba(246,248,247,.92);
+    backdrop-filter:blur(10px);
+    border-top:1px solid var(--line);
+    padding:10px 0 0 0;
+    margin-top:14px;
+  }
+
+  /* Questions pane layout */
+  .qLayout{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:12px;
+    align-items:start;
+  }
+  @media (max-width: 980px){
+    .qLayout{grid-template-columns:1fr}
+  }
+  .toolTabs{
+    display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+    margin-bottom:10px;
+  }
+  .toolTab{
+    border:1px solid var(--line);
+    background:rgba(255,255,255,.9);
+    border-radius:999px;
+    padding:7px 10px;
+    font-weight:900;
+    cursor:pointer;
+    font-size:12px;
+  }
+  .toolTab.active{
+    background:rgba(11,122,117,.10);
+    border-color:rgba(11,122,117,.35);
+    box-shadow:0 0 0 3px rgba(11,122,117,.10);
+  }
+  .toolPane{display:none}
+  .toolPane.active{display:block}
+
+  /* Publish pane */
+  .pubBox{
+    border:1px solid var(--line);
+    border-radius:16px;
+    background:rgba(255,255,255,.85);
+    padding:12px;
+  }
+  .checkRow{
+    display:flex;gap:10px;align-items:flex-start;justify-content:space-between;
+    padding:10px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.75);
+    margin-top:10px;
+  }
+  .checkRow b{font-size:13px}
+  .warnBox{
+    border:1px solid rgba(180,83,9,.25);
+    background:rgba(180,83,9,.08);
+    color:var(--warn);
+    border-radius:14px;
+    padding:10px;
+    margin-top:10px;
+    font-weight:800;
+    font-size:12px;
+    line-height:1.35;
+  }
+  /* =========================
+ * LIST VIEW / EDITOR VIEW SWITCH
+ * ========================= */
+.view{display:none}
+.view.view-active{display:block}
+
+/* Full-width quiz list */
+.quizGrid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:14px;
+}
+@media (max-width:1180px){
+  .quizGrid{grid-template-columns:1fr}
+}
+
+.quizTile{
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:16px;
+  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(255,255,255,.90));
+  box-shadow:0 10px 28px rgba(0,0,0,.05);
+  cursor:pointer;
+  transition:transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+.quizTile:hover{
+  transform:translateY(-2px);
+  border-color:rgba(11,122,117,.30);
+  box-shadow:0 16px 34px rgba(0,0,0,.08);
+}
+.quizTile.active{
+  border-color:rgba(11,122,117,.55);
+  box-shadow:0 0 0 4px rgba(11,122,117,.10), 0 16px 34px rgba(0,0,0,.08);
+  background:linear-gradient(180deg, rgba(11,122,117,.06), rgba(255,255,255,.98));
+}
+
+.quizTileTop{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.quizTileMain{min-width:0;flex:1}
+.quizTitle{
+  font-size:17px;
+  font-weight:900;
+  line-height:1.25;
+  letter-spacing:.1px;
+}
+.quizSub{
+  margin-top:5px;
+  font-size:13px;
+  color:rgba(31,42,40,.68);
+  line-height:1.35;
+}
+.quizStateStack{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:flex-end;
+}
+
+.quizMetaGrid{
+  margin-top:14px;
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:10px;
+}
+@media (max-width:760px){
+  .quizMetaGrid{grid-template-columns:repeat(2, minmax(0,1fr))}
+}
+.quizMetaCell{
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:10px 11px;
+  background:rgba(0,0,0,.02);
+  min-width:0;
+}
+.quizMetaLabel{
+  display:block;
+  font-size:11px;
+  font-weight:800;
+  color:rgba(31,42,40,.58);
+  text-transform:uppercase;
+  letter-spacing:.3px;
+}
+.quizMetaValue{
+  display:block;
+  margin-top:4px;
+  font-size:13px;
+  font-weight:900;
+  color:var(--ink);
+  line-height:1.25;
+  word-break:break-word;
+}
+
+.quizFlags{
+  margin-top:12px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.quizFlag{
+  display:inline-flex;
+  align-items:center;
+  padding:7px 10px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.86);
+  font-size:12px;
+  font-weight:800;
+  color:rgba(31,42,40,.78);
+}
+
+.editorHeadLeft{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+</style>
+</head>
+
+<body>
+  <div id="qaApp" class="qaApp">
+  <div class="topbar">
+    <div class="inner">
+      <div class="brand">
+        <span class="dot"></span>
+        <div>
+          <div>QAcademy Teacher</div>
+          <div class="mini muted">Quizzes • create, configure, link to classes</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <span id="userChip" class="chip" style="display:none"></span>
+        <button class="btn" id="btnRefresh" type="button">Refresh</button>
+        <button class="btn primary" id="btnNewQuiz" type="button">+ New Quiz</button>
+        <button class="btn danger" id="btnSignOut" type="button">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+<div id="quizListView" class="view view-active">
+      <!-- LEFT: QUIZZES LIST -->
+      <div class="card">
+        <div class="hd">
+          <h2>My Quizzes</h2>
+          <span id="countsChips" class="pill"></span>
+        </div>
+        <div class="bd">
+          <div class="split">
+            <div class="col">
+              <label>Search</label>
+              <input id="qSearch" placeholder="Title, subject, code…" />
+            </div>
+            <div class="col">
+              <label>Status</label>
+              <select id="qStatus">
+                <option value="ANY">Any</option>
+                <option value="DRAFT">Draft</option>
+                <option value="PUBLISHED">Published</option>
+                <option value="ARCHIVED">Archived</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px;justify-content:space-between">
+            <div class="row">
+              <span class="chip"><span>Loaded:</span> <span class="kbd" id="quizCount">0</span></span>
+            </div>
+            <button class="btn" id="btnLoadMore" style="display:none" type="button">Load more</button>
+          </div>
+
+          <div class="hr"></div>
+<div id="quizList" class="quizGrid"></div>
+          <div id="emptyList" class="hint" style="display:none;margin-top:8px">
+            No quizzes match your filters yet. Create one with <span class="kbd">New Quiz</span>.
+          </div>
+        </div>
+      </div>
+</div>
+
+<div id="quizEditorView" class="view">
+      <!-- RIGHT: EDITOR (NEW STRUCTURE) -->
+      <div class="card">
+       <div class="hd">
+  <div class="editorHeadLeft">
+    <button class="btn ghost" id="btnBackToList" type="button">&larr; Back to quizzes</button>
+    <h2 id="editorTitle">Quiz Editor</h2>
+  </div>
+  <div class="row">
+    <span id="quizStatusChip" class="chip" style="display:none"></span>
+    <span id="quizOpenChip" class="chip" style="display:none"></span>
+  </div>
+</div>
+
+        <div class="subhd">
+          <div class="tabs">
+            <button class="tab active" id="tabSettings" type="button">Settings</button>
+            <button class="tab" id="tabClasses" type="button" disabled>Classes</button>
+            <button class="tab" id="tabQuestions" type="button" disabled>Questions</button>
+            <button class="tab" id="tabPublish" type="button" disabled>Publish</button>
+          </div>
+
+          <div class="strip">
+            <div class="left">
+              <span class="chip"><span>Save:</span> <span class="kbd" id="stripSaveState">—</span></span>
+              <span class="chip"><span>Draft:</span> <span class="kbd" id="stripDraftCount">0</span></span>
+              <span class="chip"><span>Classes:</span> <span class="kbd" id="stripClassCount">0</span></span>
+            </div>
+            <div class="right">
+              <span class="chip"><span>Next:</span> <span class="kbd" id="stripNextHint">Select a quiz</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bd" id="editorBody">
+          <div id="notSelected" class="hint">
+            Select a quiz from the left, or create a new one.
+          </div>
+
+          <div id="editor" style="display:none">
+
+            <!-- Quiz meta (always visible) -->
+            <div class="row" style="justify-content:space-between;align-items:flex-start">
+              <div class="col" style="min-width:260px;flex:1">
+                <div class="row" style="gap:8px;flex-wrap:wrap">
+                  <span class="chip"><span>ID:</span> <span class="kbd" id="quizIdKbd">—</span></span>
+                  <span class="chip"><span>Code:</span> <span class="kbd" id="quizCodeKbd">—</span></span>
+                </div>
+                <div class="subnote" style="margin-top:6px">
+                  Draft quizzes can regenerate the code. Students only see quizzes via class linking + published state.
+                </div>
+              </div>
+
+              <details style="min-width:220px">
+                <summary class="btn ghost" style="list-style:none;display:inline-flex;align-items:center;gap:8px;user-select:none">
+                  Advanced
+                </summary>
+                <div class="row" style="margin-top:10px;justify-content:flex-end">
+                  <button class="btn" id="btnRegenCode" title="Draft only" type="button">Regenerate code</button>
+                  <button class="btn danger" id="btnArchive" type="button">Archive</button>
+                </div>
+              </details>
+            </div>
+
+            <div class="hr"></div>
+
+            <!-- ======================
+                 PANE: SETTINGS
+                 ====================== -->
+            <div id="paneSettings" class="pane active">
+              <div class="paneTitle">Settings</div>
+              <!-- NEW: Preset selection cards -->
+<div id="presetCards" style="margin: 0 0 20px 0;">
+  <div style="font-weight:900; margin-bottom:10px;">Choose a Preset (recommended)</div>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+    <div class="card preset-card" data-preset="STUDY" style="cursor:pointer; padding:16px; border:2px solid var(--line);">
+      <div style="font-weight:900; font-size:16px;">STUDY</div>
+      <div class="muted" style="font-size:13px; margin-top:6px;">Learn & practice</div>
+      <div style="margin-top:10px; font-size:12px; color:rgba(31,42,40,.7);">
+        Untimed • Unlimited attempts • Instant feedback
+      </div>
+    </div>
+    <div class="card preset-card" data-preset="ASSIGNMENT" style="cursor:pointer; padding:16px; border:2px solid var(--line);">
+      <div style="font-weight:900; font-size:16px;">ASSIGNMENT</div>
+      <div class="muted" style="font-size:13px; margin-top:6px;">Take-home task</div>
+      <div style="margin-top:10px; font-size:12px; color:rgba(31,42,40,.7);">
+        60 min • 1 attempt • Results after close
+      </div>
+    </div>
+    <div class="card preset-card" data-preset="IN_CLASS" style="cursor:pointer; padding:16px; border:2px solid var(--line);">
+      <div style="font-weight:900; font-size:16px;">IN_CLASS</div>
+      <div class="muted" style="font-size:13px; margin-top:6px;">Live class quiz</div>
+      <div style="margin-top:10px; font-size:12px; color:rgba(31,42,40,.7);">
+        15 min • 1 attempt • No review during
+      </div>
+    </div>
+    <div class="card preset-card" data-preset="EXAM" style="cursor:pointer; padding:16px; border:2px solid var(--line);">
+      <div style="font-weight:900; font-size:16px;">EXAM</div>
+      <div class="muted" style="font-size:13px; margin-top:6px;">Formal assessment</div>
+      <div style="margin-top:10px; font-size:12px; color:rgba(31,42,40,.7);">
+        60 min • 1 attempt • Manual release
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:12px; text-align:center;">
+    <a href="#" id="noPresetLink" style="color:var(--brand); font-weight:700;">Or start with Custom (no preset)</a>
+  </div>
+</div>
+              <div class="hint">Set quiz details and save. Then link classes, add questions, and publish.</div>
+
+              <div class="hr"></div>
+
+              <div class="split">
+                <div class="col">
+                  <label>Title</label>
+                  <input id="fTitle" placeholder="e.g., Medical Nursing Quiz 1" />
+                </div>
+                <div class="col">
+                  <label>Subject</label>
+                  <input id="fSubject" placeholder="e.g., Nursing" />
+                </div>
+              </div>
+
+<div class="split" style="margin-top:10px">
+  <div class="col">
+    <label>Duration (minutes)</label>
+    <input id="fDuration" type="number" min="0" step="1" placeholder="0 = untimed" />
+  </div>
+</div>
+
+              <div class="split" style="margin-top:10px">
+                <div class="col">
+                  <label>Open at (optional)</label>
+                  <input id="fOpenAt" type="datetime-local" />
+                  <div class="hint">Saved as UTC ISO string.</div>
+                </div>
+                <div class="col">
+                  <label>Close at (optional)</label>
+                  <input id="fCloseAt" type="datetime-local" />
+                  <div class="hint">Saved as UTC ISO string.</div>
+                </div>
+              </div>
+<!-- NEW: Results Release Policy (Hybrid preset – Step 1) -->
+<div class="split" style="margin-top:10px">
+  <div class="col">
+    <label>Results Release Policy</label>
+    <select id="fResultsPolicy">
+      <option value="IMMEDIATE">Immediate (after submit)</option>
+      <option value="AFTER_CLOSE">After Close Date</option>
+      <option value="MANUAL">Manual (teacher releases)</option>
+    </select>
+    <div class="hint">Controls when students see score and review.</div>
+  </div>
+</div>
+
+<!-- NEW: Scheduled release date (only show for MANUAL) -->
+<div id="scheduledReleaseRow" class="split" style="margin-top:10px; display:none;">
+  <div class="col">
+    <label>Scheduled Release Date (optional)</label>
+    <input id="fReleasedAt" type="datetime-local" />
+    <div class="hint">If set, results auto-release at this time for MANUAL policy.</div>
+  </div>
+</div>
+              
+<!-- ======================
+     NEW: GRADING + SCORE DISPLAY
+     ====================== -->
+<div class="hr"></div>
+
+<div class="row" style="justify-content:space-between;align-items:flex-start">
+  <div>
+    <div style="font-weight:900">Grading & score display</div>
+    <div class="hint">
+      Controls how results appear on the student results page (grade label + score format).
+    </div>
+  </div>
+</div>
+
+<div class="split" style="margin-top:10px">
+  <div class="col">
+    <label>Score display policy</label>
+    <select id="fScoreDisplayPolicy">
+      <option value="PCT_ONLY">Percent only (e.g., 72%)</option>
+      <option value="RAW_ONLY">Raw only (e.g., 18/25)</option>
+      <option value="RAW_AND_PCT">Raw + percent (e.g., 18/25 • 72%)</option>
+      <option value="HIDE">Hide score (no numeric score)</option>
+    </select>
+    <div class="hint">If set to HIDE, the results page will hide numeric score (the grade label can still show).</div>
+  </div>
+
+  <div class="col">
+    <label>&nbsp;</label>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn" id="btnAddBand" type="button">+ Add grade band</button>
+    </div>
+  </div>
+</div>
+
+<div class="split" style="margin-top:10px">
+  <div class="col">
+    <label>Pass mark (%)</label>
+    <input id="fPassThreshold" type="number" min="0" max="100" step="1" placeholder="50" />
+    <div class="hint">Used for pass/fail calculations. Keep it consistent with your “Pass” grade band.</div>
+  </div>
+</div>
+              
+<div style="margin-top:10px">
+  <label>Grade bands (percent thresholds)</label>
+  <div id="gradeBandsWrap" style="display:flex;flex-direction:column;gap:10px"></div>
+  <div id="gradeBandsHint" class="hint" style="margin-top:8px"></div>
+</div>              
+              
+              <div class="row" style="margin-top:10px;gap:14px">
+                <label class="row" style="gap:8px;font-weight:800">
+                  <input id="fShuffleQ" type="checkbox" />
+                  Shuffle questions
+                </label>
+                <label class="row" style="gap:8px;font-weight:800">
+                  <input id="fShuffleOpt" type="checkbox" />
+                  Shuffle options
+                </label>
+                <label class="row" style="gap:8px;font-weight:800">
+                  <input id="fShowReview" type="checkbox" />
+                  Allow review
+                </label>
+                <label class="row" style="gap:8px;font-weight:800">
+                  <input id="fShowResult" type="checkbox" />
+                  Show result
+                </label>
+
+                <div class="col" style="min-width:200px;flex:1">
+                  <label>Max attempts</label>
+                  <input id="fMaxAttempts" type="number" min="0" step="1" placeholder="0 = unlimited" />
+                </div>
+              </div>
+
+              <div class="hr"></div>
+
+              <div class="row" style="justify-content:space-between">
+                <div>
+                  <div style="font-weight:900">Quiz attempt fields (custom_fields_json)</div>
+                  <div class="hint">Optional. Max 4. Collected per attempt (e.g., room, seat number).</div>
+                </div>
+                <button class="btn" id="btnAddField" type="button">+ Add field</button>
+              </div>
+
+              <div id="fieldsWrap" style="margin-top:10px;display:flex;flex-direction:column;gap:10px"></div>
+
+              <div class="stickyFooter">
+                <div class="row" style="justify-content:flex-end">
+                  <button class="btn primary" id="btnSaveQuiz" type="button">Save settings</button>
+                </div>
+                <div class="hint" style="margin-top:8px">
+                  Tip: Save first, then go to <span class="kbd">Classes</span> and <span class="kbd">Questions</span>.
+                </div>
+              </div>
+            </div>
+
+            <!-- ======================
+                 PANE: CLASSES
+                 ====================== -->
+            <div id="paneClasses" class="pane">
+              <div class="paneTitle">Classes</div>
+              <div class="hint">Students only see quizzes linked to their class.</div>
+
+              <div class="hr"></div>
+
+              <div class="row" style="justify-content:space-between;align-items:flex-start">
+                <div>
+                  <div style="font-weight:900">Link this quiz to classes</div>
+                  <div class="hint">Select the classes that should see this quiz.</div>
+                </div>
+                <div class="row">
+                  <button class="btn" id="btnReloadClasses" type="button">Reload classes</button>
+                  <button class="btn primary" id="btnSaveLinks" type="button">Save links</button>
+                </div>
+              </div>
+
+              <div class="split" style="margin-top:10px">
+                <div class="col">
+                  <label>Class search</label>
+                  <input id="clsSearch" placeholder="Filter classes…" />
+                </div>
+                <div class="col">
+                  <label>Quick actions</label>
+                  <div class="row">
+                    <button class="btn" id="btnSelectAll" type="button">Select all</button>
+                    <button class="btn" id="btnClearAll" type="button">Clear</button>
+                    <span class="chip"><span>Selected:</span> <span class="kbd" id="selCount">0</span></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="clsBox" id="classesBox" style="margin-top:10px"></div>
+
+              <div class="stickyFooter">
+                <div class="hint">Next: go to <span class="kbd">Questions</span> to build the draft list.</div>
+              </div>
+            </div>
+
+            <!-- ======================
+                 PANE: QUESTIONS
+                 ====================== -->
+            <div id="paneQuestions" class="pane">
+              <div class="paneTitle">Questions</div>
+              <div class="hint">Draft is the source-of-truth. Add from bank or create inline. Publish snapshots the draft.</div>
+
+              <div class="hr"></div>
+
+              <div class="qLayout">
+                <!-- LEFT: Draft -->
+                <div class="qCard">
+                  <div class="qHd">
+                    <b>Draft list</b>
+                    <div class="row">
+                      <span class="chip"><span>Draft:</span> <span class="kbd" id="qdCount">0</span></span>
+                      <input id="qdSearch" placeholder="Filter draft by ID/stem…" style="width:220px" />
+                      <button class="btn qSmall" id="qdLoadSome" title="Fetch stems for first 25 draft IDs" type="button">Load details</button>
+                    </div>
+                  </div>
+                  <div class="qBd">
+                    <div class="row" style="justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+                      <div class="row">
+                        <button class="btn qSmall" id="qdCopyIds" title="Copy draft bank_item_ids" type="button">Copy IDs</button>
+                        <button class="btn qSmall" id="qdSaveNow" title="Force save draft to server" type="button">Save draft</button>
+                        <button class="btn qSmall danger" id="qdClear" title="Clear draft list" type="button">Clear</button>
+                      </div>
+<div class="row">
+  <button class="btn qSmall" id="goBank" type="button">Bank browser</button>
+  <button class="btn qSmall" id="btnOpenBankPicker" type="button">Add from My Bank</button>
+  <button class="btn qSmall" id="btnOpenLibrary" type="button">Add from QAcademy Library</button>
+  <button class="btn qSmall primary" id="goCreate" type="button">+ Create new</button>
+</div>
+                    </div>
+
+                    <div class="qBox" id="qdBox"></div>
+                    <div class="hint" id="qdHint" style="margin-top:8px"></div>
+                  </div>
+                </div>
+
+                <!-- RIGHT: Tools -->
+                <div>
+                  <div class="toolTabs">
+                    <button class="toolTab active" id="toolBank" type="button">Bank</button>
+                    <button class="toolTab" id="toolCreate" type="button">Create</button>
+                    <button class="toolTab" id="toolPreview" type="button">Preview</button>
+                  </div>
+
+                  <!-- Tool Pane: Bank -->
+                  <div id="toolPaneBank" class="toolPane active">
+                    <div class="qCard">
+                      <div class="qHd">
+                        <b>Bank browser</b>
+                        <div class="row">
+                          <span class="qPill" id="qbCountPill">0 items</span>
+                          <button class="btn qSmall" id="qbClear" type="button">Clear</button>
+                          <button class="btn qSmall primary" id="qbLoad" type="button">Load</button>
+                        </div>
+                      </div>
+                      <div class="qBd">
+                        <div class="split">
+                          <div class="col">
+                            <label>Search</label>
+                            <input id="qb_q" placeholder="e.g. airway, insulin, meningitis…" />
+                          </div>
+                          <div class="col">
+                            <label>Status</label>
+                            <select id="qb_status">
+                              <option value="ACTIVE" selected>ACTIVE</option>
+                              <option value="DELETED">DELETED</option>
+                              <option value="ALL">ALL</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div class="split" style="margin-top:10px">
+                          <div class="col">
+                            <label>Subject</label>
+                            <select id="qb_subject">
+                              <option value="">Any</option>
+                            </select>
+                          </div>
+                          <div class="col">
+                            <label>Topic</label>
+                            <select id="qb_topic">
+                              <option value="">Any</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div class="split" style="margin-top:10px">
+                          <div class="col">
+                            <label>Difficulty</label>
+                            <select id="qb_difficulty">
+                              <option value="">Any</option>
+                              <option value="Easy">Easy</option>
+                              <option value="Moderate">Moderate</option>
+                              <option value="Hard">Hard</option>
+                            </select>
+                          </div>
+                          <div class="col">
+                            <label>Source type</label>
+                            <select id="qb_source_type">
+                              <option value="">Any</option>
+                              <option value="TEACHER">TEACHER</option>
+                              <option value="QUIZ_INLINE">QUIZ_INLINE</option>
+                              <option value="IMPORT">IMPORT</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div class="split" style="margin-top:10px">
+                          <div class="col">
+                            <label>Limit</label>
+                            <select id="qb_limit">
+                              <option>25</option>
+                              <option selected>50</option>
+                              <option>100</option>
+                              <option>200</option>
+                            </select>
+                          </div>
+                          <div class="col">
+                            <label>&nbsp;</label>
+                            <div class="hint">Tip: Click <b>Preview</b> to load into editor.</div>
+                          </div>
+                        </div>
+
+                        <div class="hr"></div>
+
+                        <div style="overflow:auto;border:1px solid var(--line);border-radius:14px;background:#fff">
+                          <table class="qTbl">
+                            <thead>
+                              <tr>
+                                <th style="width:46%">Stem</th>
+                                <th>Meta</th>
+                                <th style="width:140px">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody id="qbRows">
+                              <tr><td colspan="3" class="hint" style="padding:12px">No data yet. Click “Load”.</td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div class="hint" id="qbHint" style="margin-top:8px"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Tool Pane: Editor (Create + Preview) -->
+                  <div id="toolPaneEditor" class="toolPane">
+                    <div class="qCard">
+                      <div class="qHd">
+                        <b id="qeTitle">Question editor</b>
+                        <div class="row">
+                          <span class="qPill ok" id="qeModePill">NEW</span>
+                          <button class="btn qSmall" id="qeNewInline" type="button">New inline</button>
+                          <button class="btn qSmall primary" id="qeSaveQuestion" type="button">Save</button>
+                          <button class="btn qSmall" id="qeAddToDraft" type="button">Add to draft</button>
+                        </div>
+                      </div>
+
+                      <div class="qBd">
+                        <div class="row" style="justify-content:space-between;align-items:flex-start">
+                          <div class="col" style="min-width:240px;flex:1">
+                            <div class="row" style="gap:8px;flex-wrap:wrap">
+                              <span class="chip"><span>Bank ID:</span> <span class="kbd" id="qeBankId">—</span></span>
+                            </div>
+                            <div class="hint" id="qeTimestamps" style="margin-top:6px">Created: — · Updated: —</div>
+                            <div class="hint" id="qeWarn" style="margin-top:6px"></div>
+                          </div>
+                        </div>
+
+                        <div class="hr"></div>
+
+                        <div class="col">
+                          <label>Stem <span class="muted">(required)</span></label>
+                          <textarea id="qe_stem" placeholder="Write the question stem here…"></textarea>
+                        </div>
+
+                        <div class="split" style="margin-top:10px">
+                          <div class="col">
+                            <label>Subject</label>
+                            <input id="qe_subject" placeholder="e.g. Nursing, Pharmacology…" />
+                          </div>
+                          <div class="col">
+                            <label>Topic</label>
+                            <input id="qe_topic" placeholder="e.g. Infection Control…" />
+                          </div>
+                        </div>
+
+                        <div class="split" style="margin-top:10px">
+                          <div class="col">
+                            <label>Difficulty</label>
+                            <select id="qe_difficulty">
+                              <option value="">Select…</option>
+                              <option value="Easy">Easy</option>
+                              <option value="Moderate">Moderate</option>
+                              <option value="Hard">Hard</option>
+                            </select>
+                          </div>
+                          <div class="col">
+                            <label>Marks</label>
+                            <input id="qe_marks" placeholder="e.g. 1" inputmode="numeric" />
+                          </div>
+                        </div>
+
+                        <div class="hr"></div>
+
+                        <div class="split">
+                          <div class="col">
+                            <label>Option A <span class="muted">(required)</span></label>
+                            <input id="qe_option_a" placeholder="Option A…" />
+                            <label style="margin-top:8px">Feedback A</label>
+                            <input id="qe_fb_a" placeholder="Optional feedback for A" />
+                          </div>
+                          <div class="col">
+                            <label>Option B <span class="muted">(required)</span></label>
+                            <input id="qe_option_b" placeholder="Option B…" />
+                            <label style="margin-top:8px">Feedback B</label>
+                            <input id="qe_fb_b" placeholder="Optional feedback for B" />
+                          </div>
+                        </div>
+
+                        <div class="split" style="margin-top:10px">
+                          <div class="col">
+                            <label>Option C</label>
+                            <input id="qe_option_c" placeholder="Option C…" />
+                            <label style="margin-top:8px">Feedback C</label>
+                            <input id="qe_fb_c" placeholder="Optional feedback for C" />
+                          </div>
+                          <div class="col">
+                            <label>Option D</label>
+                            <input id="qe_option_d" placeholder="Option D…" />
+                            <label style="margin-top:8px">Feedback D</label>
+                            <input id="qe_fb_d" placeholder="Optional feedback for D" />
+                          </div>
+                        </div>
+
+                        <div class="split" style="margin-top:10px">
+                          <div class="col">
+                            <label>Option E</label>
+                            <input id="qe_option_e" placeholder="Option E…" />
+                            <label style="margin-top:8px">Feedback E</label>
+                            <input id="qe_fb_e" placeholder="Optional feedback for E" />
+                          </div>
+                          <div class="col">
+                            <label>Option F</label>
+                            <input id="qe_option_f" placeholder="Option F…" />
+                            <label style="margin-top:8px">Feedback F</label>
+                            <input id="qe_fb_f" placeholder="Optional feedback for F" />
+                          </div>
+                        </div>
+
+                        <div class="split" style="margin-top:10px">
+                          <div class="col">
+                            <label>Correct option <span class="muted">(must match a filled option)</span></label>
+                            <select id="qe_correct">
+                              <option value="">Select…</option>
+                              <option>A</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option>
+                            </select>
+                          </div>
+                          <div class="col">
+                            <label>Rationale image (URL)</label>
+                            <input id="qe_rationale_img" placeholder="Optional image URL…" />
+                          </div>
+                        </div>
+
+                        <div class="col" style="margin-top:10px">
+                          <label>Rationale</label>
+                          <textarea id="qe_rationale" placeholder="Explain why the correct option is correct…"></textarea>
+                        </div>
+
+                        <div class="hr"></div>
+
+                        <div class="split">
+                          <div class="col">
+                            <label>Source type</label>
+                            <select id="qe_source_type">
+                              <option value="">Select…</option>
+                              <option value="TEACHER">TEACHER</option>
+                              <option value="QUIZ_INLINE">QUIZ_INLINE</option>
+                              <option value="IMPORT">IMPORT</option>
+                            </select>
+                          </div>
+                          <div class="col">
+                            <label>Source course id</label>
+                            <input id="qe_source_course_id" placeholder="Optional" />
+                          </div>
+                        </div>
+
+                        <div class="split" style="margin-top:10px">
+                          <div class="col">
+                            <label>Source sheet id</label>
+                            <input id="qe_source_sheet_id" placeholder="Optional" />
+                          </div>
+                          <div class="col">
+                            <label>Source item id</label>
+                            <input id="qe_source_item_id" placeholder="Optional" />
+                          </div>
+                        </div>
+
+                        <div class="hint" style="margin-top:10px">
+                          Inline questions should use <span class="kbd">QUIZ_INLINE</span> and will be saved to bank, then added to this quiz draft.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <div class="stickyFooter">
+                <div class="hint">Next: open <span class="kbd">Publish</span> to review readiness and publish.</div>
+              </div>
+            </div>
+
+            <!-- ======================
+                 PANE: PUBLISH
+                 ====================== -->
+            <div id="panePublish" class="pane">
+              <div class="paneTitle">Publish</div>
+              <div class="hint">Publishing snapshots the current draft into <span class="kbd">teacher_quiz_items</span> and locks edits.</div>
+
+              <div class="hr"></div>
+
+              <div class="pubBox">
+                <div class="row" style="justify-content:space-between;align-items:center">
+                  <div class="row">
+                    <span class="chip"><span>Quiz:</span> <span class="kbd" id="pubQuizId">—</span></span>
+                    <span class="chip"><span>Status:</span> <span class="kbd" id="pubStatus">—</span></span>
+                    <span class="chip"><span>Open:</span> <span class="kbd" id="pubOpen">—</span></span>
+                  </div>
+                  <div class="row">
+                    <span class="chip"><span>Draft:</span> <span class="kbd" id="pubDraft">0</span></span>
+                    <span class="chip"><span>Classes:</span> <span class="kbd" id="pubClasses">0</span></span>
+                  </div>
+                </div>
+
+                <div id="pubWarn" class="warnBox" style="display:none"></div>
+
+                <div class="checkRow">
+                  <div>
+                    <b>Ready checklist</b>
+                    <div class="hint" id="pubChecklist">—</div>
+                  </div>
+                  <div class="row" style="justify-content:flex-end">
+                    <button class="btn" id="pubBackQuestions" type="button">Back to Questions</button>
+                    <button class="btn primary" id="qdPublish" title="Create snapshots + publish (backend action required)" type="button">Save draft + Publish</button>
+                  </div>
+                  <!-- NEW: Release Results Now button (only for MANUAL + PUBLISHED) -->
+<div id="releaseResultsSection" style="margin-top:15px; display:none;">
+  <div class="warnBox">
+    <b>Release Results</b>
+    <div class="hint" style="margin-top:6px">
+      For MANUAL policy quizzes: Click below to release results to students now.
+    </div>
+  </div>
+  <div class="row" style="margin-top:10px;justify-content:flex-end">
+    <button class="btn danger" id="btnReleaseResults" type="button">Release Results Now</button>
+  </div>
+</div>
+                </div>
+
+                <div class="hint" style="margin-top:10px">
+                  Note: If <b>Classes = 0</b>, students may not see the quiz (unless your runner ignores class linking).
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toast" class="toast">
+    <div class="t" id="toastTitle">Notice</div>
+    <div class="m" id="toastMsg">—</div>
+  </div>
+
+<script>
+/** =========================
+ * CONFIG (EDIT THESE)
+ * ========================= */
+const API_URL = 'https://script.google.com/macros/s/AKfycbz54M_jWoRq4cOC2gUQeRhd55AeEJ5vnELJ0gkBSodO58fr7WGa9jwk6JNwPptf8p8X/exec';
+const LOGIN_URL = '/p/login_23.html';
+const BANK_URL = '/p/teacher-bank.html';
+const LIBRARY_URL = '/p/teacher-library-picker.html';
+/** =========================
+ * STATE
+ * ========================= */
+let TOKEN = '';
+let ME = null;
+
+let listCursor = '';
+let lastListParams = null;
+
+let QUIZZES = [];
+let SELECTED_ID = '';
+let SELECTED_QUIZ = null;
+
+let CLASSES = [];
+let LINKED_CLASS_IDS = new Set();
+
+let CUSTOM_FIELDS = []; // [{label, required, type, optionsText}]
+const MAX_FIELDS = 4;
+  
+// =========================
+// Grading (per-quiz)
+// =========================
+const QA_GRADING_POLICY = 'BANDS_PCT';
+const QA_SCORE_DISPLAY_ALLOWED = ['HIDE','PCT_ONLY','RAW_ONLY','RAW_AND_PCT'];
+
+const QA_DEFAULT_GRADE_BANDS = [
+  { min_pct: 0,  label: 'Fail' },
+  { min_pct: 50, label: 'Pass' },
+  { min_pct: 65, label: 'Credit' },
+  { min_pct: 75, label: 'Distinction' }
+];
+
+let GRADE_BANDS = []; // [{min_pct:number,label:string}]  
+  
+// NEW: Preset defaults (frontend mirror of backend PRESET_DEFAULTS)
+const PRESET_DEFAULTS = {
+  'STUDY': {
+    duration_minutes: '0',
+    max_attempts: '0',
+    shuffle_questions: true,
+    shuffle_options: true,
+    show_review: true,
+    show_results: true,
+    results_release_policy: 'IMMEDIATE',  // ← added
+    label: 'STUDY',
+    desc: 'Learn & practice – untimed, unlimited attempts, instant feedback'
+  },
+  'ASSIGNMENT': {
+    duration_minutes: '60',
+    max_attempts: '1',
+    shuffle_questions: true,
+    shuffle_options: true,
+    show_review: true,
+    show_results: true,
+    results_release_policy: 'AFTER_CLOSE',  // ← added
+    label: 'ASSIGNMENT',
+    desc: 'Take-home task – timed, 1 attempt, results after close'
+  },
+  'IN_CLASS': {
+    duration_minutes: '15',
+    max_attempts: '1',
+    shuffle_questions: true,
+    shuffle_options: true,
+    show_review: false,
+    show_results: true,
+    results_release_policy: 'AFTER_CLOSE',  // ← added
+    label: 'IN_CLASS',
+    desc: 'Live class quiz – short timer, no review during quiz'
+  },
+  'EXAM': {
+    duration_minutes: '60',
+    max_attempts: '1',
+    shuffle_questions: true,
+    shuffle_options: true,
+    show_review: false,
+    show_results: true,
+    results_release_policy: 'MANUAL',  // ← added
+    label: 'EXAM',
+    desc: 'Formal assessment – timed, manual release by teacher'
+  }
+};
+
+/* Questions module state */
+let DRAFT_IDS = [];              // ordered array of bank_item_id
+let DRAFT_SET = new Set();       // for fast contains
+let BANK_LIST_CACHE = [];        // last bank items.list result
+let BANK_CACHE_BY_ID = new Map();// bank_item_id -> full item (as we fetch)
+let QE_CURRENT_ID = '';          // loaded bank item id (edit mode)
+let QE_CURRENT_ORIG = null;      // original item for diff
+let DRAFT_DIRTY = false;
+let DRAFT_SAVE_T = null;
+let currentPreset = '';           // 'STUDY' | 'ASSIGNMENT' | 'IN_CLASS' | 'EXAM' | ''
+let presetDirty = false;          // true if user changed fields after selecting preset
+let QE_IS_LIB = false;
+let QE_LIB_REF = '';
+let DRAFT_PREVIEW_BY_REF = new Map(); // ref -> normalized preview item
+let DRAFT_PREVIEW_MISSING = [];       // last missing[] list (optional UI later)
+/** =========================
+ * DOM
+ * ========================= */
+const $ = (id) => document.getElementById(id);
+
+const elUserChip = $('userChip');
+const elQSearch = $('qSearch');
+const elQStatus = $('qStatus');
+const elQuizList = $('quizList');
+const elEmptyList = $('emptyList');
+const elQuizCount = $('quizCount');
+const elLoadMore = $('btnLoadMore');
+const elCountsChips = $('countsChips');
+const elQuizListView = $('quizListView');
+const elQuizEditorView = $('quizEditorView');
+const elBtnBackToList = $('btnBackToList');
+const elNotSelected = $('notSelected');
+const elEditor = $('editor');
+const elEditorTitle = $('editorTitle');
+
+const elQuizStatusChip = $('quizStatusChip');
+const elQuizOpenChip = $('quizOpenChip');
+const elQuizIdKbd = $('quizIdKbd');
+const elQuizCodeKbd = $('quizCodeKbd');
+
+const elTitle = $('fTitle');
+const elSubject = $('fSubject');
+const elMode = $('fMode');
+const elDuration = $('fDuration');
+const elOpenAt = $('fOpenAt');
+const elCloseAt = $('fCloseAt');
+const elShuffleQ = $('fShuffleQ');
+const elShuffleOpt = $('fShuffleOpt');
+const elShowReview = $('fShowReview');
+const elShowResult = $('fShowResult');
+const elMaxAttempts = $('fMaxAttempts');
+  
+const elScoreDisplayPolicy = $('fScoreDisplayPolicy');
+const elGradeBandsWrap = $('gradeBandsWrap');
+const elGradeBandsHint = $('gradeBandsHint');
+const elPassThreshold = $('fPassThreshold');
+
+const elFieldsWrap = $('fieldsWrap');
+
+const elClsSearch = $('clsSearch');
+const elClassesBox = $('classesBox');
+const elSelCount = $('selCount');
+
+/* Questions module DOM */
+const qdCount = $('qdCount');
+const qdSearch = $('qdSearch');
+const qdBox = $('qdBox');
+const qdHint = $('qdHint');
+const qdLoadSome = $('qdLoadSome');
+const qdSaveNow = $('qdSaveNow');
+const qdClear = $('qdClear');
+const qdCopyIds = $('qdCopyIds');
+const qdPublish = $('qdPublish');
+
+const qb_q = $('qb_q');
+const qb_status = $('qb_status');
+const qb_subject = $('qb_subject');
+const qb_topic = $('qb_topic');
+const qb_difficulty = $('qb_difficulty');
+const qb_source_type = $('qb_source_type');
+const qb_limit = $('qb_limit');
+const qbLoad = $('qbLoad');
+const qbClear = $('qbClear');
+const qbRows = $('qbRows');
+const qbCountPill = $('qbCountPill');
+const qbHint = $('qbHint');
+
+const qeTitle = $('qeTitle');
+const qeModePill = $('qeModePill');
+const qeNewInline = $('qeNewInline');
+const qeSaveQuestion = $('qeSaveQuestion');
+const qeAddToDraft = $('qeAddToDraft');
+const qeBankId = $('qeBankId');
+const qeTimestamps = $('qeTimestamps');
+const qeWarn = $('qeWarn');
+
+const qe_stem = $('qe_stem');
+const qe_subject = $('qe_subject');
+const qe_topic = $('qe_topic');
+const qe_difficulty = $('qe_difficulty');
+const qe_marks = $('qe_marks');
+
+const qe_option_a = $('qe_option_a');
+const qe_fb_a = $('qe_fb_a');
+const qe_option_b = $('qe_option_b');
+const qe_fb_b = $('qe_fb_b');
+const qe_option_c = $('qe_option_c');
+const qe_fb_c = $('qe_fb_c');
+const qe_option_d = $('qe_option_d');
+const qe_fb_d = $('qe_fb_d');
+const qe_option_e = $('qe_option_e');
+const qe_fb_e = $('qe_fb_e');
+const qe_option_f = $('qe_option_f');
+const qe_fb_f = $('qe_fb_f');
+
+const qe_correct = $('qe_correct');
+const qe_rationale_img = $('qe_rationale_img');
+const qe_rationale = $('qe_rationale');
+
+const qe_source_type = $('qe_source_type');
+const qe_source_course_id = $('qe_source_course_id');
+const qe_source_sheet_id = $('qe_source_sheet_id');
+const qe_source_item_id = $('qe_source_item_id');
+
+/* NEW: tabs + strip + tools + publish pane */
+const tabSettings = $('tabSettings');
+const tabClasses = $('tabClasses');
+const tabQuestions = $('tabQuestions');
+const tabPublish = $('tabPublish');
+
+const paneSettings = $('paneSettings');
+const paneClasses = $('paneClasses');
+const paneQuestions = $('paneQuestions');
+const panePublish = $('panePublish');
+
+const stripSaveState = $('stripSaveState');
+const stripDraftCount = $('stripDraftCount');
+const stripClassCount = $('stripClassCount');
+const stripNextHint = $('stripNextHint');
+
+const toolBank = $('toolBank');
+const toolCreate = $('toolCreate');
+const toolPreview = $('toolPreview');
+const toolPaneBank = $('toolPaneBank');
+const toolPaneEditor = $('toolPaneEditor');
+
+const goBank = $('goBank');
+const goCreate = $('goCreate');
+
+const pubQuizId = $('pubQuizId');
+const pubStatus = $('pubStatus');
+const pubOpen = $('pubOpen');
+const pubDraft = $('pubDraft');
+const pubClasses = $('pubClasses');
+const pubWarn = $('pubWarn');
+const pubChecklist = $('pubChecklist');
+const pubBackQuestions = $('pubBackQuestions');
+
+let ACTIVE_TAB = 'settings';
+let ACTIVE_TOOL = 'bank';
+
+/** =========================
+ * UTIL
+ * ========================= */
+function toast(title, msg){
+  const box = $('toast');
+  $('toastTitle').textContent = title || 'Notice';
+  $('toastMsg').textContent = msg || '';
+  box.classList.add('show');
+  clearTimeout(box.__t);
+  box.__t = setTimeout(()=> box.classList.remove('show'), 4200);
+}
+
+function safeJsonParse(str, fallback){
+  try { return JSON.parse(str); } catch(e){ return fallback; }
+}
+  
+function qaDefaultBands(){
+  return QA_DEFAULT_GRADE_BANDS.map(x => ({ min_pct: x.min_pct, label: x.label }));
+}
+
+function qaNormalizeBands(bands){
+  let cleaned = [];
+  (bands || []).forEach(b => {
+    const label = String((b && b.label) || '').trim();
+    const n = Number(b && b.min_pct);
+    if (!label) return;
+    if (!isFinite(n)) return;
+    let min = Math.max(0, Math.min(100, n));
+    min = Math.round(min * 100) / 100; // allow decimals safely
+    cleaned.push({ min_pct: min, label });
+  });
+
+  if (!cleaned.length) cleaned = qaDefaultBands();
+
+  cleaned.sort((a,b)=> a.min_pct - b.min_pct);
+
+  // dedupe same min_pct (keep the last label)
+  const ded = [];
+  for (let i = 0; i < cleaned.length; i++){
+    const cur = cleaned[i];
+    if (!ded.length) { ded.push(cur); continue; }
+    const prev = ded[ded.length - 1];
+    if (prev.min_pct === cur.min_pct) prev.label = cur.label;
+    else ded.push(cur);
+  }
+
+  // ensure 0 band exists
+  if (!ded.length || ded[0].min_pct !== 0){
+    ded.unshift({ min_pct: 0, label: 'Fail' });
+  } else {
+    if (!String(ded[0].label||'').trim()) ded[0].label = 'Fail';
+  }
+
+  return ded;
+}
+
+function qaParseBands(raw){
+  const s = (raw == null) ? '' : raw;
+  if (!s) return qaDefaultBands();
+
+  let obj = null;
+  try { obj = (typeof s === 'string') ? JSON.parse(s) : s; } catch(_){ obj = null; }
+
+  if (Array.isArray(obj)) obj = { bands: obj };
+  const bands = (obj && Array.isArray(obj.bands)) ? obj.bands : null;
+  if (!bands) return qaDefaultBands();
+
+  return qaNormalizeBands(bands);
+}
+
+function qaBandsJsonForSave(){
+  const bands = qaNormalizeBands(GRADE_BANDS);
+  return JSON.stringify({ bands });
+}
+
+function renderGradeBands(){
+  if (!elGradeBandsWrap) return;
+
+  // keep state canonical
+  GRADE_BANDS = qaNormalizeBands(GRADE_BANDS);
+
+  elGradeBandsWrap.innerHTML = GRADE_BANDS.map((b, i) => {
+    const isZero = (i === 0 && Number(b.min_pct) === 0);
+    return `
+      <div class="bandRow" data-i="${i}">
+        <div class="col">
+          <label>Min %</label>
+          <input type="number" step="1" min="0" max="100"
+            data-k="min_pct" data-i="${i}"
+            value="${escapeHtml(String(b.min_pct))}"
+            ${isZero ? 'disabled' : ''}
+          />
+        </div>
+        <div class="col">
+          <label>Label</label>
+          <input data-k="label" data-i="${i}" value="${escapeHtml(String(b.label||''))}" placeholder="e.g., Pass" />
+        </div>
+        <div class="bandActions">
+          <button class="btn danger" data-k="remove" data-i="${i}" type="button" ${isZero ? 'disabled' : ''}>Remove</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // hint
+  if (elGradeBandsHint){
+    const preview = GRADE_BANDS.map(b => `${b.min_pct}%→${b.label}`).join(' • ');
+    elGradeBandsHint.textContent = `Applied bands: ${preview}`;
+  }
+
+  // bind events
+  elGradeBandsWrap.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', onGradeBandChange);
+    inp.addEventListener('change', onGradeBandChange);
+  });
+  elGradeBandsWrap.querySelectorAll('button[data-k="remove"]').forEach(btn => {
+    btn.addEventListener('click', onGradeBandRemove);
+  });
+}
+
+function onGradeBandChange(e){
+  const el = e.target;
+  const i = parseInt(el.getAttribute('data-i')||'-1', 10);
+  const k = el.getAttribute('data-k') || '';
+  if (i < 0 || !k) return;
+
+  const cur = GRADE_BANDS[i] || { min_pct: 0, label: '' };
+
+  if (k === 'min_pct'){
+    const n = Number(el.value);
+    cur.min_pct = isFinite(n) ? n : cur.min_pct;
+  } else if (k === 'label'){
+    cur.label = String(el.value||'').trim();
+  }
+
+  GRADE_BANDS[i] = cur;
+  // don’t fully re-render on every keystroke; just update hint
+  if (elGradeBandsHint){
+    const preview = qaNormalizeBands(GRADE_BANDS).map(b => `${b.min_pct}%→${b.label}`).join(' | ');
+    elGradeBandsHint.textContent = `Applied bands: ${preview}`;
+  }
+}
+
+function onGradeBandRemove(e){
+  const i = parseInt(e.target.getAttribute('data-i')||'-1', 10);
+  if (i <= 0) return; // keep the 0% band
+  GRADE_BANDS.splice(i, 1);
+  renderGradeBands();
+}
+
+function addGradeBand(){
+  // pick a reasonable next threshold
+  const used = new Set(qaNormalizeBands(GRADE_BANDS).map(b => Number(b.min_pct)));
+  let m = 50;
+  while (used.has(m) && m <= 100) m += 5;
+  if (m > 100) m = 100;
+
+  GRADE_BANDS.push({ min_pct: m, label: 'New band' });
+  renderGradeBands();
+}
+
+function resetGradingDefaults(){
+  if (elScoreDisplayPolicy) elScoreDisplayPolicy.value = 'PCT_ONLY';
+  GRADE_BANDS = qaDefaultBands();
+  renderGradeBands();
+}
+
+function fillGradingFromQuiz(q){
+  q = q || {};
+
+  const sdpRaw = String(q.score_display_policy || '').trim().toUpperCase();
+  const sdp = QA_SCORE_DISPLAY_ALLOWED.includes(sdpRaw) ? sdpRaw : 'PCT_ONLY';
+  if (elScoreDisplayPolicy) elScoreDisplayPolicy.value = sdp;
+
+  GRADE_BANDS = qaParseBands(String(q.grade_bands_json || '').trim());
+  renderGradeBands();
+}
+
+function getParam(name){
+  const u = new URL(location.href);
+  return u.searchParams.get(name) || '';
+}
+
+function setParam(name, value){
+  const u = new URL(location.href);
+  if (value == null || value === ''){
+    u.searchParams.delete(name);
+  } else {
+    u.searchParams.set(name, String(value));
+  }
+  history.replaceState(null, '', u.toString());
+}
+
+function setSelectedQuizInUrl(id){
+  setParam('teacher_quiz_id', String(id||'').trim());
+}  
+  
+function saveToken(tok){
+  TOKEN = String(tok||'').trim();
+  if (TOKEN) localStorage.setItem('qa_token', TOKEN);
+}
+
+function loadToken(){
+  const fromUrl = getParam('token');
+  const fromLs = localStorage.getItem('qa_token') || '';
+  return String(fromUrl || fromLs || '').trim();
+}
+
+function signOut(){
+  localStorage.removeItem('qa_token');
+  location.href = LOGIN_URL || '/';
+}
+
+function isoToLocalInput(iso){
+  const s = String(iso||'').trim();
+  if (!s) return '';
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n)=> String(n).padStart(2,'0');
+  const y = d.getFullYear();
+  const m = pad(d.getMonth()+1);
+  const dd = pad(d.getDate());
+  const hh = pad(d.getHours());
+  const mm = pad(d.getMinutes());
+  return `${y}-${m}-${dd}T${hh}:${mm}`;
+}
+
+function localInputToIso(v){
+  const s = String(v||'').trim();
+  if (!s) return '';
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString();
+}
+
+function chipForStatus(st){
+  const s = String(st||'').toUpperCase();
+  if (s === 'PUBLISHED') return {cls:'chip ok', txt:'PUBLISHED'};
+  if (s === 'DRAFT') return {cls:'chip warn', txt:'DRAFT'};
+  if (s === 'ARCHIVED') return {cls:'chip danger', txt:'ARCHIVED'};
+  return {cls:'chip', txt:s||'—'};
+}
+
+function chipForOpenState(os){
+  const s = String(os||'').toUpperCase();
+  if (s === 'OPEN') return {cls:'chip ok', txt:'OPEN'};
+  if (s === 'UPCOMING') return {cls:'chip warn', txt:'UPCOMING'};
+  if (s === 'CLOSED') return {cls:'chip danger', txt:'CLOSED'};
+  return {cls:'chip', txt:s||''};
+}
+
+function escapeHtml(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+  
+function isLibRef(s){
+  return /^LIB:/i.test(String(s||'').trim());
+}
+
+function parseLibRef(ref){
+  const m = String(ref||'').trim().match(/^LIB:([^:]+):(.+)$/i);
+  if (!m) return null;
+  return { course_id: String(m[1]||'').trim(), item_id: String(m[2]||'').trim() };
+}
+
+
+
+
+function normalizeField(v){
+  return String(v == null ? "" : v).trim();
+}
+
+function shortStem(s){
+  const t = String(s || "").trim().replace(/\s+/g," ");
+  if (t.length <= 140) return t;
+  return t.slice(0, 140) + "...";
+}
+
+function nowIso(){
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+  
+
+// NEW: Preset helpers
+function setPresetHighlight(presetKey){
+  const key = String(presetKey||'').trim().toUpperCase();
+  document.querySelectorAll('.preset-card').forEach(c => {
+    const k = String(c.getAttribute('data-preset')||'').trim().toUpperCase();
+    if (key && k === key){
+      c.style.borderColor = 'var(--brand)';
+      c.style.background = 'rgba(11,122,117,0.08)';
+    }else{
+      c.style.borderColor = 'var(--line)';
+      c.style.background = '#fff';
+    }
+  });
+}
+
+function applyPreset(presetKey) {
+  const key = String(presetKey||'').trim().toUpperCase();
+  if (!PRESET_DEFAULTS[key]) return;
+
+  const defs = PRESET_DEFAULTS[key];
+
+  elDuration.value = defs.duration_minutes;
+  elMaxAttempts.value = defs.max_attempts;
+  elShuffleQ.checked = !!defs.shuffle_questions;
+  elShuffleOpt.checked = !!defs.shuffle_options;
+  elShowReview.checked = !!defs.show_review;
+  elShowResult.checked = !!defs.show_results;
+
+  // Policy dropdown
+  const policySelect = $('fResultsPolicy');
+  if (policySelect && defs.results_release_policy) {
+    policySelect.value = defs.results_release_policy;
+    policySelect.dispatchEvent(new Event('change'));
+  }
+
+  // Clear scheduled release when applying a preset (teacher can set it explicitly)
+  const releasedAtInput = $('fReleasedAt');
+  if (releasedAtInput) releasedAtInput.value = '';
+
+  currentPreset = key;
+  presetDirty = false;
+
+  setPresetHighlight(key);
+  updateResetPresetButton();
+  renderTopStrip();
+}
+
+  
+  
+  
+function markPresetDirty() {
+  if (currentPreset) {
+    presetDirty = true;
+    updateResetPresetButton();
+  }
+}
+
+function updateResetPresetButton() {
+  let btn = document.getElementById('resetPresetBtn');
+  if (!btn) {
+    // Create button if not exists (in sticky footer)
+    const footerRow = document.querySelector('#paneSettings .stickyFooter .row');
+    if (!footerRow) return;
+    btn = document.createElement('button');
+    btn.id = 'resetPresetBtn';
+    btn.className = 'btn';
+    btn.style.marginLeft = 'auto';
+    btn.onclick = () => {
+      applyPreset(currentPreset);
+      toast('Reset', `Restored ${PRESET_DEFAULTS[currentPreset].label} defaults`);
+    };
+    footerRow.appendChild(btn);
+  }
+
+  if (currentPreset && presetDirty) {
+    btn.textContent = `Reset to ${PRESET_DEFAULTS[currentPreset].label} defaults`;
+    btn.style.display = '';
+  } else {
+    btn.style.display = 'none';
+  }
+}  
+
+/* NEW: robust boolean parser + pick-first-defined (for show_result mismatch issues) */
+function pickFirstDefined(){
+  for (let i = 0; i < arguments.length; i++){
+    const v = arguments[i];
+    if (v !== undefined && v !== null) return v;
+  }
+  return undefined;
+}
+
+function asBool(v, fallback){
+  if (v === true || v === false) return v;
+  if (v == null) return fallback;
+  if (typeof v === 'number') return v !== 0;
+
+  const s = String(v).trim().toLowerCase();
+  if (!s) return fallback;
+  if (['true','t','yes','y','1'].includes(s)) return true;
+  if (['false','f','no','n','0'].includes(s)) return false;
+  return fallback;
+}
+function showListView(){
+  if (elQuizListView) elQuizListView.classList.add('view-active');
+  if (elQuizEditorView) elQuizEditorView.classList.remove('view-active');
+}
+
+function showEditorView(){
+  if (elQuizListView) elQuizListView.classList.remove('view-active');
+  if (elQuizEditorView) elQuizEditorView.classList.add('view-active');
+}
+/* NEW: UI-only tab/tool switching */
+function setTabsEnabled(enabled){
+  const on = !!enabled;
+  tabClasses.disabled = !on;
+  tabQuestions.disabled = !on;
+  tabPublish.disabled = !on;
+}
+
+function setActiveTab(name){
+  const t = String(name||'settings').toLowerCase();
+  ACTIVE_TAB = t;
+
+  [tabSettings, tabClasses, tabQuestions, tabPublish].forEach(b=> b.classList.remove('active'));
+  if (t === 'settings') tabSettings.classList.add('active');
+  else if (t === 'classes') tabClasses.classList.add('active');
+  else if (t === 'questions') tabQuestions.classList.add('active');
+  else if (t === 'publish') tabPublish.classList.add('active');
+
+  [paneSettings, paneClasses, paneQuestions, panePublish].forEach(p=> p.classList.remove('active'));
+  if (t === 'settings') paneSettings.classList.add('active');
+  else if (t === 'classes') paneClasses.classList.add('active');
+  else if (t === 'questions') paneQuestions.classList.add('active');
+  else if (t === 'publish') { panePublish.classList.add('active'); renderPublishPane(); }
+
+  renderTopStrip();
+}
+
+function setActiveTool(name){
+  const t = String(name||'bank').toLowerCase();
+  ACTIVE_TOOL = t;
+
+  [toolBank, toolCreate, toolPreview].forEach(b=> b.classList.remove('active'));
+  toolPaneBank.classList.remove('active');
+  toolPaneEditor.classList.remove('active');
+
+  if (t === 'bank'){
+    toolBank.classList.add('active');
+    toolPaneBank.classList.add('active');
+  }else if (t === 'create'){
+    toolCreate.classList.add('active');
+    toolPaneEditor.classList.add('active');
+    qeNewInlineMode();
+  }else if (t === 'preview'){
+    toolPreview.classList.add('active');
+    toolPaneEditor.classList.add('active');
+    if (!QE_CURRENT_ID) qeWarn.textContent = 'Pick Preview from Draft or Bank to load a question here.';
+  }
+
+  renderTopStrip();
+}
+
+function renderTopStrip(){
+  stripSaveState.textContent = (!SELECTED_ID) ? '—' : (DRAFT_DIRTY ? 'Saving...' : 'Saved');
+  stripDraftCount.textContent = String(DRAFT_IDS.length || 0);
+  stripClassCount.textContent = String(LINKED_CLASS_IDS ? LINKED_CLASS_IDS.size : 0);
+
+  if (!SELECTED_ID){
+    stripNextHint.textContent = 'Select a quiz';
+  }else{
+    const status = String((SELECTED_QUIZ && SELECTED_QUIZ.status) || '').toUpperCase();
+    if (status && status !== 'DRAFT'){
+      stripNextHint.textContent = `${status} (locked)`;
+    }else if (!LINKED_CLASS_IDS.size){
+      stripNextHint.textContent = 'Link classes';
+    }else if (!DRAFT_IDS.length){
+      stripNextHint.textContent = 'Add questions';
+    }else{
+      stripNextHint.textContent = 'Publish when ready';
+    }
+  }
+}
+  
+  
+ function policyLabel(pol){
+  const p = String(pol||'').trim().toUpperCase();
+  if (p === 'AFTER_CLOSE') return 'After close';
+  if (p === 'MANUAL') return 'Manual';
+  return 'Immediate';
+}
+  
+function renderPublishPane(){
+  pubQuizId.textContent = SELECTED_ID ? SELECTED_ID : '—';
+  const status = String((SELECTED_QUIZ && SELECTED_QUIZ.status) || (!SELECTED_ID ? 'NEW' : '')).toUpperCase();
+  pubStatus.textContent = status || '—';
+  const openState = SELECTED_QUIZ ? computeOpenStateFromQuiz(SELECTED_QUIZ) : '—';
+  pubOpen.textContent = openState;
+  pubDraft.textContent = String(DRAFT_IDS.length || 0);
+  pubClasses.textContent = String(LINKED_CLASS_IDS ? LINKED_CLASS_IDS.size : 0);
+  
+  const preset = (String((SELECTED_QUIZ && SELECTED_QUIZ.preset) || '').trim().toUpperCase()) || 'CUSTOM';
+
+const pol = String((SELECTED_QUIZ && SELECTED_QUIZ.results_release_policy) || 'IMMEDIATE').trim().toUpperCase() || 'IMMEDIATE';
+const polTxt = policyLabel(pol);
+
+const closeAt = String((SELECTED_QUIZ && SELECTED_QUIZ.close_at) || '').trim();
+const hasCloseAt = !!closeAt;
+
+const showResultsRaw = pickFirstDefined(
+  SELECTED_QUIZ && SELECTED_QUIZ.show_results,
+  SELECTED_QUIZ && SELECTED_QUIZ.show_result
+);
+const showResults = asBool(showResultsRaw, true);
+const showReview = asBool(SELECTED_QUIZ && SELECTED_QUIZ.show_review, true);
+
+const released = asBool(SELECTED_QUIZ && SELECTED_QUIZ.results_released, false);
+const releasedAt = String((SELECTED_QUIZ && SELECTED_QUIZ.results_released_at) || '').trim();
+  const checks = [];
+  checks.push(`Quiz saved: ${SELECTED_ID ? 'YES' : 'NO'}`);
+  checks.push(`Status is DRAFT: ${(status === 'DRAFT') ? 'YES' : 'NO'}`);
+  checks.push(`Draft has items: ${(DRAFT_IDS.length > 0) ? 'YES' : 'NO'}`);
+  checks.push(`Linked classes: ${LINKED_CLASS_IDS.size}`);
+  checks.push(`Preset: ${preset}`);
+checks.push(`Results policy: ${polTxt}`);
+checks.push(`Show results: ${showResults ? 'YES' : 'NO'}`);
+checks.push(`Allow review: ${showReview ? 'YES' : 'NO'}`);
+
+if (pol === 'AFTER_CLOSE') {
+  checks.push(`Close at set: ${hasCloseAt ? 'YES' : 'NO'}`);
+}
+if (pol === 'MANUAL') {
+  checks.push(`Released: ${released ? 'YES' : 'NO'}`);
+}
+  pubChecklist.textContent = checks.join(' | ');
+  const warns = [];
+  if (!SELECTED_ID) warns.push('Save the quiz first (needs an ID).');
+  if (status !== 'DRAFT') warns.push('Only DRAFT quizzes can publish.');
+  if (!DRAFT_IDS.length) warns.push('Add at least 1 question to the draft list.');
+  if (!LINKED_CLASS_IDS.size) warns.push('No classes linked — students may not see it.');
+  if (pol === 'AFTER_CLOSE' && !hasCloseAt) warns.push('Close at is required for Results Policy = After close.');
+  if (warns.length){
+    pubWarn.style.display = '';
+    pubWarn.textContent = warns.join(' ');
+  }else{
+    pubWarn.style.display = 'none';
+    pubWarn.textContent = '';
+  }
+if (status === 'PUBLISHED' && pol === 'MANUAL' && released) {
+  const msg = `Results released ✅${releasedAt ? ' | ' + releasedAt : ''}`;
+  if (pubWarn.style.display !== 'none' && pubWarn.textContent) {
+    pubWarn.textContent = pubWarn.textContent + ' | ' + msg;
+  } else {
+    pubWarn.style.display = '';
+    pubWarn.textContent = msg;
+  }
+}
+// NEW: Show "Release Results Now" button only for MANUAL + PUBLISHED (and not yet released)
+const releaseSection = $('releaseResultsSection');
+const releaseBtn = $('btnReleaseResults');
+if (releaseSection && releaseBtn && SELECTED_QUIZ) {
+  const policy = String(SELECTED_QUIZ.results_release_policy || '').toUpperCase();
+  const isPublished = status === 'PUBLISHED';
+  const isManual = policy === 'MANUAL';
+
+  if (isPublished && isManual && !released) {
+    releaseSection.style.display = '';
+  } else {
+    releaseSection.style.display = 'none';
+  }
+} else {
+  if (releaseSection) releaseSection.style.display = 'none';
+}
+// Disable publish button when hard requirements fail
+const hardBlocked =
+  (!SELECTED_ID) ||
+  (status !== 'DRAFT') ||
+  (!DRAFT_IDS.length) ||
+  (pol === 'AFTER_CLOSE' && !hasCloseAt);
+
+qdPublish.disabled = hardBlocked;
+  renderTopStrip();
+}
+
+/** =========================
+ * API
+ * ========================= */
+async function apiPost(action, payload){
+  if (!API_URL || API_URL.indexOf('REPLACE_WITH') !== -1){
+    throw new Error('API_URL_not_configured');
+  }
+
+  const body = Object.assign({}, payload || {}, {
+    action: action,
+    token: TOKEN
+  });
+
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    mode: 'cors',
+    body: JSON.stringify(body)
+  });
+
+  const txt = await res.text();
+  let obj = null;
+  try { obj = JSON.parse(txt); } catch(e){ obj = null; }
+
+  const xsc = res.headers.get('X-Status-Code');
+  const status = xsc ? parseInt(xsc,10) : res.status;
+
+  if (!obj || obj.ok !== true){
+    const err = (obj && (obj.error || obj.detail)) || ('http_' + status);
+    return { ok:false, status, error: err, raw: obj, text: txt };
+  }
+  return { ok:true, status, data: obj };
+}
+
+/** =========================
+ * GUARD
+ * ========================= */
+async function boot(){
+  const tok = loadToken();
+  if (!tok){
+    toast('Sign in required', 'No token found. Redirecting…');
+    setTimeout(()=> signOut(), 900);
+    return;
+  }
+  saveToken(tok);
+
+  try{
+    const v = await apiPost('teacher.verify', {});
+    if (!v.ok){
+      toast('Access blocked', String(v.error||'verify_failed'));
+      setTimeout(()=> signOut(), 1200);
+      return;
+    }
+
+    ME = v.data.user || {};
+    const nm = (ME.name || ME.email || 'Teacher').trim();
+    elUserChip.style.display = '';
+    elUserChip.className = 'chip ok';
+    elUserChip.textContent = nm;
+
+await refreshList(true);
+resetQuestionsUI();
+showListView();
+
+setTabsEnabled(false);
+setActiveTab('settings');
+setActiveTool('bank');
+
+    // Preset cards
+    document.querySelectorAll('.preset-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const keyRaw = card.getAttribute('data-preset');
+        const key = String(keyRaw || '').trim().toUpperCase();
+        applyPreset(key);
+
+        const label = (PRESET_DEFAULTS[key] && PRESET_DEFAULTS[key].label) ? PRESET_DEFAULTS[key].label : key;
+        toast('Preset applied', `${label} defaults loaded`);
+      });
+    });
+
+    // Custom (no preset) link
+    const customLink = document.getElementById('noPresetLink');
+    if (customLink) {
+      customLink.addEventListener('click', e => {
+        e.preventDefault();
+
+        currentPreset = '';
+        presetDirty = false;
+        setPresetHighlight('');
+        updateResetPresetButton();
+
+        // reset policy + scheduled release UI
+        const policySelect = $('fResultsPolicy');
+        const scheduledRow = $('scheduledReleaseRow');
+        if (policySelect) policySelect.value = 'IMMEDIATE';
+        if (scheduledRow) scheduledRow.style.display = 'none';
+        const ra = $('fReleasedAt'); if (ra) ra.value = '';
+
+        toast('Custom mode', 'No preset – full manual control');
+      });
+    }
+
+    // Any change to main fields marks preset as dirty
+    const formFields = [
+      'fTitle','fSubject','fMode','fDuration','fMaxAttempts',
+      'fShuffleQ','fShuffleOpt','fShowReview','fShowResult',
+      'fOpenAt','fCloseAt',
+      'fResultsPolicy','fReleasedAt','fPassThreshold'
+    ];
+
+    formFields.forEach(id => {
+      const el = $(id);
+      if (el) {
+        ['input','change'].forEach(ev => el.addEventListener(ev, markPresetDirty));
+      }
+    });
+
+    // Show/hide scheduled release date row when policy changes
+    const policySelect = $('fResultsPolicy');
+    const scheduledRow = $('scheduledReleaseRow');
+    if (policySelect && scheduledRow) {
+      const sync = () => {
+        if (policySelect.value === 'MANUAL') {
+          scheduledRow.style.display = '';
+        } else {
+          scheduledRow.style.display = 'none';
+          const ra = $('fReleasedAt'); if (ra) ra.value = '';
+        }
+      };
+      policySelect.addEventListener('change', sync);
+      sync();
+    }
+
+    // Grading UI (score display + bands)
+    const btnAddBand = $('btnAddBand');
+    if (btnAddBand) btnAddBand.addEventListener('click', addGradeBand);
+    resetGradingDefaults();
+
+    // Release Results Now button
+    const releaseBtn = $('btnReleaseResults');
+    if (releaseBtn) {
+      releaseBtn.addEventListener('click', async () => {
+        if (!SELECTED_ID) return;
+        if (!confirm('Release results now for all students? This cannot be undone.')) return;
+
+        try {
+          const r = await apiPost('teacher.quiz.release_results', { teacher_quiz_id: SELECTED_ID });
+          if (r.ok) {
+            toast('Released', 'Results released to students now.');
+            await openQuiz(SELECTED_ID);
+            renderPublishPane();
+          } else {
+            toast('Release failed', r.error || 'unknown');
+          }
+        } catch (e) {
+          toast('Error', String(e));
+        }
+      });
+    }
+
+    // Auto-open quiz if linked back from Library Picker (must be last)
+    const preId = getParam('teacher_quiz_id');
+    if (preId) {
+      await openQuiz(preId);
+    } else {
+      renderTopStrip();
+    }
+
+  }catch(e){
+    toast('Boot error', String(e && (e.message || e) || e));
+  }
+}
+/** =========================
+ * LIST
+ * ========================= */
+function buildListParams(resetCursor){
+  const q = String(elQSearch.value||'').trim();
+  const status = String(elQStatus.value||'ANY').trim();
+  const params = {
+    q: q,
+    status: status,
+    limit: 30,
+    include_counts: true
+  };
+  if (!resetCursor && listCursor) params.cursor = listCursor;
+  return params;
+}
+
+async function refreshList(resetCursor){
+  try{
+    if (resetCursor){ listCursor = ''; QUIZZES = []; }
+    const params = buildListParams(resetCursor);
+    lastListParams = params;
+
+    const r = await apiPost('teacher.quizzes.list', params);
+    if (!r.ok){
+      toast('List failed', String(r.error||'unknown'));
+      renderList();
+      return;
+    }
+
+    const items = (r.data.items || []);
+    const merged = resetCursor ? items : QUIZZES.concat(items);
+
+    QUIZZES = merged;
+    listCursor = String(r.data.next_cursor || '').trim();
+
+    renderCounts(r.data.counts || null);
+    renderList();
+    elLoadMore.style.display = listCursor ? '' : 'none';
+  }catch(e){
+    toast('List error', String(e && e.message || e));
+  }
+}
+
+function renderCounts(counts){
+  if (!counts){ elCountsChips.innerHTML = ''; return; }
+  const mk = (label, v) => `<span class="tag">${label}: ${Number(v||0)}</span>`;
+  elCountsChips.innerHTML = [
+    mk('Draft', counts.draft),
+    mk('Open', counts.open),
+    mk('Upcoming', counts.upcoming),
+    mk('Closed', counts.closed),
+    mk('Archived', counts.archived)
+  ].join('');
+}
+
+function renderList(){
+  elQuizCount.textContent = String(QUIZZES.length);
+  elQuizList.innerHTML = '';
+
+  if (!QUIZZES.length){
+    elEmptyList.style.display = '';
+    return;
+  }
+  elEmptyList.style.display = 'none';
+
+  QUIZZES.forEach(q => {
+    const id = String(q.teacher_quiz_id || '').trim();
+    const title = String(q.title || '').trim() || '(Untitled)';
+    const subject = String(q.subject || '').trim() || 'No subject set';
+    const status = String(q.status || '').trim().toUpperCase();
+    const openState = String(q.open_state || '').trim().toUpperCase();
+    const code = String(q.access_code || '').trim();
+    const itemsCount = Number(q.items_count || 0);
+
+    const preset = (String(q.preset || '').trim().toUpperCase()) || 'CUSTOM';
+
+    const durN = parseInt(String(q.duration_minutes || '0').trim(), 10);
+    const durationLabel = (!isNaN(durN) && durN > 0) ? `${durN} min` : 'Untimed';
+
+    const attN = parseInt(String(q.max_attempts || '0').trim(), 10);
+    const attemptsLabel = (!isNaN(attN) && attN > 0) ? `${attN}` : 'Unlimited';
+
+    const qShuffle = asBool(q.shuffle_questions, true) ? 'On' : 'Off';
+    const oShuffle = asBool(q.shuffle_options, true) ? 'On' : 'Off';
+    const reviewOn = asBool(q.show_review, true) ? 'On' : 'Off';
+
+    const srRaw = pickFirstDefined(q.show_results, q.show_result);
+    const showResOn = asBool(srRaw, true) ? 'On' : 'Off';
+
+    let pol = String(q.results_release_policy || 'IMMEDIATE').trim().toUpperCase();
+    if (!pol) pol = 'IMMEDIATE';
+    let polLabel = (pol === 'AFTER_CLOSE') ? 'After close' : (pol === 'MANUAL') ? 'Manual' : 'Immediate';
+
+    if (pol === 'MANUAL'){
+      const rel = asBool(q.results_released, false) ? 'Released' : 'Locked';
+      polLabel = `${polLabel} (${rel})`;
+    }
+
+    const st = chipForStatus(status);
+    const os = chipForOpenState(openState);
+
+    const div = document.createElement('div');
+    div.className = 'quizTile' + ((id && id === SELECTED_ID) ? ' active' : '');
+    div.tabIndex = 0;
+    div.onclick = ()=> openQuiz(id);
+    div.addEventListener('keydown', (e)=>{
+      if (e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        openQuiz(id);
+      }
+    });
+
+    div.innerHTML = `
+      <div class="quizTileTop">
+        <div class="quizTileMain">
+          <div class="quizTitle">${escapeHtml(title)}</div>
+          <div class="quizSub">
+            ${escapeHtml(subject)}
+            ${code ? ` | Code: <span class="kbd">${escapeHtml(code)}</span>` : ''}
+          </div>
+        </div>
+
+        <div class="quizStateStack">
+          <span class="${st.cls}">${st.txt}</span>
+          <span class="${os.cls}">${os.txt}</span>
+        </div>
+      </div>
+
+      <div class="quizMetaGrid">
+        <div class="quizMetaCell">
+          <span class="quizMetaLabel">Preset</span>
+          <span class="quizMetaValue">${escapeHtml(preset)}</span>
+        </div>
+
+        <div class="quizMetaCell">
+          <span class="quizMetaLabel">Duration</span>
+          <span class="quizMetaValue">${escapeHtml(durationLabel)}</span>
+        </div>
+
+        <div class="quizMetaCell">
+          <span class="quizMetaLabel">Attempts</span>
+          <span class="quizMetaValue">${escapeHtml(attemptsLabel)}</span>
+        </div>
+
+        <div class="quizMetaCell">
+          <span class="quizMetaLabel">Items</span>
+          <span class="quizMetaValue">${escapeHtml(String(itemsCount))}</span>
+        </div>
+
+        <div class="quizMetaCell">
+          <span class="quizMetaLabel">Results policy</span>
+          <span class="quizMetaValue">${escapeHtml(polLabel)}</span>
+        </div>
+
+        <div class="quizMetaCell">
+          <span class="quizMetaLabel">Access code</span>
+          <span class="quizMetaValue">${escapeHtml(code || '—')}</span>
+        </div>
+      </div>
+
+      <div class="quizFlags">
+        <span class="quizFlag">Questions shuffle: ${escapeHtml(qShuffle)}</span>
+        <span class="quizFlag">Options shuffle: ${escapeHtml(oShuffle)}</span>
+        <span class="quizFlag">Review: ${escapeHtml(reviewOn)}</span>
+        <span class="quizFlag">Result: ${escapeHtml(showResOn)}</span>
+      </div>
+    `;
+
+    elQuizList.appendChild(div);
+  });
+}
+
+/** =========================
+ * OPEN / EDIT QUIZ
+ * ========================= */
+async function openQuiz(teacher_quiz_id){
+  if (!teacher_quiz_id) return;
+
+  try{
+    const r = await apiPost('teacher.quiz.get', { teacher_quiz_id });
+    if (!r.ok){
+      toast('Open failed', String(r.error||'unknown'));
+      return;
+    }
+    SELECTED_ID = teacher_quiz_id;
+    SELECTED_QUIZ = r.data.quiz || null;
+    setSelectedQuizInUrl(SELECTED_ID);
+
+    elNotSelected.style.display = 'none';
+    elEditor.style.display = '';
+showEditorView();
+elEditorTitle.textContent = String((SELECTED_QUIZ && SELECTED_QUIZ.title) || 'Quiz Editor').trim() || 'Quiz Editor';
+
+    fillFormFromQuiz(SELECTED_QUIZ);
+
+    await loadClassesAndLinks();
+
+    loadDraftFromQuizRow(SELECTED_QUIZ);
+    await refreshDraftPreview(true);
+
+    qeNewInlineMode();
+
+    setTabsEnabled(true);
+    setActiveTab('settings');
+    setActiveTool('bank');
+    renderTopStrip();
+
+    renderList();
+  }catch(e){
+    toast('Open error', String(e && e.message || e));
+  }
+}
+
+function fillFormFromQuiz(q){
+  q = q || {};
+  const status = String(q.status||'').trim().toUpperCase();
+  const open_state = computeOpenStateFromQuiz(q);
+  const st = chipForStatus(status);
+  const os = chipForOpenState(open_state);
+  elQuizStatusChip.style.display = '';
+  elQuizStatusChip.className = st.cls;
+  elQuizStatusChip.textContent = st.txt;
+  elQuizOpenChip.style.display = '';
+  elQuizOpenChip.className = os.cls;
+  elQuizOpenChip.textContent = os.txt;
+  elQuizIdKbd.textContent = String(q.teacher_quiz_id||'—');
+  elQuizCodeKbd.textContent = String(q.access_code||'—');
+  elTitle.value = String(q.title||'');
+  elSubject.value = String(q.subject||'');
+  elDuration.value = String(q.duration_minutes||'').trim();
+  elMaxAttempts.value = String(q.max_attempts||'').trim();
+  elShuffleQ.checked = (String(q.shuffle_questions||'').trim().toUpperCase() === 'TRUE') || (q.shuffle_questions === true);
+  elShuffleOpt.checked = (String(q.shuffle_options||'').trim().toUpperCase() === 'TRUE') || (q.shuffle_options === true);
+  elShowReview.checked = (String(q.show_review||'').trim().toUpperCase() === 'TRUE') || (q.show_review === true);
+  // FIX: Show result (handle backend naming mismatch + robust bool parsing)
+  const srRaw = pickFirstDefined(q.show_result, q.show_results, q.showResult, q.showResults);
+  elShowResult.checked = asBool(srRaw, true); // default TRUE if missing (back-compat)
+  elOpenAt.value = isoToLocalInput(String(q.open_at||''));
+  elCloseAt.value = isoToLocalInput(String(q.close_at||''));
+ 
+  // NEW: Set policy dropdown from sheet value (Hybrid preset)
+  const policySelect = $('fResultsPolicy');
+  if (policySelect && q.results_release_policy) {
+    policySelect.value = String(q.results_release_policy).trim().toUpperCase();
+    // Trigger change to show/hide scheduled row
+    policySelect.dispatchEvent(new Event('change'));
+  }
+  
+  // NEW: Load scheduled release date from sheet (Hybrid preset)
+const releasedAtInput = $('fReleasedAt');
+if (releasedAtInput && q.results_released_at) {
+  releasedAtInput.value = isoToLocalInput(String(q.results_released_at));
+  // Ensure row is visible if MANUAL (redundant but safe)
+  if (policySelect && policySelect.value === 'MANUAL') {
+    $('scheduledReleaseRow').style.display = '';
+  }
+}
+  
+ fillGradingFromQuiz(q); 
+   // Pass mark (%)
+  if (elPassThreshold){
+    const v = String(q.pass_threshold_pct == null ? '' : q.pass_threshold_pct).trim();
+    elPassThreshold.value = v || '50';
+  }
+  const schemaStr = String(q.custom_fields_json || '').trim();
+  const schema = safeJsonParse(schemaStr || '{"fields":[]}', { fields: [] });
+  const fields = Array.isArray(schema.fields) ? schema.fields : [];
+  CUSTOM_FIELDS = fields.slice(0, MAX_FIELDS).map(f => ({
+    label: String(f.label||'').trim(),
+    required: !!f.required,
+    type: String(f.type||'text').trim() || 'text',
+    optionsText: Array.isArray(f.options) ? f.options.join('\n') : (typeof f.options === 'string' ? f.options : '')
+  })).filter(x => x.label);
+  renderCustomFields();
+  $('btnRegenCode').disabled = (status !== 'DRAFT');
+  $('btnArchive').disabled = (status === 'ARCHIVED');
+  const locked = (status !== 'DRAFT');
+  setQuestionsLocked(locked, status);
+  renderTopStrip();
+  // Restore preset state from saved quiz
+currentPreset = String(q.preset || '').trim().toUpperCase();
+presetDirty = false;
+setPresetHighlight(currentPreset);
+updateResetPresetButton();
+}
+
+function computeOpenStateFromQuiz(q){
+  const now = Date.now();
+  const o = Date.parse(String(q.open_at||'').trim());
+  const c = Date.parse(String(q.close_at||'').trim());
+  const oMs = isNaN(o) ? null : o;
+  const cMs = isNaN(c) ? null : c;
+
+  if (oMs != null && oMs > now) return 'UPCOMING';
+  if (cMs != null && now > cMs) return 'CLOSED';
+  return 'OPEN';
+}
+
+/** =========================
+ * CREATE NEW
+ * ========================= */
+async function newQuiz(){
+  SELECTED_ID = '';
+  SELECTED_QUIZ = null;
+  setSelectedQuizInUrl('');
+  LINKED_CLASS_IDS = new Set();
+  CUSTOM_FIELDS = [];
+
+  resetDraftState();
+
+  elNotSelected.style.display = 'none';
+  elEditor.style.display = '';
+  showEditorView();
+elEditorTitle.textContent = 'New Quiz';
+
+  elQuizStatusChip.style.display = '';
+  elQuizStatusChip.className = 'chip warn';
+  elQuizStatusChip.textContent = 'NEW (not saved)';
+  elQuizOpenChip.style.display = 'none';
+
+  elQuizIdKbd.textContent = '—';
+  elQuizCodeKbd.textContent = '—';
+
+  elTitle.value = '';
+  elSubject.value = '';
+  elDuration.value = '0';
+  elOpenAt.value = '';
+  elCloseAt.value = '';
+  elShuffleQ.checked = true;
+  elShuffleOpt.checked = true;
+  elShowReview.checked = true;
+  elShowResult.checked = true;
+  elMaxAttempts.value = '0';
+// Reset preset UI/state for a brand new quiz
+currentPreset = '';
+presetDirty = false;
+setPresetHighlight('');
+updateResetPresetButton();
+
+const policySelect = $('fResultsPolicy');
+const scheduledRow = $('scheduledReleaseRow');
+if (policySelect) policySelect.value = 'IMMEDIATE';
+if (scheduledRow) scheduledRow.style.display = 'none';
+const ra = $('fReleasedAt'); if (ra) ra.value = '';
+resetGradingDefaults();  
+  renderCustomFields();
+ if (elPassThreshold) elPassThreshold.value = '50';
+
+  $('btnRegenCode').disabled = true;
+  $('btnArchive').disabled = true;
+
+  await loadTeacherClassesOnly();
+  renderClassesBox();
+  renderList();
+
+  setQuestionsLocked(true, 'NEW');
+  resetQuestionsUI();
+
+  setTabsEnabled(false);
+  setActiveTab('settings');
+  setActiveTool('bank');
+  renderTopStrip();
+
+  toast('New quiz', 'Save the quiz first, then link classes, add questions, and publish.');
+}
+
+/** =========================
+ * CUSTOM FIELDS UI
+ * ========================= */
+function renderCustomFields(){
+  elFieldsWrap.innerHTML = '';
+  const canAdd = CUSTOM_FIELDS.length < MAX_FIELDS;
+  $('btnAddField').disabled = !canAdd;
+
+  if (!CUSTOM_FIELDS.length){
+    const d = document.createElement('div');
+    d.className = 'hint';
+    d.textContent = 'No attempt fields configured yet.';
+    elFieldsWrap.appendChild(d);
+    return;
+  }
+
+  CUSTOM_FIELDS.forEach((f, idx) => {
+    const row = document.createElement('div');
+    row.className = 'fieldRow';
+
+    row.innerHTML = `
+      <div class="col">
+        <label>Label</label>
+        <input data-k="label" data-i="${idx}" value="${escapeHtml(f.label)}" placeholder="e.g., Seat number" />
+      </div>
+
+      <div class="col">
+        <label>Type</label>
+        <select data-k="type" data-i="${idx}">
+          <option value="text">text</option>
+          <option value="number">number</option>
+          <option value="select">select</option>
+        </select>
+      </div>
+
+      <div class="col">
+        <label>Required</label>
+        <label class="row" style="gap:8px;font-weight:800">
+          <input data-k="required" data-i="${idx}" type="checkbox" />
+          Yes
+        </label>
+      </div>
+
+      <div class="col row2" style="display:${f.type === 'select' ? '' : 'none'}">
+        <label>Options (one per line)</label>
+        <textarea data-k="optionsText" data-i="${idx}" placeholder="A\nB\nC">${escapeHtml(f.optionsText||'')}</textarea>
+        <div class="hint">Only used if type = select.</div>
+      </div>
+
+      <div class="row" style="grid-column:1 / -1;justify-content:flex-end">
+        <button class="btn danger" data-k="remove" data-i="${idx}" type="button">Remove</button>
+      </div>
+    `;
+
+    elFieldsWrap.appendChild(row);
+
+    const sel = row.querySelector(`select[data-k="type"][data-i="${idx}"]`);
+    if (sel) sel.value = f.type || 'text';
+    const cb = row.querySelector(`input[type="checkbox"][data-k="required"][data-i="${idx}"]`);
+    if (cb) cb.checked = !!f.required;
+
+    row.querySelectorAll('input,select,textarea,button').forEach(el => {
+      el.addEventListener('input', onFieldChange);
+      el.addEventListener('change', onFieldChange);
+      el.addEventListener('click', onFieldClick);
+    });
+  });
+}
+
+function onFieldChange(e){
+  const el = e.target;
+  const i = parseInt(el.getAttribute('data-i')||'-1',10);
+  const k = el.getAttribute('data-k') || '';
+  if (i < 0 || !k) return;
+
+  const cur = CUSTOM_FIELDS[i] || {};
+  if (k === 'required'){
+    cur.required = !!el.checked;
+  }else if (k === 'type'){
+    cur.type = String(el.value||'text');
+    if (cur.type !== 'select') cur.optionsText = '';
+  }else{
+    cur[k] = String(el.value||'');
+  }
+  CUSTOM_FIELDS[i] = cur;
+
+  if (k === 'type') renderCustomFields();
+}
+
+function onFieldClick(e){
+  const el = e.target;
+  if (el.tagName !== 'BUTTON') return;
+  const i = parseInt(el.getAttribute('data-i')||'-1',10);
+  const k = el.getAttribute('data-k') || '';
+  if (k === 'remove' && i >= 0){
+    CUSTOM_FIELDS.splice(i,1);
+    renderCustomFields();
+  }
+}
+
+function addField(){
+  if (CUSTOM_FIELDS.length >= MAX_FIELDS) return;
+  CUSTOM_FIELDS.push({ label:'', required:false, type:'text', optionsText:'' });
+  renderCustomFields();
+}
+
+function buildCustomFieldsJson(){
+  const fields = CUSTOM_FIELDS
+    .map(f => ({
+      label: String(f.label||'').trim(),
+      required: !!f.required,
+      type: String(f.type||'text').trim() || 'text',
+      options: (String(f.type||'') === 'select')
+        ? String(f.optionsText||'').split('\n').map(x=>x.trim()).filter(Boolean)
+        : null
+    }))
+    .filter(f => !!f.label)
+    .slice(0, MAX_FIELDS);
+
+  return JSON.stringify({ fields });
+}
+
+/** =========================
+ * CLASSES + LINKING
+ * ========================= */
+async function loadTeacherClassesOnly(){
+  const r = await apiPost('teacher.classes.list', { status:'ACTIVE', include_counts:true });
+  if (!r.ok){
+    toast('Classes failed', String(r.error||'unknown'));
+    CLASSES = [];
+    return;
+  }
+  CLASSES = (r.data.items || []).map(x => ({
+    class_id: String(x.class_id||'').trim(),
+    title: String(x.title||'').trim(),
+    status: String(x.status||'').trim(),
+    member_count: x.member_count,
+    quiz_count: x.quiz_count
+  }));
+}
+
+async function loadClassesAndLinks(){
+  await loadTeacherClassesOnly();
+
+  LINKED_CLASS_IDS = new Set();
+  if (!SELECTED_ID){
+    renderClassesBox();
+    return;
+  }
+
+  const r = await apiPost('teacher.quiz.classes.list', { teacher_quiz_id: SELECTED_ID });
+  if (!r.ok){
+    toast('Links failed', String(r.error||'unknown'));
+    renderClassesBox();
+    return;
+  }
+  const items = r.data.items || [];
+  items.forEach(x => {
+    const cid = String(x.class_id||'').trim();
+    if (cid) LINKED_CLASS_IDS.add(cid);
+  });
+
+  renderClassesBox();
+}
+
+function renderClassesBox(){
+  const q = String(elClsSearch.value||'').trim().toLowerCase();
+
+  elClassesBox.innerHTML = '';
+  const filtered = CLASSES.filter(c => !q || String(c.title||'').toLowerCase().includes(q));
+
+  filtered.forEach(c => {
+    const cid = c.class_id;
+    const checked = LINKED_CLASS_IDS.has(cid);
+
+    const row = document.createElement('div');
+    row.className = 'clsRow';
+
+    const mc = (c.member_count != null) ? Number(c.member_count||0) : null;
+    const qc = (c.quiz_count != null) ? Number(c.quiz_count||0) : null;
+
+    row.innerHTML = `
+      <div class="l">
+        <input type="checkbox" ${checked ? 'checked' : ''} data-cid="${escapeHtml(cid)}" />
+        <div>
+          <div style="font-weight:900">${escapeHtml(c.title || '(Untitled class)')}</div>
+          <div class="subnote">Class ID: <span class="kbd">${escapeHtml(cid)}</span></div>
+        </div>
+      </div>
+      <div class="row">
+        ${mc != null ? `<span class="badge">${mc} members</span>` : ''}
+        ${qc != null ? `<span class="badge">${qc} linked quizzes</span>` : ''}
+      </div>
+    `;
+
+    const cb = row.querySelector('input[type="checkbox"]');
+    cb.addEventListener('change', (e)=>{
+      if (e.target.checked) LINKED_CLASS_IDS.add(cid);
+      else LINKED_CLASS_IDS.delete(cid);
+      elSelCount.textContent = String(LINKED_CLASS_IDS.size);
+      renderTopStrip();
+    });
+
+    elClassesBox.appendChild(row);
+  });
+
+  if (!filtered.length){
+    const d = document.createElement('div');
+    d.className = 'hint';
+    d.textContent = 'No classes match your filter.';
+    elClassesBox.appendChild(d);
+  }
+
+  elSelCount.textContent = String(LINKED_CLASS_IDS.size);
+  renderTopStrip();
+}
+
+function selectAllVisible(){
+  const q = String(elClsSearch.value||'').trim().toLowerCase();
+  CLASSES.forEach(c => {
+    if (q && !String(c.title||'').toLowerCase().includes(q)) return;
+    LINKED_CLASS_IDS.add(c.class_id);
+  });
+  renderClassesBox();
+}
+
+function clearAll(){
+  LINKED_CLASS_IDS = new Set();
+  renderClassesBox();
+}
+
+async function saveLinks(){
+  if (!SELECTED_ID){
+    toast('Save links', 'Save the quiz first, then link classes.');
+    return;
+  }
+  const class_ids = Array.from(LINKED_CLASS_IDS.values());
+
+  const r = await apiPost('teacher.quiz.class.set', {
+    teacher_quiz_id: SELECTED_ID,
+    class_ids: class_ids
+  });
+
+  if (!r.ok){
+    toast('Link save failed', String(r.error||'unknown'));
+    return;
+  }
+
+  toast('Saved', `Linked to ${class_ids.length} class(es).`);
+  await refreshList(true);
+  renderTopStrip();
+}
+
+/** =========================
+ * SAVE QUIZ
+ * ========================= */
+function readForm(){
+  const title = String(elTitle.value||'').trim();
+  const subject = String(elSubject.value||'').trim();
+  const duration_minutes = parseInt(String(elDuration.value||'').trim(), 10);
+  const max_attempts = parseInt(String(elMaxAttempts.value||'').trim(), 10);
+  const open_at = localInputToIso(elOpenAt.value);
+  const close_at = localInputToIso(elCloseAt.value);
+  const sr = !!elShowResult.checked;
+
+return {
+  title,
+  subject,
+  duration_minutes: isNaN(duration_minutes) ? 0 : duration_minutes,
+  max_attempts: isNaN(max_attempts) ? 0 : max_attempts,
+  shuffle_questions: !!elShuffleQ.checked,
+  shuffle_options: !!elShuffleOpt.checked,
+  show_review: !!elShowReview.checked,
+  show_result: sr,
+  show_results: sr,
+  open_at,
+  close_at,
+  custom_fields_json: buildCustomFieldsJson(),
+  preset: currentPreset || '',
+  // NEW: Send policy and scheduled release date (Hybrid preset)
+  results_release_policy: $('fResultsPolicy') ? $('fResultsPolicy').value : 'IMMEDIATE',
+results_released_at: $('fReleasedAt') && $('fReleasedAt').value 
+  ? localInputToIso($('fReleasedAt').value) 
+  : '',
+
+  // ---- grading ----
+  grading_policy: QA_GRADING_POLICY,
+
+  pass_threshold_pct: (function(){
+    const raw = elPassThreshold ? String(elPassThreshold.value || '').trim() : '';
+    if (!raw) return ''; // allow backend to derive from grade bands
+    const n = Number(raw);
+    if (!isFinite(n)) return '';
+    const clamped = Math.max(0, Math.min(100, Math.round(n)));
+    return String(clamped);
+  })(),
+
+  score_display_policy: elScoreDisplayPolicy
+    ? String(elScoreDisplayPolicy.value || 'PCT_ONLY').trim().toUpperCase()
+    : 'PCT_ONLY',
+
+  grade_bands_json: qaBandsJsonForSave()
+};
+}
+
+async function saveQuiz(){
+  const f = readForm();
+  if (!f.title){
+    toast('Missing title', 'Please enter a quiz title.');
+    return;
+  }
+
+  if (!SELECTED_ID){
+    const r = await apiPost('teacher.quiz.create', f);
+    if (!r.ok){
+      toast('Create failed', String(r.error||'unknown'));
+      return;
+    }
+    const newId = String(r.data.teacher_quiz_id||'').trim();
+    toast('Created', 'Quiz created. Now link classes, add questions, then publish.');
+
+    await openQuiz(newId);
+    await refreshList(true);
+    return;
+  }
+
+  const patch = Object.assign({}, f);
+  patch.teacher_quiz_id = SELECTED_ID;
+
+  const r = await apiPost('teacher.quiz.update', { teacher_quiz_id: SELECTED_ID, patch });
+  if (!r.ok){
+    toast('Update failed', String(r.error||'unknown'));
+    return;
+  }
+
+  toast('Saved', 'Quiz updated.');
+  await openQuiz(SELECTED_ID);
+  await refreshList(true);
+}
+
+/** =========================
+ * ACTIONS
+ * ========================= */
+async function regenCode(){
+  if (!SELECTED_ID) return;
+  const r = await apiPost('teacher.quiz.access_code.regenerate', { teacher_quiz_id: SELECTED_ID });
+  if (!r.ok){
+    toast('Regenerate failed', String(r.error||'unknown'));
+    return;
+  }
+  toast('New code', `Access code updated.`);
+  await openQuiz(SELECTED_ID);
+  await refreshList(true);
+}
+
+async function archiveQuiz(){
+  if (!SELECTED_ID) return;
+  const r = await apiPost('teacher.quiz.archive', { teacher_quiz_id: SELECTED_ID });
+  if (!r.ok){
+    toast('Archive failed', String(r.error||'unknown'));
+    return;
+  }
+  toast('Archived', 'Quiz archived.');
+  SELECTED_ID = '';
+  SELECTED_QUIZ = null;
+elEditor.style.display = 'none';
+elNotSelected.style.display = '';
+showListView();
+resetDraftState();
+resetQuestionsUI();
+setTabsEnabled(false);
+setActiveTab('settings');
+setActiveTool('bank');
+await refreshList(true);
+renderTopStrip();
+}
+
+function debounce(fn, ms){
+  let t = null;
+  return (...args)=>{
+    clearTimeout(t);
+    t = setTimeout(()=> fn(...args), ms);
+  };
+}
+
+/** =========================
+ * QUESTIONS MODULE
+ * ========================= */
+function draftLsKey(){
+  return SELECTED_ID ? `qa_quiz_draft_${SELECTED_ID}` : '';
+}
+
+function setQuestionsLocked(locked, statusLabel){
+  const isLocked = !!locked;
+
+  qdLoadSome.disabled = isLocked || !SELECTED_ID;
+  qdSaveNow.disabled = isLocked || !SELECTED_ID;
+  qdClear.disabled = isLocked || !SELECTED_ID;
+  qdCopyIds.disabled = !SELECTED_ID;
+  qdPublish.disabled = isLocked || !SELECTED_ID;
+
+  qbLoad.disabled = isLocked || !SELECTED_ID;
+  qbClear.disabled = isLocked || !SELECTED_ID;
+  qb_q.disabled = isLocked || !SELECTED_ID;
+  qb_status.disabled = isLocked || !SELECTED_ID;
+  qb_subject.disabled = isLocked || !SELECTED_ID;
+  qb_topic.disabled = isLocked || !SELECTED_ID;
+  qb_difficulty.disabled = isLocked || !SELECTED_ID;
+  qb_source_type.disabled = isLocked || !SELECTED_ID;
+  qb_limit.disabled = isLocked || !SELECTED_ID;
+
+  qeNewInline.disabled = isLocked || !SELECTED_ID;
+  qeSaveQuestion.disabled = isLocked || !SELECTED_ID;
+  qeAddToDraft.disabled = isLocked || !SELECTED_ID;
+
+  if (!SELECTED_ID){
+    qeWarn.textContent = 'Save the quiz first to start adding questions.';
+  }else if (isLocked){
+    qeWarn.textContent = `This quiz is ${String(statusLabel||'locked')}. Draft/question editing is locked.`;
+  }else{
+    qeWarn.textContent = '';
+  }
+
+  renderTopStrip();
+}
+
+function resetDraftState(){
+  DRAFT_IDS = [];
+  DRAFT_SET = new Set();
+  DRAFT_DIRTY = false;
+  updateDraftCount();
+  renderDraftList();
+  renderTopStrip();
+}
+
+function resetQuestionsUI(){
+  BANK_LIST_CACHE = [];
+  qbRows.innerHTML = `<tr><td colspan="3" class="hint" style="padding:12px">No data yet. Click “Load”.</td></tr>`;
+  qbCountPill.textContent = '0 items';
+  qbHint.textContent = '';
+  qb_subject.innerHTML = `<option value="">Any</option>`;
+  qb_topic.innerHTML = `<option value="">Any</option>`;
+  qb_q.value = '';
+  qb_status.value = 'ACTIVE';
+  qb_difficulty.value = '';
+  qb_source_type.value = '';
+  qb_limit.value = '50';
+
+  qeNewInlineMode();
+
+  resetDraftState();
+  qdSearch.value = '';
+  qdHint.textContent = '';
+
+  renderTopStrip();
+}
+
+function updateDraftCount(){
+  qdCount.textContent = String(DRAFT_IDS.length);
+}
+
+function uniqPreserve(arr){
+  const out = [];
+  const seen = new Set();
+  (arr || []).forEach(x=>{
+    const id = String(x||'').trim();
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    out.push(id);
+  });
+  return out;
+}
+
+function loadDraftFromQuizRow(q){
+  if (!SELECTED_ID){
+    resetDraftState();
+    return;
+  }
+
+  const raw = String((q && q.draft_items_json) || '').trim();
+  let ids = [];
+  if (raw){
+    const parsed = safeJsonParse(raw, null);
+    if (Array.isArray(parsed)) ids = parsed;
+    else if (parsed && Array.isArray(parsed.items)) ids = parsed.items;
+  }
+
+  if (!ids.length){
+    const ls = localStorage.getItem(draftLsKey()) || '';
+    if (ls){
+      const parsed = safeJsonParse(ls, null);
+      if (parsed && Array.isArray(parsed.items)) ids = parsed.items;
+      if (ids.length){
+        toast('Draft recovered', 'Loaded draft from this browser (local backup).');
+      }
+    }
+  }
+
+  DRAFT_IDS = uniqPreserve(ids);
+  DRAFT_SET = new Set(DRAFT_IDS);
+
+  updateDraftCount();
+  renderDraftList();
+  qdHint.textContent = `Loaded draft: ${DRAFT_IDS.length} item(s).`;
+
+  renderTopStrip();
+}
+
+function saveDraftToLocal(){
+  if (!SELECTED_ID) return;
+  const key = draftLsKey();
+  if (!key) return;
+  const payload = { items: DRAFT_IDS.slice() };
+  localStorage.setItem(key, JSON.stringify(payload));
+}
+
+async function saveDraftToServerNow(silent){
+  if (!SELECTED_ID) return false;
+
+  const status = String((SELECTED_QUIZ && SELECTED_QUIZ.status) || '').toUpperCase();
+  if (status && status !== 'DRAFT'){
+    if (!silent) toast('Draft locked', `Cannot save draft because quiz is ${status}.`);
+    return false;
+  }
+
+  const patch = {
+    draft_items_json: JSON.stringify({ items: DRAFT_IDS.slice() })
+  };
+
+  const r = await apiPost('teacher.quiz.update', { teacher_quiz_id: SELECTED_ID, patch });
+  if (!r.ok){
+    if (!silent) toast('Draft save failed', String(r.error||'unknown'));
+    return false;
+  }
+
+  DRAFT_DIRTY = false;
+  renderTopStrip();
+  if (!silent) toast('Draft saved', `Saved ${DRAFT_IDS.length} item(s).`);
+  return true;
+}
+
+function scheduleDraftSave(){
+  if (!SELECTED_ID) return;
+  DRAFT_DIRTY = true;
+  renderTopStrip();
+  saveDraftToLocal();
+
+  clearTimeout(DRAFT_SAVE_T);
+  DRAFT_SAVE_T = setTimeout(async ()=>{
+    try{
+      await saveDraftToServerNow(true);
+    }catch(e){}
+  }, 700);
+}
+
+function addToDraft(id){
+  const bank_item_id = String(id||'').trim();
+  if (!bank_item_id) return;
+
+  if (!SELECTED_ID){
+    toast('Save quiz first', 'Save the quiz to get an ID, then add questions.');
+    return;
+  }
+
+  const status = String((SELECTED_QUIZ && SELECTED_QUIZ.status) || '').toUpperCase();
+  if (status && status !== 'DRAFT'){
+    toast('Locked', `Cannot modify draft because quiz is ${status}.`);
+    return;
+  }
+
+  if (DRAFT_SET.has(bank_item_id)){
+    toast('Already added', 'This question is already in the draft list.');
+    return;
+  }
+
+  DRAFT_IDS.push(bank_item_id);
+  DRAFT_SET.add(bank_item_id);
+
+  updateDraftCount();
+  renderDraftList();
+  scheduleDraftSave();
+}
+
+function removeFromDraft(id){
+  const bank_item_id = String(id||'').trim();
+  if (!bank_item_id) return;
+
+  const status = String((SELECTED_QUIZ && SELECTED_QUIZ.status) || '').toUpperCase();
+  if (status && status !== 'DRAFT'){
+    toast('Locked', `Cannot modify draft because quiz is ${status}.`);
+    return;
+  }
+
+  if (!DRAFT_SET.has(bank_item_id)) return;
+
+  DRAFT_IDS = DRAFT_IDS.filter(x => x !== bank_item_id);
+  DRAFT_SET = new Set(DRAFT_IDS);
+
+  updateDraftCount();
+  renderDraftList();
+  scheduleDraftSave();
+}
+
+function renderDraftList(){
+  const q = String(qdSearch.value||'').trim().toLowerCase();
+
+  const filtered = DRAFT_IDS.filter(id=>{
+    if (!q) return true;
+const it = BANK_CACHE_BY_ID.get(id);
+const stem = it && it.stem ? String(it.stem) : '';
+const displayId = (it && it._display_id) ? String(it._display_id) : id;
+
+return id.toLowerCase().includes(q) ||
+       displayId.toLowerCase().includes(q) ||
+       stem.toLowerCase().includes(q);
+  });
+
+  if (!filtered.length){
+    qdBox.innerHTML = `<div class="hint" style="padding:12px">No draft items yet. Add from bank or create inline.</div>`;
+    return;
+  }
+
+  const html = filtered.map((id)=>{
+const it = BANK_CACHE_BY_ID.get(id);
+const displayId = (it && it._display_id) ? String(it._display_id) : id;
+const badge = (it && it._badge) ? String(it._badge) : '';
+const badgeTxt = badge ? (badge + ' | ') : '';    const stem = it && it.stem ? shortStem(it.stem) : '— (details not loaded)';
+    const meta = it ? `${normalizeField(it.subject||'-')} | ${normalizeField(it.topic||'-')} | ${normalizeField(it.difficulty||'-')}` : `Bank ID: ${id}`;
+
+    return `
+      <div class="qRow">
+        <div style="min-width:0;flex:1">
+          <div class="qStem">${escapeHtml(stem)}</div>
+<div class="qMeta"><span class="mono">${escapeHtml(displayId)}</span> | ${escapeHtml(badgeTxt + meta)}</div>
+        </div>
+        <div class="qBtns">
+          <button class="btn qSmall" data-qprev="${escapeHtml(id)}" type="button">Preview</button>
+          <button class="btn qSmall danger" data-qrm="${escapeHtml(id)}" type="button">Remove</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  qdBox.innerHTML = html;
+
+  qdBox.querySelectorAll('[data-qprev]').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const id = btn.getAttribute('data-qprev');
+      setActiveTab('questions');
+      setActiveTool('preview');
+if (isLibRef(id)) await qeLoadLibRef(id);
+else await qeLoadBankItem(id);    });
+  });
+
+  qdBox.querySelectorAll('[data-qrm]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = btn.getAttribute('data-qrm');
+      removeFromDraft(id);
+    });
+  });
+}
+
+async function loadDraftSomeDetails(){
+  if (!SELECTED_ID) return;
+  await refreshDraftPreview(false);
+}
+  
+
+function copyDraftIds(){
+  if (!DRAFT_IDS.length){
+    toast('Copy', 'Draft list is empty.');
+    return;
+  }
+  const txt = DRAFT_IDS.join('\n');
+  navigator.clipboard.writeText(txt).then(()=>{
+    toast('Copied', `Copied ${DRAFT_IDS.length} bank_item_id(s).`);
+  }).catch(()=>{
+    toast('Copy failed', 'Browser blocked clipboard. Select and copy manually.');
+  });
+}
+
+async function clearDraft(){
+  if (!SELECTED_ID) return;
+  const ok = confirm('Clear all draft items for this quiz?');
+  if (!ok) return;
+
+  DRAFT_IDS = [];
+  DRAFT_SET = new Set();
+  updateDraftCount();
+  renderDraftList();
+  scheduleDraftSave();
+  toast('Cleared', 'Draft cleared (saved shortly).');
+}
+
+async function publishQuiz(){
+  if (!SELECTED_ID) return;
+
+  const status = String((SELECTED_QUIZ && SELECTED_QUIZ.status) || '').toUpperCase();
+  if (status !== 'DRAFT'){
+    toast('Publish blocked', `Quiz is ${status}. Only DRAFT can publish.`);
+    return;
+  }
+  if (!DRAFT_IDS.length){
+    toast('Publish blocked', 'Add at least 1 question to the draft list first.');
+    return;
+  }
+// Extra guard: AFTER_CLOSE requires close_at
+const pol = String((SELECTED_QUIZ && SELECTED_QUIZ.results_release_policy) || 'IMMEDIATE').trim().toUpperCase() || 'IMMEDIATE';
+const closeAt = String((SELECTED_QUIZ && SELECTED_QUIZ.close_at) || '').trim();
+if (pol === 'AFTER_CLOSE' && !closeAt){
+  toast('Publish blocked', 'Close at is required when Results Policy is After close.');
+  setActiveTab('settings');
+  return;
+}
+  const ok = confirm(`Publish this quiz now? This should snapshot ${DRAFT_IDS.length} item(s).`);
+  if (!ok) return;
+
+  await saveDraftToServerNow(true);
+
+  const r = await apiPost('teacher.quiz.publish', { teacher_quiz_id: SELECTED_ID });
+if (!r.ok){
+  const missing =
+    (r.raw && (r.raw.bank_item_id || r.raw.ref || r.raw.item_id)) ? (r.raw.bank_item_id || r.raw.ref || r.raw.item_id) : '';
+  toast('Publish failed', `${String(r.error||'unknown')} ${missing ? ('| ' + missing) : ''}`);
+  return;
+}
+  toast('Published', 'Quiz published and items snapshotted.');
+  await openQuiz(SELECTED_ID);
+  await refreshList(true);
+}
+
+function applyDraftPreviewPayload(payload){
+  const items = (payload && Array.isArray(payload.items)) ? payload.items : [];
+  const missing = (payload && Array.isArray(payload.missing)) ? payload.missing : [];
+
+  DRAFT_PREVIEW_BY_REF = new Map();
+  DRAFT_PREVIEW_MISSING = missing;
+
+  // Prime your existing cache so Draft list can render stems/meta quickly
+  items.forEach(it => {
+    const ref = String(it.ref || '').trim();
+    if (!ref) return;
+
+    DRAFT_PREVIEW_BY_REF.set(ref, it);
+
+    // Keep your existing Draft list logic intact by storing “bank-like” summary
+    BANK_CACHE_BY_ID.set(ref, {
+      bank_item_id: ref,
+      stem: it.stem || '',
+      subject: it.subject || '',
+      topic: it.topic || '',
+      difficulty: it.difficulty || '',
+      _display_id: (it.display && it.display.id) ? it.display.id : ref,
+      _badge: (it.display && it.display.badge) ? it.display.badge : '',
+      _source: it.source || '',
+      _readonly: !!it.readonly,
+      _preview: it
+    });
+  });
+}
+
+async function refreshDraftPreview(silent){
+  if (!SELECTED_ID) return false;
+
+  const r = await apiPost('teacher.quiz.draft.preview', { teacher_quiz_id: SELECTED_ID });
+  if (!r.ok){
+    if (!silent) toast('Draft preview failed', String(r.error || 'unknown'));
+    return false;
+  }
+
+  applyDraftPreviewPayload(r.data);
+
+  if (!silent){
+    const miss = (r.data.missing && r.data.missing.length) ? r.data.missing.length : 0;
+    toast('Draft preview', miss ? `Loaded (with ${miss} missing).` : 'Loaded.');
+  }
+
+  renderDraftList();
+  return true;
+}  
+
+/* =========================
+ * BANK BROWSER
+ * ========================= */
+function setSelectValue(selectEl, rawValue){
+  const v = normalizeField(rawValue);
+  if (!v){
+    selectEl.value = "";
+    return;
+  }
+  const has = Array.from(selectEl.options).some(o => o.value === v);
+  if (!has){
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    selectEl.appendChild(opt);
+  }
+  selectEl.value = v;
+}
+
+function rebuildSubjectTopicOptions(items){
+  const keepSubject = qb_subject.value;
+  const keepTopic = qb_topic.value;
+
+  const subjects = new Set();
+  const topics = new Set();
+
+  (items || []).forEach(it => {
+    const s = normalizeField(it.subject);
+    const t = normalizeField(it.topic);
+    if (s) subjects.add(s);
+    if (t) topics.add(t);
+  });
+
+  const subjArr = Array.from(subjects).sort((a,b) => a.localeCompare(b));
+  const topicArr = Array.from(topics).sort((a,b) => a.localeCompare(b));
+
+  qb_subject.innerHTML = `<option value="">Any</option>` + subjArr.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+  qb_topic.innerHTML = `<option value="">Any</option>` + topicArr.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+
+  setSelectValue(qb_subject, keepSubject);
+  setSelectValue(qb_topic, keepTopic);
+}
+
+function renderBankRows(items){
+  if (!items || !items.length){
+    qbRows.innerHTML = `<tr><td colspan="3" class="hint" style="padding:12px">No results. Try different filters.</td></tr>`;
+    return;
+  }
+
+  qbRows.innerHTML = items.map(it=>{
+    const id = escapeHtml(it.bank_item_id||'');
+    const stem = escapeHtml(shortStem(it.stem||''));
+    const subj = escapeHtml(it.subject||'—');
+    const topic = escapeHtml(it.topic||'—');
+    const diff = escapeHtml(it.difficulty||'—');
+    const stype = escapeHtml(it.source_type||'—');
+
+    return `
+      <tr>
+        <td>
+          <div style="font-weight:900">${stem || '<span class="muted">—</span>'}</div>
+          <div class="muted mono" style="margin-top:6px">${id}</div>
+        </td>
+        <td>
+          <div class="muted" style="font-size:12px">${subj} | ${topic}</div>
+          <div class="muted" style="font-size:12px">${diff} | Source: ${stype}</div>
+        </td>
+        <td>
+          <div class="qBtns">
+            <button class="btn qSmall" data-bprev="${id}" type="button">Preview</button>
+            <button class="btn qSmall primary" data-badd="${id}" type="button">Add</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  qbRows.querySelectorAll('[data-bprev]').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const id = btn.getAttribute('data-bprev');
+      setActiveTab('questions');
+      setActiveTool('preview');
+      await qeLoadBankItem(id);
+    });
+  });
+
+  qbRows.querySelectorAll('[data-badd]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = btn.getAttribute('data-badd');
+      addToDraft(id);
+    });
+  });
+}
+
+async function loadBankList(){
+  if (!SELECTED_ID){
+    toast('Save quiz first', 'Save the quiz to get an ID, then load bank items.');
+    return;
+  }
+
+  qbHint.textContent = 'Loading…';
+
+  const r = await apiPost('bank.items.list', {
+    status: String(qb_status.value||'ACTIVE').trim(),
+    q: String(qb_q.value||'').trim(),
+    subject: String(qb_subject.value||'').trim(),
+    topic: String(qb_topic.value||'').trim(),
+    difficulty: String(qb_difficulty.value||'').trim(),
+    source_type: String(qb_source_type.value||'').trim(),
+    limit: String(qb_limit.value||'50').trim()
+  });
+
+  if (!r.ok){
+    qbHint.textContent = '';
+    toast('Bank list failed', String(r.error||'unknown'));
+    return;
+  }
+
+  BANK_LIST_CACHE = Array.isArray(r.data.items) ? r.data.items : [];
+  qbCountPill.textContent = `${BANK_LIST_CACHE.length} items`;
+  qbHint.textContent = `Last load: ${nowIso()}`;
+
+  BANK_LIST_CACHE.forEach(it=>{
+    const id = String(it.bank_item_id||'').trim();
+    if (id) BANK_CACHE_BY_ID.set(id, it);
+  });
+
+  rebuildSubjectTopicOptions(BANK_LIST_CACHE);
+  renderBankRows(BANK_LIST_CACHE);
+}
+
+function clearBankFilters(){
+  qb_q.value = '';
+  qb_status.value = 'ACTIVE';
+  qb_subject.value = '';
+  qb_topic.value = '';
+  qb_difficulty.value = '';
+  qb_source_type.value = '';
+  qb_limit.value = '50';
+  qbHint.textContent = '';
+}
+
+/* =========================
+ * QUESTION EDITOR
+ * ========================= */
+function qeSetMode(mode){
+  const m = String(mode||'NEW').toUpperCase();
+  if (m === 'EDIT'){
+    qeModePill.textContent = 'EDIT';
+    qeModePill.className = 'qPill warn';
+    qeTitle.textContent = 'Question editor (bank item)';
+  }else{
+    qeModePill.textContent = 'NEW';
+    qeModePill.className = 'qPill ok';
+    qeTitle.textContent = 'Question editor (inline create)';
+  }
+}
+
+function qeSetMeta(id, obj){
+  qeBankId.textContent = id || '—';
+  const c = obj && obj.created_at ? obj.created_at : '—';
+  const u = obj && obj.updated_at ? obj.updated_at : '—';
+  qeTimestamps.textContent = `Created: ${c} | Updated: ${u}`;
+}
+
+function qeReadForm(){
+  return {
+    stem: normalizeField(qe_stem.value),
+
+    option_a: normalizeField(qe_option_a.value),
+    fb_a: normalizeField(qe_fb_a.value),
+    option_b: normalizeField(qe_option_b.value),
+    fb_b: normalizeField(qe_fb_b.value),
+    option_c: normalizeField(qe_option_c.value),
+    fb_c: normalizeField(qe_fb_c.value),
+    option_d: normalizeField(qe_option_d.value),
+    fb_d: normalizeField(qe_fb_d.value),
+    option_e: normalizeField(qe_option_e.value),
+    fb_e: normalizeField(qe_fb_e.value),
+    option_f: normalizeField(qe_option_f.value),
+    fb_f: normalizeField(qe_fb_f.value),
+
+    correct: normalizeField(qe_correct.value).toUpperCase(),
+
+    rationale: normalizeField(qe_rationale.value),
+    rationale_img: normalizeField(qe_rationale_img.value),
+
+    subject: normalizeField(qe_subject.value),
+    topic: normalizeField(qe_topic.value),
+    difficulty: normalizeField(qe_difficulty.value),
+    marks: normalizeField(qe_marks.value),
+
+    source_type: normalizeField(qe_source_type.value),
+    source_course_id: normalizeField(qe_source_course_id.value),
+    source_sheet_id: normalizeField(qe_source_sheet_id.value),
+    source_item_id: normalizeField(qe_source_item_id.value)
+  };
+}
+
+function qeFillForm(obj){
+  obj = obj || {};
+  qe_stem.value = normalizeField(obj.stem);
+
+  qe_option_a.value = normalizeField(obj.option_a);
+  qe_fb_a.value = normalizeField(obj.fb_a);
+  qe_option_b.value = normalizeField(obj.option_b);
+  qe_fb_b.value = normalizeField(obj.fb_b);
+  qe_option_c.value = normalizeField(obj.option_c);
+  qe_fb_c.value = normalizeField(obj.fb_c);
+  qe_option_d.value = normalizeField(obj.option_d);
+  qe_fb_d.value = normalizeField(obj.fb_d);
+  qe_option_e.value = normalizeField(obj.option_e);
+  qe_fb_e.value = normalizeField(obj.fb_e);
+  qe_option_f.value = normalizeField(obj.option_f);
+  qe_fb_f.value = normalizeField(obj.fb_f);
+
+  qe_correct.value = normalizeField(obj.correct).toUpperCase();
+
+  qe_rationale.value = normalizeField(obj.rationale);
+  qe_rationale_img.value = normalizeField(obj.rationale_img);
+
+  qe_subject.value = normalizeField(obj.subject);
+  qe_topic.value = normalizeField(obj.topic);
+
+  setSelectValue(qe_difficulty, obj.difficulty);
+  qe_marks.value = normalizeField(obj.marks || '1');
+
+  setSelectValue(qe_source_type, obj.source_type);
+  qe_source_course_id.value = normalizeField(obj.source_course_id);
+  qe_source_sheet_id.value = normalizeField(obj.source_sheet_id);
+  qe_source_item_id.value = normalizeField(obj.source_item_id);
+}
+
+function qeValidate(form){
+  if (!form.stem) return 'Stem is required.';
+  if (!form.option_a) return 'Option A is required.';
+  if (!form.option_b) return 'Option B is required.';
+  const allowed = ["A","B","C","D","E","F"];
+  if (!form.correct || !allowed.includes(form.correct)) return 'Choose a correct option (A–F).';
+
+  const map = { A: form.option_a, B: form.option_b, C: form.option_c, D: form.option_d, E: form.option_e, F: form.option_f };
+  const nonEmpty = Object.keys(map).filter(k => !!map[k]);
+  if (nonEmpty.length < 2) return 'Provide at least two options.';
+  if (!map[form.correct]) return 'Correct option points to an empty option.';
+  return '';
+}
+
+function qeDiffPatch(original, form){
+  const patch = {};
+  original = original || {};
+  Object.keys(form).forEach(k=>{
+    const a = normalizeField(original[k]);
+    const b = normalizeField(form[k]);
+    if (a !== b) patch[k] = b;
+  });
+  return patch;
+}
+
+function qeNewInlineMode(){
+  QE_CURRENT_ID = '';
+  QE_CURRENT_ORIG = null;
+  qeSetMode('NEW');
+
+  qeFillForm({
+    stem:'',
+    option_a:'', option_b:'', option_c:'', option_d:'', option_e:'', option_f:'',
+    fb_a:'', fb_b:'', fb_c:'', fb_d:'', fb_e:'', fb_f:'',
+    correct:'',
+    rationale:'',
+    rationale_img:'',
+    subject:'',
+    topic:'',
+    difficulty:'',
+    marks:'1',
+    source_type:'QUIZ_INLINE',
+    source_course_id: SELECTED_ID || '',
+    source_sheet_id:'',
+    source_item_id:''
+  });
+
+  qeSetMeta('', null);
+  qeWarn.textContent = (!SELECTED_ID) ? 'Save the quiz first to start adding questions.' : '';
+  qe_stem.focus();
+}
+
+async function qeLoadBankItem(bank_item_id){
+  const id = String(bank_item_id||'').trim();
+  if (!id) return;
+  
+QE_IS_LIB = false;
+QE_LIB_REF = '';
+qeSaveQuestion.disabled = false;
+  
+  const r = await apiPost('bank.item.get', { bank_item_id: id });
+  if (!r.ok){
+    toast('Preview failed', String(r.error||'unknown'));
+    return;
+  }
+
+  const item = r.data.item || null;
+  if (!item){
+    toast('Preview failed', 'No item returned.');
+    return;
+  }
+
+  BANK_CACHE_BY_ID.set(id, item);
+
+  QE_CURRENT_ID = id;
+  QE_CURRENT_ORIG = item;
+  qeSetMode('EDIT');
+  qeFillForm(item);
+  qeSetMeta(id, item);
+
+  qeWarn.textContent = 'Editing a bank item changes it for any quiz that uses it (before publish snapshots).';
+  qe_stem.focus();
+}
+
+async function qeLoadLibRef(ref){
+  const key = String(ref||'').trim();
+  if (!key) return;
+
+  // Ensure we have preview hydrated
+  let it = DRAFT_PREVIEW_BY_REF.get(key);
+  if (!it){
+    await refreshDraftPreview(true);
+    it = DRAFT_PREVIEW_BY_REF.get(key);
+  }
+
+  if (!it){
+    toast('Preview failed', 'Library item not found in draft preview.');
+    return;
+  }
+
+  QE_IS_LIB = true;
+  QE_LIB_REF = key;
+  QE_CURRENT_ID = '';
+  QE_CURRENT_ORIG = null;
+
+  qeSetMode('EDIT');
+  qeFillForm(Object.assign({}, it, {
+    source_type: 'LIB',
+    source_course_id: (it.lib && it.lib.course_id) ? it.lib.course_id : '',
+    source_sheet_id: '',
+    source_item_id: (it.lib && it.lib.item_id) ? it.lib.item_id : ''
+  }));
+
+  qeBankId.textContent = (it.display && it.display.id) ? it.display.id : key;
+  qeTimestamps.textContent = `Library: ${(it.lib && it.lib.course_id)||''} | Item: ${(it.lib && it.lib.item_id)||''}`;
+  qeWarn.textContent = 'This is a QAcademy Library item (read-only). It will be snapshotted on publish.';
+  qeSaveQuestion.disabled = true;
+  qeAddToDraft.disabled = false;
+}
+  
+async function qeSave(){
+  if (!SELECTED_ID){
+    toast('Save quiz first', 'Save the quiz to get an ID, then save questions.');
+    return;
+  }
+
+  const form = qeReadForm();
+  const err = qeValidate(form);
+  if (err){
+    toast('Fix required', err);
+    return;
+  }
+
+  if (!QE_CURRENT_ID){
+    if (!form.source_type) form.source_type = 'QUIZ_INLINE';
+    if (String(form.source_type).toUpperCase() === 'QUIZ_INLINE' && !form.source_course_id){
+      form.source_course_id = SELECTED_ID;
+    }
+
+    const r = await apiPost('bank.item.create', form);
+    if (!r.ok){
+      toast('Create failed', String(r.error||'unknown'));
+      return;
+    }
+
+    const newId = String(r.data.bank_item_id||'').trim();
+    if (!newId){
+      toast('Create failed', 'No bank_item_id returned.');
+      return;
+    }
+
+    toast('Created', `Saved to bank: ${newId}`);
+
+    BANK_CACHE_BY_ID.set(newId, Object.assign({}, form, { bank_item_id:newId, stem: form.stem }));
+
+    addToDraft(newId);
+
+    setActiveTab('questions');
+    setActiveTool('preview');
+    await qeLoadBankItem(newId);
+    return;
+  }
+
+  const patch = qeDiffPatch(QE_CURRENT_ORIG, form);
+  if (!Object.keys(patch).length){
+    toast('No changes', 'Nothing to save.');
+    return;
+  }
+
+  const r = await apiPost('bank.item.update', Object.assign({ bank_item_id: QE_CURRENT_ID }, patch));
+  if (!r.ok){
+    toast('Update failed', String(r.error||'unknown'));
+    return;
+  }
+
+  toast('Saved', 'Bank item updated.');
+  await qeLoadBankItem(QE_CURRENT_ID);
+}
+
+function qeAddCurrentToDraft(){
+  if (!SELECTED_ID){
+    toast('Save quiz first', 'Save the quiz to get an ID, then add questions.');
+    return;
+  }
+
+  // ✅ NEW: allow adding the current LIB ref
+  if (QE_IS_LIB && QE_LIB_REF){
+    addToDraft(QE_LIB_REF);
+    return;
+  }
+
+  if (QE_CURRENT_ID){
+    addToDraft(QE_CURRENT_ID);
+    return;
+  }
+
+  toast('Save first', 'Save this inline question to bank first, then it can be added to draft.');
+}
+
+/** =========================
+ * EVENTS
+ * ========================= */
+$('btnSignOut').addEventListener('click', signOut);
+$('btnRefresh').addEventListener('click', ()=> refreshList(true));
+$('btnLoadMore').addEventListener('click', ()=> refreshList(false));
+$('btnNewQuiz').addEventListener('click', newQuiz);
+
+elQSearch.addEventListener('input', debounce(()=> refreshList(true), 350));
+elQStatus.addEventListener('change', ()=> refreshList(true));
+
+$('btnAddField').addEventListener('click', addField);
+$('btnSaveQuiz').addEventListener('click', saveQuiz);
+
+$('btnReloadClasses').addEventListener('click', async ()=>{
+  await loadClassesAndLinks();
+  toast('Classes reloaded', 'Class list refreshed.');
+});
+
+$('btnSaveLinks').addEventListener('click', saveLinks);
+$('btnSelectAll').addEventListener('click', selectAllVisible);
+$('btnClearAll').addEventListener('click', clearAll);
+$('clsSearch').addEventListener('input', ()=> renderClassesBox());
+
+$('btnRegenCode').addEventListener('click', regenCode);
+$('btnArchive').addEventListener('click', archiveQuiz);
+
+/* Questions module events */
+qdSearch.addEventListener('input', ()=> renderDraftList());
+qdLoadSome.addEventListener('click', loadDraftSomeDetails);
+qdSaveNow.addEventListener('click', async ()=> {
+  try { await saveDraftToServerNow(false); } catch(e){ toast('Draft save error', String(e && e.message || e)); }
+});
+qdClear.addEventListener('click', clearDraft);
+qdCopyIds.addEventListener('click', copyDraftIds);
+qdPublish.addEventListener('click', publishQuiz);
+
+qbLoad.addEventListener('click', loadBankList);
+qbClear.addEventListener('click', ()=>{
+  clearBankFilters();
+  toast('Cleared', 'Bank filters cleared.');
+});
+
+qeNewInline.addEventListener('click', qeNewInlineMode);
+qeSaveQuestion.addEventListener('click', qeSave);
+qeAddToDraft.addEventListener('click', qeAddCurrentToDraft);
+
+  elBtnBackToList.addEventListener('click', ()=>{
+  showListView();
+  renderList();
+});
+/* NEW: tab + tool navigation (UI only) */
+tabSettings.addEventListener('click', ()=> setActiveTab('settings'));
+tabClasses.addEventListener('click', ()=> setActiveTab('classes'));
+tabQuestions.addEventListener('click', ()=> setActiveTab('questions'));
+tabPublish.addEventListener('click', ()=> setActiveTab('publish'));
+
+toolBank.addEventListener('click', ()=> setActiveTool('bank'));
+toolCreate.addEventListener('click', ()=> setActiveTool('create'));
+toolPreview.addEventListener('click', ()=> setActiveTool('preview'));
+
+goBank.addEventListener('click', ()=> { setActiveTab('questions'); setActiveTool('bank'); });
+goCreate.addEventListener('click', ()=> { setActiveTab('questions'); setActiveTool('create'); });
+  
+$('btnOpenBankPicker').addEventListener('click', async ()=> {
+  if (!SELECTED_ID){
+    toast('Select a quiz', 'Open a quiz first.');
+    return;
+  }
+
+  const status = String((SELECTED_QUIZ && SELECTED_QUIZ.status) || '').toUpperCase();
+  if (status && status !== 'DRAFT'){
+    toast('Locked', `Only DRAFT quizzes can be edited. This quiz is ${status}.`);
+    return;
+  }
+
+  if (DRAFT_DIRTY){
+    try { await saveDraftToServerNow(true); } catch(e){}
+  }
+
+  const ret = location.pathname + location.search;
+  const url =
+    BANK_URL +
+    `?mode=picker&teacher_quiz_id=${encodeURIComponent(SELECTED_ID)}` +
+    `&return_to=${encodeURIComponent(ret)}`;
+
+  location.href = url;
+});
+  
+$('btnOpenLibrary').addEventListener('click', async ()=>{
+  if (!SELECTED_ID){
+    toast('Select a quiz', 'Open a quiz first.');
+    return;
+  }
+
+  const status = String((SELECTED_QUIZ && SELECTED_QUIZ.status) || '').toUpperCase();
+  if (status && status !== 'DRAFT'){
+    toast('Locked', `Only DRAFT quizzes can be edited. This quiz is ${status}.`);
+    return;
+  }
+
+  // ✅ safety: push any pending draft changes up before leaving
+  if (DRAFT_DIRTY){
+    try { await saveDraftToServerNow(true); } catch(e){}
+  }
+
+  const ret = location.pathname + location.search;
+  const url =
+    LIBRARY_URL +
+    `?teacher_quiz_id=${encodeURIComponent(SELECTED_ID)}` +
+    `&return_to=${encodeURIComponent(ret)}`;
+
+  location.href = url;
+});  
+
+pubBackQuestions.addEventListener('click', ()=> setActiveTab('questions'));
+
+/** =========================
+ * START
+ * ========================= */
+boot();
+</script>
+</div>
+</body>
+</html>
