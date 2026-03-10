@@ -1,0 +1,1322 @@
+const TAB_GROUPS   = "groups";
+const TAB_ALLOW    = "allowlist";
+const TAB_AUDIT    = "audit";
+const TAB_TG_LINKS = "telegram_links";
+const TAB_LINKCODES = "link_codes"; // NEW
+
+// --- Phase 3 config defaults (safe) ---
+const LINK_CODE_PREFIX = "QK-";
+const LINK_CODE_TTL_SEC_DEFAULT = 10 * 60; // 10 minutes
+
+function doGet(e) {
+  // Keep doGet minimal: health page only (we are NOT using OAuth redirect flow anymore)
+  return html_(
+    "TelegramGate",
+    "<p><b>TelegramGate is running.</b></p><p class='muted'>Use doPost actions: tg.allow, tg.link.code, tg.link.by_code</p>",
+    200
+  );
+}
+
+function doPost(e) {
+  try {
+    const p = (e && e.parameter) ? e.parameter : {};
+    const action = String(p.action || "").trim();
+
+    // =========================
+    // Phase 3 (NEW): generate code (frontend)
+    // =========================
+    if (action === "tg.link.code") {
+      return handleTgLinkCode_(p);
+    }
+
+    // =========================
+    // Phase 3 (NEW): consume code (cloudflare worker)
+    // =========================
+    if (action === "tg.link.by_code") {
+      return handleTgLinkByCode_(p);
+    }
+// =========================
+// Phase 4 (NEW): sync allowlist from active subscriptions
+// =========================
+if (action === "tg.allowlist.sync_user") {
+  return handleTgAllowlistSyncUser_(p);
+}
+
+
+// =========================
+// Phase 5 (NEW): list groups (frontend)
+// =========================
+if (action === "tg.groups.list") {
+  return handleTgGroupsList_(p);
+}
+
+// =========================
+// Phase 5 (NEW): linked status (frontend)
+// =========================
+if (action === "tg.link.status") {
+  return handleTgLinkStatus_(p);
+}
+
+    // =========================
+    // Phase 2: allow/deny join request (unchanged)
+    // =========================
+    if (action !== "tg.allow") {
+      return json_({ ok:false, allow:false, error:"bad_action" }, 200);
+    }
+
+    // Shared secret auth (deny if missing/mismatch)
+    const expected = PropertiesService.getScriptProperties().getProperty("TG_GATE_SECRET") || "";
+    const got = String(p.secret || "");
+    if (!expected || got !== expected) {
+      return json_({ ok:false, allow:false, error:"unauthorized" }, 401);
+    }
+
+    const chatId = String(p.chat_id || "").trim();
+    const telegramUserId = String(p.telegram_user_id || "").trim();
+    const username = String(p.username || "").trim();
+
+    if (!chatId || !telegramUserId) {
+      return json_({ ok:true, allow:false, reason:"missing_fields" }, 200);
+    }
+
+    const ss = SpreadsheetApp.openById(
+      PropertiesService.getScriptProperties().getProperty("SHEET_ID")
+    );
+
+    const group = resolveGroup_(ss, chatId); // {group_key,status} or null
+    if (!group) {
+      audit_(ss, chatId, "", telegramUserId, username, "DENY", "unknown_chat");
+      return json_({ ok:true, allow:false, reason:"unknown_chat" }, 200);
+    }
+
+    if (String(group.status).toUpperCase() !== "ACTIVE") {
+      audit_(ss, chatId, group.group_key, telegramUserId, username, "DENY", "group_inactive");
+      return json_({ ok:true, allow:false, group_key:group.group_key, reason:"group_inactive" }, 200);
+    }
+
+    const allowed = isAllowlisted_(ss, telegramUserId, group.group_key);
+
+    if (!allowed) {
+      audit_(ss, chatId, group.group_key, telegramUserId, username, "DENY", "not_allowlisted");
+      return json_({ ok:true, allow:false, group_key:group.group_key, reason:"not_allowlisted" }, 200);
+    }
+
+    audit_(ss, chatId, group.group_key, telegramUserId, username, "ALLOW", "allowlist_match");
+    return json_({ ok:true, allow:true, group_key:group.group_key, reason:"allowlist_match" }, 200);
+
+  } catch (err) {
+    return json_({ ok:false, allow:false, error:"server_error", detail:String(err?.message || err) }, 200);
+  }
+}
+
+/**
+ * Phase 3 — Generate one-time link code
+ * Frontend calls this with qa_token.
+ * Output: { ok:true, code:"QK-xxxxxx", expires_sec:600 }
+ *
+ * ✅ ENRICHMENT: store PortalAuth snapshot into link_codes at issuance time
+ */
+function handleTgLinkCode_(p) {
+  try {
+    const qaToken = String(p.qa_token || "").trim();
+    if (!qaToken) return json_({ ok:false, error:"missing_qa_token" }, 200);
+
+    const qa = verifyQaToken_(qaToken);
+    if (!qa.ok) return json_({ ok:false, error:qa.error || "qa_token_invalid" }, 200);
+
+    const ss = SpreadsheetApp.openById(
+      String(PropertiesService.getScriptProperties().getProperty("SHEET_ID") || "").trim()
+    );
+    if (!ss) return json_({ ok:false, error:"missing_SHEET_ID" }, 200);
+
+    const ttlSec = parseInt(String(PropertiesService.getScriptProperties().getProperty("TG_LINK_CODE_TTL_SEC") || LINK_CODE_TTL_SEC_DEFAULT), 10);
+    const code = generateLinkCode_();
+    const now = new Date();
+    const expires = new Date(now.getTime() + ttlSec * 1000);
+
+    const u = qa.user || {};
+    upsertLinkCode_(ss, {
+      code,
+      qa_user_key: qa.user_key,
+      issued_utc: now.toISOString(),
+      expires_utc: expires.toISOString(),
+      used: "FALSE",
+      used_utc: "",
+      telegram_user_id: "",
+      telegram_username: "",
+
+      // ✅ NEW snapshot fields (safe; blank if missing)
+      qa_user_id: String(u.user_id || "").trim(),
+      email: String(u.email || "").trim().toLowerCase(),
+      program_id: String(u.program_id || "").trim(),
+      role: String(u.role || "").trim(),
+      level: String(u.level || "").trim()
+    });
+
+    return json_({ ok:true, code, expires_sec: ttlSec }, 200);
+
+  } catch (err) {
+    return json_({ ok:false, error:"server_error", detail:String(err?.message || err) }, 200);
+  }
+}
+
+/**
+ * Phase 3 — Consume one-time code and link telegram_user_id to qa_user_key
+ * Worker calls this (must be secret-protected).
+ *
+ * ✅ ENRICHMENT: write full row into telegram_links using snapshot fields from link_codes
+ * Now also includes relinking policies 
+ */
+function handleTgLinkByCode_(p) {
+  try {
+    // Protect this endpoint (re-use TG_GATE_SECRET for simplicity)
+    const expected = String(PropertiesService.getScriptProperties().getProperty("TG_GATE_SECRET") || "").trim();
+    const got = String(p.secret || "").trim();
+    if (!expected || got !== expected) return json_({ ok:false, linked:false, error:"unauthorized" }, 401);
+
+    const code = String(p.code || "").trim();
+    const telegramUserId = String(p.telegram_user_id || "").trim();
+    const username = String(p.username || "").trim();
+
+    // Optional fields from worker (safe if missing)
+    const firstName = String(p.first_name || "").trim();
+    const lastName  = String(p.last_name  || "").trim();
+    const photoUrl  = String(p.photo_url  || "").trim();
+
+    if (!code || !telegramUserId) return json_({ ok:true, linked:false, error:"missing_fields" }, 200);
+
+    const ss = SpreadsheetApp.openById(
+      String(PropertiesService.getScriptProperties().getProperty("SHEET_ID") || "").trim()
+    );
+    if (!ss) return json_({ ok:false, linked:false, error:"missing_SHEET_ID" }, 200);
+
+    // 1) Find code row, validate unused + not expired (returns snapshot too)
+    const found = getLinkCode_(ss, code);
+    if (!found.ok) return json_({ ok:true, linked:false, error:found.error }, 200);
+
+    const nowIso = new Date().toISOString();
+
+    // 2) Detect existing ACTIVE telegram link for this QA account BEFORE upsert
+    //    (this is the core of closing the relink loophole)
+    const prior = getTelegramLinkByQa_(ss, found.qa_user_id, found.qa_user_key);
+    const oldTelegramUserId = prior && prior.telegram_user_id ? String(prior.telegram_user_id || "").trim() : "";
+
+    const isRelink = !!(oldTelegramUserId && oldTelegramUserId !== telegramUserId);
+
+    // 3) Mark code used (single-use) early to avoid race/reuse.
+    //    (Even if later cleanup fails, we still proceed with linking; Telegram kick is best-effort.)
+    markLinkCodeUsed_(ss, found.rowNum, {
+      used: "TRUE",
+      used_utc: nowIso,
+      telegram_user_id: telegramUserId,
+      telegram_username: username
+    });
+
+    // 4) If relink, revoke allowlist for old id + best-effort kick from all ACTIVE groups
+    let kickReport = { attempted:0, removed:0, failed:0, failures:[] };
+
+    if (isRelink) {
+      // 4a) Revoke allowlist rows for old telegram id (no deletes, keep notes)
+      revokeAllowlistForTelegramUser_(ss, oldTelegramUserId, {
+        reason: "relink_revoked",
+        updated_utc: nowIso
+      });
+
+      // 4b) Kick/remove old id from all ACTIVE groups (bot must be admin)
+      const groups = listActiveGroups_(ss); // [{chat_id, group_key, title_hint}]
+      kickReport.attempted = groups.length;
+
+      for (let i = 0; i < groups.length; i++) {
+        const g = groups[i];
+        const res = tgKickUserFromChat_(g.chat_id, oldTelegramUserId);
+        if (res.ok) {
+          kickReport.removed++;
+        } else {
+          kickReport.failed++;
+          kickReport.failures.push({
+            group_key: g.group_key || "",
+            chat_id: g.chat_id || "",
+            error: res.error || res.detail || "kick_failed"
+          });
+        }
+
+        // Small pacing to be gentle on Telegram/UrlFetch (optional but safe)
+        Utilities.sleep(120);
+      }
+
+      // 4c) Audit relink (compact)
+      auditRelink_(ss, {
+        old_telegram_user_id: oldTelegramUserId,
+        new_telegram_user_id: telegramUserId,
+        username: username,
+        qa_user_key: found.qa_user_key,
+        qa_user_id: found.qa_user_id,
+        note: "kick " + kickReport.removed + "/" + kickReport.attempted + " ok; " + kickReport.failed + " failed"
+      });
+    }
+
+    // 5) Upsert into telegram_links (same as your existing behavior)
+    upsertTelegramLinkByCode_(ss, {
+      qa_user_key: found.qa_user_key,
+      qa_user_id: found.qa_user_id || "",
+      email: found.email || "",
+      program_id: found.program_id || "",
+      role: found.role || "",
+      level: found.level || "",
+
+      telegram_user_id: telegramUserId,
+      telegram_username: username,
+
+      first_name: firstName,
+      last_name: lastName,
+      photo_url: photoUrl
+    });
+
+    return json_({
+      ok: true,
+      linked: true,
+      qa_user_key: found.qa_user_key,
+      telegram_user_id: telegramUserId,
+      relink: isRelink,
+      old_telegram_user_id: isRelink ? oldTelegramUserId : "",
+      kick: isRelink ? kickReport : undefined
+    }, 200);
+
+  } catch (err) {
+    return json_({ ok:false, linked:false, error:"server_error", detail:String(err?.message || err) }, 200);
+  }
+}
+
+
+/**
+ * Reads link_codes table and validates the code.
+ * Returns snapshot too (if columns exist).
+ */
+function getLinkCode_(ss, code) {
+  const sh = ensureLinkCodesSheet_(ss);
+  const values = sh.getDataRange().getValues();
+  if (!values || values.length < 2) return { ok:false, error:"code_not_found" };
+
+  const idx = headerIndex_(values[0]);
+  const iCode = idx["code"];
+  const iQa   = idx["qa_user_key"];
+  const iExp  = idx["expires_utc"];
+  const iUsed = idx["used"];
+
+  // Optional snapshot columns (may not exist for older sheets)
+  const iQaUserId = idx["qa_user_id"];
+  const iEmail    = idx["email"];
+  const iProgram  = idx["program_id"];
+  const iRole     = idx["role"];
+  const iLevel    = idx["level"];
+
+  if (iCode == null || iQa == null || iExp == null || iUsed == null) {
+    return { ok:false, error:"code_table_bad_headers" };
+  }
+
+  for (let r = 1; r < values.length; r++) {
+    const row = values[r];
+    const c = String(row[iCode] || "").trim();
+    if (c !== code) continue;
+
+    const used = String(row[iUsed] || "").trim().toUpperCase();
+    if (used === "TRUE" || used === "YES" || used === "1") return { ok:false, error:"code_used" };
+
+    const expIso = String(row[iExp] || "").trim();
+    const expMs = Date.parse(expIso);
+    if (!isFinite(expMs) || Date.now() > expMs) return { ok:false, error:"code_expired" };
+
+    const qa_user_key = String(row[iQa] || "").trim();
+    if (!qa_user_key) return { ok:false, error:"code_not_found" };
+
+    return {
+      ok:true,
+      rowNum: r + 1,
+      qa_user_key,
+
+      // ✅ return snapshot if present
+      qa_user_id: iQaUserId != null ? String(row[iQaUserId] || "").trim() : "",
+      email:      iEmail    != null ? String(row[iEmail] || "").trim().toLowerCase() : "",
+      program_id: iProgram  != null ? String(row[iProgram] || "").trim() : "",
+      role:       iRole     != null ? String(row[iRole] || "").trim() : "",
+      level:      iLevel    != null ? String(row[iLevel] || "").trim() : ""
+    };
+  }
+
+  return { ok:false, error:"code_not_found" };
+}
+
+function markLinkCodeUsed_(ss, rowNum, patch) {
+  const sh = ensureLinkCodesSheet_(ss);
+  const header = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  const idx = headerIndex_(header);
+  Object.keys(patch || {}).forEach(k => setCellByHeader_(sh, rowNum, idx, k, patch[k]));
+}
+
+/**
+ * ✅ ENRICHED Upsert telegram_links row.
+ * Still matches your header structure and keeps old behavior safe.
+ */
+function upsertTelegramLinkByCode_(ss, obj) {
+  let sh = ss.getSheetByName(TAB_TG_LINKS);
+  if (!sh) sh = ss.insertSheet(TAB_TG_LINKS);
+
+  // Ensure header exists (matches what you provided)
+  if (sh.getLastRow() === 0) {
+    sh.appendRow([
+      "qa_user_key","qa_user_id","email","program_id","role","level",
+      "telegram_user_id","telegram_username","first_name","last_name","photo_url",
+      "linked_utc","status"
+    ]);
+  }
+
+  const header = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  const idx = headerIndex_(header);
+  const nowIso = new Date().toISOString();
+
+  const patch = {
+    qa_user_key: obj.qa_user_key,
+    qa_user_id: obj.qa_user_id || "",
+    email: obj.email || "",
+    program_id: obj.program_id || "",
+    role: obj.role || "",
+    level: obj.level || "",
+
+    telegram_user_id: obj.telegram_user_id,
+    telegram_username: obj.telegram_username || "",
+    first_name: obj.first_name || "",
+    last_name: obj.last_name || "",
+    photo_url: obj.photo_url || "",
+
+    linked_utc: nowIso,
+    status: "ACTIVE"
+  };
+
+  // Try find existing by qa_user_key OR telegram_user_id
+  const lastRow = sh.getLastRow();
+  if (lastRow >= 2) {
+    const data = sh.getRange(2,1,lastRow-1,sh.getLastColumn()).getValues();
+    const iQaKey = idx["qa_user_key"];
+    const iTgId  = idx["telegram_user_id"];
+
+    for (let i = 0; i < data.length; i++) {
+      const r = data[i];
+      const qaKey = iQaKey != null ? String(r[iQaKey] || "").trim() : "";
+      const tgId  = iTgId  != null ? String(r[iTgId]  || "").trim() : "";
+
+      if ((qaKey && qaKey === patch.qa_user_key) || (tgId && tgId === patch.telegram_user_id)) {
+        const rowNum = i + 2;
+        Object.keys(patch).forEach(k => setCellByHeader_(sh, rowNum, idx, k, patch[k]));
+        return;
+      }
+    }
+  }
+
+  // Insert new row
+  const newRow = Array(sh.getLastColumn()).fill("");
+  Object.keys(patch).forEach(k => {
+    const iCol = idx[k];
+    if (iCol != null) newRow[iCol] = patch[k];
+  });
+  sh.appendRow(newRow);
+}
+
+/**
+ * Create/ensure link_codes sheet with required headers.
+ * ✅ ENRICHMENT: adds portal snapshot columns (safe)
+ *
+ * Note: if sheet already exists with fewer columns, this function will
+ * extend the header row to include missing columns (no data loss).
+ */
+function ensureLinkCodesSheet_(ss) {
+  let sh = ss.getSheetByName(TAB_LINKCODES);
+  if (!sh) sh = ss.insertSheet(TAB_LINKCODES);
+
+  const desired = [
+    "code","qa_user_key","issued_utc","expires_utc",
+    "used","used_utc","telegram_user_id","telegram_username",
+    // ✅ NEW snapshot columns
+    "qa_user_id","email","program_id","role","level"
+  ];
+
+  if (sh.getLastRow() === 0) {
+    sh.appendRow(desired);
+    return sh;
+  }
+
+  // If header exists but missing new columns, append them safely
+  const header = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(h => String(h||"").trim());
+  const lower = header.map(h => h.toLowerCase());
+
+  let changed = false;
+  desired.forEach(col => {
+    if (!lower.includes(col.toLowerCase())) {
+      sh.getRange(1, sh.getLastColumn() + 1).setValue(col);
+      changed = true;
+    }
+  });
+
+  return sh;
+}
+
+/**
+ * Upsert link code row by code (codes are unique).
+ */
+function upsertLinkCode_(ss, rowObj) {
+  const sh = ensureLinkCodesSheet_(ss);
+  const header = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  const idx = headerIndex_(header);
+
+  const lastRow = sh.getLastRow();
+  if (lastRow >= 2) {
+    const data = sh.getRange(2,1,lastRow-1,sh.getLastColumn()).getValues();
+    const iCode = idx["code"];
+    if (iCode != null) {
+      for (let i = 0; i < data.length; i++) {
+        const c = String(data[i][iCode] || "").trim();
+        if (c === String(rowObj.code || "").trim()) {
+          const rowNum = i + 2;
+          Object.keys(rowObj).forEach(k => setCellByHeader_(sh, rowNum, idx, k, rowObj[k]));
+          return;
+        }
+      }
+    }
+  }
+
+  const newRow = Array(sh.getLastColumn()).fill("");
+  Object.keys(rowObj).forEach(k => {
+    const iCol = idx[k];
+    if (iCol != null) newRow[iCol] = rowObj[k];
+  });
+  sh.appendRow(newRow);
+}
+
+function generateLinkCode_() {
+  // 6 digits is enough, but we add prefix for clarity
+  const n = Math.floor(Math.random() * 900000) + 100000;
+  return LINK_CODE_PREFIX + String(n);
+}
+
+function verifyQaToken_(qaToken) {
+  const baseUrl = String(PropertiesService.getScriptProperties().getProperty("PORTAL_AUTH_URL") || "").trim();
+  if (!baseUrl) return { ok:false, error:"missing_PORTAL_AUTH_URL" };
+
+  try {
+    const url =
+      baseUrl +
+      "?action=verify" +
+      "&token=" + encodeURIComponent(qaToken) +
+      "&include=" + encodeURIComponent("subscriptions");
+
+    const resp = UrlFetchApp.fetch(url, { method:"get", muteHttpExceptions:true });
+
+    let data = {};
+    try { data = JSON.parse(resp.getContentText() || "{}"); }
+    catch { return { ok:false, error:"portal_verify_non_json", detail: (resp.getContentText() || "").slice(0,200) }; }
+
+    if (!data || data.ok !== true || !data.user) {
+      return { ok:false, error: (data && data.error) ? String(data.error) : "portal_verify_failed" };
+    }
+
+    const email = String(data.user.email || "").trim().toLowerCase();
+    const userId = String(data.user.user_id || "").trim();
+    const user_key = email || userId;
+    if (!user_key) return { ok:false, error:"portal_verify_missing_user_key" };
+
+    return {
+      ok: true,
+      user_key,
+      user: data.user,
+      access: data.access || {},
+      course_ids: data.course_ids || [],
+      subscriptions: data.subscriptions || [],
+      flags: data.flags || {}
+    };
+
+  } catch (e) {
+    return { ok:false, error:"portal_verify_fetch_failed", detail:String(e && e.message ? e.message : e) };
+  }
+}
+
+/**
+ * Header-based resolver (column order doesn't matter).
+ * Required headers: chat_id, group_key, status
+ */
+function resolveGroup_(ss, chatId) {
+  const sh = ss.getSheetByName(TAB_GROUPS);
+  if (!sh) return null;
+
+  const values = sh.getDataRange().getValues();
+  if (!values || values.length < 2) return null;
+
+  const idx = headerIndex_(values[0]);
+  const iChat   = idx["chat_id"];
+  const iKey    = idx["group_key"];
+  const iStatus = idx["status"];
+
+  if (iChat == null || iKey == null || iStatus == null) return null;
+
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    const cid = String(row[iChat] || "").trim();
+    if (cid !== chatId) continue;
+
+    const group_key = String(row[iKey] || "").trim();
+    const status = String(row[iStatus] || "").trim();
+    if (!group_key) return null;
+
+    return { group_key, status };
+  }
+  return null;
+}
+
+/**
+ * Header-based allowlist lookup.
+ * Required headers: telegram_user_id, group_key, allowed
+ */
+function isAllowlisted_(ss, telegramUserId, groupKey) {
+  const sh = ss.getSheetByName(TAB_ALLOW);
+  if (!sh) return false;
+
+  const values = sh.getDataRange().getValues();
+  if (!values || values.length < 2) return false;
+
+  const idx = headerIndex_(values[0]);
+  const iUid = idx["telegram_user_id"];
+  const iGk  = idx["group_key"];
+  const iAl  = idx["allowed"];
+
+  if (iUid == null || iGk == null || iAl == null) return false;
+
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    const uid = String(row[iUid] || "").trim();
+    const gk  = String(row[iGk] || "").trim();
+    const al  = String(row[iAl] || "").trim().toUpperCase();
+
+    if (uid === telegramUserId && gk === groupKey && (al === "TRUE" || al === "YES" || al === "1")) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function audit_(ss, chatId, groupKey, telegramUserId, username, decision, reason) {
+  let sh = ss.getSheetByName(TAB_AUDIT);
+  if (!sh) sh = ss.insertSheet(TAB_AUDIT);
+
+  if (sh.getLastRow() === 0) {
+    sh.appendRow(["ts_utc","chat_id","group_key","telegram_user_id","username","decision","reason"]);
+  }
+
+  sh.appendRow([
+    new Date().toISOString(),
+    chatId,
+    groupKey,
+    telegramUserId,
+    username,
+    decision,
+    reason
+  ]);
+}
+
+function json_(obj, status) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function headerIndex_(headerRow) {
+  const idx = {};
+  for (let i = 0; i < headerRow.length; i++) {
+    const key = String(headerRow[i] || "").trim().toLowerCase();
+    if (key) idx[key] = i;
+  }
+  return idx;
+}
+
+function setCellByHeader_(sh, rowNum, idx, colName, value) {
+  const i = idx[String(colName || "").trim().toLowerCase()];
+  if (i == null) return;
+  sh.getRange(rowNum, i+1).setValue(value);
+}
+
+/** HTML helpers */
+function html_(title, bodyHtml, status) {
+  const css = `
+    <style>
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f6f8f7;margin:0}
+      .wrap{max-width:720px;margin:24px auto;padding:0 14px}
+      .card{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:16px;padding:16px}
+      .muted{color:#5b6a68;font-size:14px}
+      a{color:#0b7a75}
+    </style>
+  `;
+  const html = `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>${esc_(title)}</title>${css}</head><body><div class="wrap"><div class="card">${bodyHtml}</div></div></body></html>`;
+  return HtmlService.createHtmlOutput(html);
+}
+
+function esc_(s) {
+  return String(s || "")
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+}
+
+
+/**
+ * Worker calls this BEFORE tg.allow.
+ * Protected by TG_GATE_SECRET (same as tg.allow).
+ *
+ * Input:
+ *  - secret
+ *  - telegram_user_id
+ *
+ * Uses telegram_links to resolve qa_user_id (preferred) or qa_user_key/email (fallback),
+ * calls PortalAuth tg.entitlements.by_user_key (protected by TG_ENTITLEMENTS_SECRET),
+ * then rewrites allowlist rows for that telegram_user_id.
+ *
+ * IMPORTANT: does NOT overwrite allowlist.note
+ */
+function handleTgAllowlistSyncUser_(p){
+  try{
+    // Auth (reuse TG_GATE_SECRET so Worker can call)
+    const expected = String(PropertiesService.getScriptProperties().getProperty("TG_GATE_SECRET") || "").trim();
+    const got = String(p.secret || "").trim();
+    if (!expected || got !== expected) return json_({ ok:false, synced:false, error:"unauthorized" }, 401);
+
+    const telegramUserId = String(p.telegram_user_id || "").trim();
+    if(!telegramUserId) return json_({ ok:true, synced:false, reason:"missing_telegram_user_id" }, 200);
+
+    const ss = SpreadsheetApp.openById(
+      String(PropertiesService.getScriptProperties().getProperty("SHEET_ID") || "").trim()
+    );
+    if(!ss) return json_({ ok:false, synced:false, error:"missing_SHEET_ID" }, 200);
+
+    // 1) Resolve link (prefer ACTIVE row if status column exists)
+    const link = getTelegramLinkByTelegramUserId_(ss, telegramUserId);
+    if(!link || (!link.qa_user_id && !link.qa_user_key)){
+      // Not linked => allowlist remains empty; ok=true (so Worker continues to tg.allow)
+      return json_({ ok:true, synced:false, reason:"not_linked" }, 200);
+    }
+
+    // 2) Fetch entitlements from PortalAuth (server-to-server)
+    const ent = fetchPortalTgEntitlements_(link.qa_user_id, link.qa_user_key);
+    if(!ent.ok){
+      return json_({ ok:true, synced:false, reason:"portal_entitlements_failed", detail: ent.error || ent.detail || "" }, 200);
+    }
+
+    const allowedKeys = Array.isArray(ent.allowed_group_keys) ? ent.allowed_group_keys : [];
+    const normKeys = allowedKeys.map(k => String(k||"").trim().toUpperCase()).filter(Boolean);
+
+    // 3) Rewrite allowlist for this user (do NOT touch note)
+    rewriteAllowlistForUser_(ss, {
+      telegram_user_id: telegramUserId,
+      qa_user_id: String(link.qa_user_id || '').trim(),
+      qa_user_key: String(link.qa_user_key || '').trim().toLowerCase(),
+      allowed_group_keys: normKeys
+    });
+
+    return json_({
+      ok:true,
+      synced:true,
+      telegram_user_id: telegramUserId,
+      allowed_count: normKeys.length,
+      allowed_group_keys: normKeys
+    }, 200);
+
+  } catch(err){
+    return json_({ ok:false, synced:false, error:"server_error", detail:String(err?.message || err) }, 200);
+  }
+}
+
+/**
+ * telegram_links headers:
+ * qa_user_key qa_user_id email program_id role level telegram_user_id telegram_username ...
+ */
+function getTelegramLinkByTelegramUserId_(ss, telegramUserId){
+  const sh = ss.getSheetByName(TAB_TG_LINKS);
+  if(!sh) return null;
+
+  const values = sh.getDataRange().getValues();
+  if(!values || values.length < 2) return null;
+
+  const idx = headerIndex_(values[0]);
+
+  const iTgId   = idx["telegram_user_id"];
+  const iStatus = idx["status"];
+  const iQaId   = idx["qa_user_id"];
+  const iQaKey  = idx["qa_user_key"];
+  const iEmail  = idx["email"];
+
+  if(iTgId == null) return null;
+
+  // Prefer ACTIVE row if status column exists
+  for(let r=1; r<values.length; r++){
+    const row = values[r];
+    const tg = String(row[iTgId] || "").trim();
+    if(tg !== telegramUserId) continue;
+
+    if(iStatus != null){
+      const st = String(row[iStatus] || "").trim().toUpperCase();
+      if(st && st !== "ACTIVE") continue;
+    }
+
+    const qa_user_id = (iQaId != null) ? String(row[iQaId] || "").trim() : "";
+    let qa_user_key  = (iQaKey != null) ? String(row[iQaKey] || "").trim().toLowerCase() : "";
+    const email      = (iEmail != null) ? String(row[iEmail] || "").trim().toLowerCase() : "";
+
+    if(!qa_user_key && email) qa_user_key = email;
+
+    return { qa_user_id, qa_user_key };
+  }
+
+  // If no ACTIVE row matched, fall back to any row
+  for(let r=1; r<values.length; r++){
+    const row = values[r];
+    const tg = String(row[iTgId] || "").trim();
+    if(tg !== telegramUserId) continue;
+
+    const qa_user_id = (iQaId != null) ? String(row[iQaId] || "").trim() : "";
+    let qa_user_key  = (iQaKey != null) ? String(row[iQaKey] || "").trim().toLowerCase() : "";
+    const email      = (iEmail != null) ? String(row[iEmail] || "").trim().toLowerCase() : "";
+    if(!qa_user_key && email) qa_user_key = email;
+
+    return { qa_user_id, qa_user_key };
+  }
+
+  return null;
+}
+
+/**
+ * Calls PortalAuth doPost (form-encoded) for action=tg.entitlements.by_user_key
+ * Uses TG_ENTITLEMENTS_SECRET (separate from TG_GATE_SECRET).
+ */
+function fetchPortalTgEntitlements_(qa_user_id, qa_user_key){
+  const url = String(PropertiesService.getScriptProperties().getProperty("PORTAL_AUTH_URL") || "").trim();
+  if(!url) return { ok:false, error:"missing_PORTAL_AUTH_URL" };
+
+  const secret = String(PropertiesService.getScriptProperties().getProperty("TG_ENTITLEMENTS_SECRET") || "").trim();
+  if(!secret) return { ok:false, error:"missing_TG_ENTITLEMENTS_SECRET" };
+
+  try{
+    const payload = {
+      action: "tg.entitlements.by_user_key",
+      secret: secret
+    };
+
+    if(qa_user_id){
+      payload.user_id = String(qa_user_id);
+    } else if (qa_user_key){
+      payload.qa_user_key = String(qa_user_key);
+    }
+
+    const body = Object.keys(payload).map(k => encodeURIComponent(k) + "=" + encodeURIComponent(payload[k])).join("&");
+
+    const resp = UrlFetchApp.fetch(url, {
+      method: "post",
+      contentType: "application/x-www-form-urlencoded",
+      payload: body,
+      muteHttpExceptions: true
+    });
+
+    let data = {};
+    try { data = JSON.parse(resp.getContentText() || "{}"); }
+    catch { return { ok:false, error:"portal_non_json", detail:(resp.getContentText()||"").slice(0,200) }; }
+
+    if(!data || data.ok !== true) return { ok:false, error:(data && data.error) ? String(data.error) : "portal_failed" };
+    return data;
+
+  } catch(e){
+    return { ok:false, error:"portal_fetch_failed", detail:String(e?.message || e) };
+  }
+}
+
+
+/**
+ * Phase 5 — List ACTIVE groups with join links (frontend)
+ * Public: no secret required (data is not sensitive)
+ *
+ * Output:
+ *  { ok:true, groups:[ { group_key, title_hint, join_link, status } ] }
+ */
+function handleTgGroupsList_(p){
+  try{
+    const ss = SpreadsheetApp.openById(
+      String(PropertiesService.getScriptProperties().getProperty("SHEET_ID") || "").trim()
+    );
+    if(!ss) return json_({ ok:false, error:"missing_SHEET_ID" }, 200);
+
+    const sh = ss.getSheetByName(TAB_GROUPS);
+    if(!sh) return json_({ ok:true, groups:[] }, 200);
+
+    const values = sh.getDataRange().getValues();
+    if(!values || values.length < 2) return json_({ ok:true, groups:[] }, 200);
+
+    const idx = headerIndex_(values[0]);
+    const iTitle  = idx["title_hint"];
+    const iKey    = idx["group_key"];
+    const iStatus = idx["status"];
+    const iJoin   = idx["join_link"];
+
+    if(iKey == null || iStatus == null){
+      return json_({ ok:false, error:"groups_table_bad_headers" }, 200);
+    }
+
+    const out = [];
+    for(let r=1; r<values.length; r++){
+      const row = values[r];
+
+      const group_key = String(row[iKey] || "").trim().toUpperCase();
+      if(!group_key) continue;
+
+      const status = String(row[iStatus] || "").trim().toUpperCase();
+      if(status !== "ACTIVE") continue;
+
+      const title_hint = (iTitle != null) ? String(row[iTitle] || "").trim() : "";
+      const join_link  = (iJoin  != null) ? String(row[iJoin]  || "").trim() : "";
+
+      // If join_link is missing, you can still return the group so you notice config gaps,
+      // but it’s usually better to skip broken entries:
+      if(!join_link) continue;
+
+      out.push({
+        group_key,
+        title_hint: title_hint || group_key,
+        join_link,
+        status
+      });
+    }
+
+    // Stable ordering: title_hint then group_key
+    out.sort((a,b) => {
+      const ta = String(a.title_hint||"").toLowerCase();
+      const tb = String(b.title_hint||"").toLowerCase();
+      if(ta < tb) return -1;
+      if(ta > tb) return 1;
+      return String(a.group_key||"").localeCompare(String(b.group_key||""));
+    });
+
+    return json_({ ok:true, groups: out }, 200);
+
+  }catch(err){
+    return json_({ ok:false, error:"server_error", detail:String(err?.message || err) }, 200);
+  }
+}
+
+
+/**
+ * allowlist headers (yours):
+ * telegram_user_id qa_user_key group_key allowed updated_utc note qa_user_id
+ *
+ * Behavior:
+ * - set ALL existing rows for this telegram_user_id to allowed=FALSE (do NOT change note)
+ * - ensure allowed group keys exist with allowed=TRUE
+ * - update qa_user_id/qa_user_key/updated_utc on touched rows
+ */
+function rewriteAllowlistForUser_(ss, payload){
+  let sh = ss.getSheetByName(TAB_ALLOW);
+  if(!sh) sh = ss.insertSheet(TAB_ALLOW);
+
+  // Ensure required headers exist (append missing only)
+  ensureHeadersAllowlist_(sh);
+
+  const header = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  const idx = headerIndex_(header);
+
+  const tgId = String(payload.telegram_user_id || "").trim();
+  const qaId = String(payload.qa_user_id || "").trim();
+  const qaKey = String(payload.qa_user_key || "").trim().toLowerCase();
+  const keys = (payload.allowed_group_keys || []).map(k => String(k||"").trim().toUpperCase()).filter(Boolean);
+  const nowIso = new Date().toISOString();
+
+  const lastRow = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  const data = (lastRow >= 2) ? sh.getRange(2,1,lastRow-1,lastCol).getValues() : [];
+
+  const iUid = idx["telegram_user_id"];
+  const iGk  = idx["group_key"];
+  if(iUid == null || iGk == null) return;
+
+  // Helper to update a row (without touching note)
+  function patchRow(rowNum, allowedVal, groupKeyMaybe){
+    setCellByHeader_(sh, rowNum, idx, "allowed", allowedVal);
+    setCellByHeader_(sh, rowNum, idx, "updated_utc", nowIso);
+    setCellByHeader_(sh, rowNum, idx, "qa_user_id", qaId);
+    setCellByHeader_(sh, rowNum, idx, "qa_user_key", qaKey);
+    if(groupKeyMaybe) setCellByHeader_(sh, rowNum, idx, "group_key", String(groupKeyMaybe).toUpperCase());
+    setCellByHeader_(sh, rowNum, idx, "telegram_user_id", tgId);
+  }
+
+  // 1) Flip all existing rows for this user to FALSE
+  for(let i=0; i<data.length; i++){
+    const row = data[i];
+    const uid = String(row[iUid] || "").trim();
+    if(uid !== tgId) continue;
+    patchRow(i + 2, "FALSE", null);
+  }
+
+  // Build a lookup of existing row for (tgId + group_key)
+  function findRowForKey(gk){
+    for(let i=0; i<data.length; i++){
+      const row = data[i];
+      const uid = String(row[iUid] || "").trim();
+      if(uid !== tgId) continue;
+      const rk = String(row[iGk] || "").trim().toUpperCase();
+      if(rk === String(gk).toUpperCase()) return i + 2;
+    }
+    return 0;
+  }
+
+  // 2) Upsert allowed keys as TRUE
+  keys.forEach(gk => {
+    const rowNum = findRowForKey(gk);
+    if(rowNum > 0){
+      patchRow(rowNum, "TRUE", gk);
+      return;
+    }
+
+    // Append new row (respect existing column count; leave note blank)
+    const newRow = Array(sh.getLastColumn()).fill("");
+    if(idx["telegram_user_id"] != null) newRow[idx["telegram_user_id"]] = tgId;
+    if(idx["qa_user_key"] != null)      newRow[idx["qa_user_key"]] = qaKey;
+    if(idx["group_key"] != null)        newRow[idx["group_key"]] = gk;
+    if(idx["allowed"] != null)          newRow[idx["allowed"]] = "TRUE";
+    if(idx["updated_utc"] != null)      newRow[idx["updated_utc"]] = nowIso;
+    // note intentionally left blank
+    if(idx["qa_user_id"] != null)       newRow[idx["qa_user_id"]] = qaId;
+
+    sh.appendRow(newRow);
+  });
+}
+
+/** Append missing allowlist headers (no reorder, no data loss) */
+function ensureHeadersAllowlist_(sh){
+  const desired = ["telegram_user_id","qa_user_key","group_key","allowed","updated_utc","note","qa_user_id"];
+
+  if(sh.getLastRow() === 0){
+    sh.appendRow(desired);
+    return;
+  }
+
+  const header = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0].map(h => String(h||"").trim());
+  const lower = header.map(h => h.toLowerCase());
+
+  desired.forEach(col => {
+    if(!lower.includes(col.toLowerCase())){
+      sh.getRange(1, sh.getLastColumn() + 1).setValue(col);
+    }
+  });
+}
+
+
+/**
+ * Phase 5 — Linked status (frontend)
+ * Frontend calls this with qa_token.
+ *
+ * Output:
+ *  { ok:true, linked:false }
+ *  { ok:true, linked:true, active:true, telegram:{...}, linked_utc:"..." }
+ */
+function handleTgLinkStatus_(p){
+  try{
+    var qaToken = String((p && p.qa_token) ? p.qa_token : "").trim();
+    if(!qaToken) return json_({ ok:false, error:"missing_qa_token" }, 200);
+
+    var qa = verifyQaToken_(qaToken);
+    if(!qa || qa.ok !== true) return json_({ ok:false, error: (qa && qa.error) ? qa.error : "qa_token_invalid" }, 200);
+
+    var sheetId = String(PropertiesService.getScriptProperties().getProperty("SHEET_ID") || "").trim();
+    if(!sheetId) return json_({ ok:false, error:"missing_SHEET_ID" }, 200);
+
+    var ss = SpreadsheetApp.openById(sheetId);
+
+    var u = qa.user || {};
+    var qa_user_id  = String(u.user_id || "").trim();
+
+    // IMPORTANT: verifyQaToken_ returns qa.user_key at top-level, not inside qa.user
+    var qa_user_key = String(qa.user_key || "").trim().toLowerCase();
+
+    var link = getTelegramLinkByQa_(ss, qa_user_id, qa_user_key);
+    if(!link){
+      return json_({ ok:true, linked:false }, 200);
+    }
+
+    var status = String(link.status || "").trim().toUpperCase();
+    var active = (status === "ACTIVE");
+
+    return json_({
+      ok: true,
+      linked: true,
+      active: active,
+      status: status || "",
+      linked_utc: link.linked_utc || "",
+      telegram: {
+        telegram_user_id: link.telegram_user_id || "",
+        telegram_username: link.telegram_username || "",
+        first_name: link.first_name || "",
+        last_name: link.last_name || ""
+      }
+    }, 200);
+
+  }catch(err){
+    var msg = (err && err.message) ? err.message : String(err);
+    return json_({ ok:false, error:"server_error", detail: msg }, 200);
+  }
+}
+
+/**
+ * Resolve telegram_links by qa_user_id (preferred) or qa_user_key/email fallback.
+ * If multiple rows match, choose:
+ *  - ACTIVE first
+ *  - latest linked_utc next
+ */
+function getTelegramLinkByQa_(ss, qa_user_id, qa_user_key){
+  var sh = ss.getSheetByName(TAB_TG_LINKS);
+  if(!sh) return null;
+
+  var values = sh.getDataRange().getValues();
+  if(!values || values.length < 2) return null;
+
+  var idx = headerIndex_(values[0]);
+
+  var iQaId    = idx["qa_user_id"];
+  var iQaKey   = idx["qa_user_key"];
+  var iEmail   = idx["email"];
+  var iStatus  = idx["status"];
+  var iLinked  = idx["linked_utc"];
+
+  var iTgId    = idx["telegram_user_id"];
+  var iTgUser  = idx["telegram_username"];
+  var iFirst   = idx["first_name"];
+  var iLast    = idx["last_name"];
+
+  var wantQaId  = String(qa_user_id || "").trim();
+  var wantQaKey = String(qa_user_key || "").trim().toLowerCase();
+
+  var candidates = [];
+
+  for(var r=1; r<values.length; r++){
+    var row = values[r];
+
+    var rowQaId  = (iQaId  != null) ? String(row[iQaId]  || "").trim() : "";
+    var rowQaKey = (iQaKey != null) ? String(row[iQaKey] || "").trim().toLowerCase() : "";
+    var rowEmail = (iEmail != null) ? String(row[iEmail] || "").trim().toLowerCase() : "";
+
+    if(!rowQaKey && rowEmail) rowQaKey = rowEmail;
+
+    var matchById  = (wantQaId  && rowQaId  && rowQaId === wantQaId);
+    var matchByKey = (wantQaKey && rowQaKey && rowQaKey === wantQaKey);
+    if(!matchById && !matchByKey) continue;
+
+    var status = (iStatus != null) ? String(row[iStatus] || "").trim().toUpperCase() : "";
+    var linked_utc = (iLinked != null) ? String(row[iLinked] || "").trim() : "";
+
+    candidates.push({
+      status: status,
+      linked_utc: linked_utc,
+      telegram_user_id: (iTgId   != null) ? String(row[iTgId]   || "").trim() : "",
+      telegram_username:(iTgUser != null) ? String(row[iTgUser] || "").trim() : "",
+      first_name:       (iFirst  != null) ? String(row[iFirst]  || "").trim() : "",
+      last_name:        (iLast   != null) ? String(row[iLast]   || "").trim() : ""
+    });
+  }
+
+  if(!candidates.length) return null;
+
+  function score(c){
+    var isActive = (String(c.status || "").toUpperCase() === "ACTIVE") ? 1 : 0;
+    var t = Date.parse(String(c.linked_utc || ""));
+    var ms = isFinite(t) ? t : 0;
+
+    // active dominates; then newest linked_utc
+    // Use a big multiplier without numeric separators:
+    return (isActive * 10000000000000) + ms;
+  }
+
+  candidates.sort(function(a,b){ return score(b) - score(a); });
+  return candidates[0];
+}
+
+function listActiveGroups_(ss){
+  const sh = ss.getSheetByName(TAB_GROUPS);
+  if(!sh) return [];
+
+  const values = sh.getDataRange().getValues();
+  if(!values || values.length < 2) return [];
+
+  const idx = headerIndex_(values[0]);
+  const iChat   = idx["chat_id"];
+  const iKey    = idx["group_key"];
+  const iStatus = idx["status"];
+  const iTitle  = idx["title_hint"];
+
+  if(iChat == null || iKey == null || iStatus == null) return [];
+
+  const out = [];
+  for(let r=1; r<values.length; r++){
+    const row = values[r];
+    const status = String(row[iStatus] || "").trim().toUpperCase();
+    if(status !== "ACTIVE") continue;
+
+    const chat_id = String(row[iChat] || "").trim();
+    const group_key = String(row[iKey] || "").trim().toUpperCase();
+    const title_hint = (iTitle != null) ? String(row[iTitle] || "").trim() : "";
+
+    if(!chat_id || !group_key) continue;
+
+    out.push({ chat_id, group_key, title_hint });
+  }
+  return out;
+}
+
+/**
+ * Revoke (disable) ALL allowlist rows for a given telegram_user_id.
+ * - allowed => FALSE
+ * - updated_utc refreshed
+ * - DOES NOT delete rows
+ * - DOES NOT overwrite note (optionally sets note only if empty)
+ */
+function revokeAllowlistForTelegramUser_(ss, telegramUserId, opts){
+  const tgId = String(telegramUserId || "").trim();
+  if(!tgId) return;
+
+  let sh = ss.getSheetByName(TAB_ALLOW);
+  if(!sh) return;
+
+  ensureHeadersAllowlist_(sh);
+
+  const header = sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
+  const idx = headerIndex_(header);
+
+  const iUid = idx["telegram_user_id"];
+  const iNote = idx["note"];
+  if(iUid == null) return;
+
+  const nowIso = (opts && opts.updated_utc) ? String(opts.updated_utc) : new Date().toISOString();
+  const reason = (opts && opts.reason) ? String(opts.reason) : "";
+
+  const lastRow = sh.getLastRow();
+  const lastCol = sh.getLastColumn();
+  if(lastRow < 2) return;
+
+  const data = sh.getRange(2,1,lastRow-1,lastCol).getValues();
+
+  for(let i=0; i<data.length; i++){
+    const row = data[i];
+    const uid = String(row[iUid] || "").trim();
+    if(uid !== tgId) continue;
+
+    const rowNum = i + 2;
+
+    setCellByHeader_(sh, rowNum, idx, "allowed", "FALSE");
+    setCellByHeader_(sh, rowNum, idx, "updated_utc", nowIso);
+
+    // Only set note if empty (never overwrite staff notes)
+    if(reason && iNote != null){
+      const curNote = String(row[iNote] || "").trim();
+      if(!curNote){
+        setCellByHeader_(sh, rowNum, idx, "note", reason);
+      }
+    }
+  }
+}
+
+/**
+ * Telegram API wrapper
+ */
+function tgApi_(method, payload){
+  const token = String(PropertiesService.getScriptProperties().getProperty("TG_BOT_TOKEN") || "").trim();
+  if(!token) return { ok:false, error:"missing_TG_BOT_TOKEN" };
+
+  const url = "https://api.telegram.org/bot" + token + "/" + String(method || "").trim();
+  try{
+    const resp = UrlFetchApp.fetch(url, {
+      method: "post",
+      contentType: "application/json",
+      payload: JSON.stringify(payload || {}),
+      muteHttpExceptions: true
+    });
+
+    const text = resp.getContentText() || "";
+    let data = {};
+    try { data = JSON.parse(text); } catch(e){}
+
+    if(data && data.ok === true) return { ok:true, data:data };
+
+    // Telegram often returns {ok:false, description:"..."}
+    const desc = (data && data.description) ? String(data.description) : "";
+    return { ok:false, error:"tg_api_failed", detail: desc || text.slice(0,200) };
+
+  } catch(e){
+    return { ok:false, error:"tg_fetch_failed", detail:String(e?.message || e) };
+  }
+}
+
+/**
+ * Best-effort "kick": ban then unban (so it’s not a permanent ban)
+ */
+function tgKickUserFromChat_(chatId, telegramUserId){
+  const chat_id = String(chatId || "").trim();
+  const user_id = String(telegramUserId || "").trim();
+  if(!chat_id || !user_id) return { ok:false, error:"missing_chat_or_user" };
+
+  // Ban first
+  const ban = tgApi_("banChatMember", {
+    chat_id: chat_id,
+    user_id: user_id
+    // until_date optional; omit for simplicity
+  });
+
+  // If ban fails because user not found / not in chat, treat as non-fatal but "ok"
+  // (We’re trying to ensure removal; if they’re not there, goal is satisfied.)
+  if(!ban.ok){
+    const d = String(ban.detail || "").toLowerCase();
+    if(d.includes("user not found") || d.includes("not a member") || d.includes("member not found")){
+      return { ok:true, note:"not_in_group" };
+    }
+    return ban;
+  }
+
+  // Unban to avoid permanent ban (turns it into kick)
+  const unban = tgApi_("unbanChatMember", {
+    chat_id: chat_id,
+    user_id: user_id,
+    only_if_banned: true
+  });
+
+  // Even if unban fails, user is at least removed; so we consider overall ok
+  return { ok:true, note: unban.ok ? "kicked" : "banned_no_unban" };
+}
+
+/**
+ * Compact audit entry for relinks (writes into TAB_AUDIT)
+ */
+function auditRelink_(ss, obj){
+  try{
+    let sh = ss.getSheetByName(TAB_AUDIT);
+    if (!sh) sh = ss.insertSheet(TAB_AUDIT);
+
+    if (sh.getLastRow() === 0) {
+      sh.appendRow(["ts_utc","chat_id","group_key","telegram_user_id","username","decision","reason"]);
+    }
+
+    const reasonParts = [];
+    if(obj && obj.qa_user_key) reasonParts.push("qa=" + String(obj.qa_user_key));
+    if(obj && obj.old_telegram_user_id) reasonParts.push("old=" + String(obj.old_telegram_user_id));
+    if(obj && obj.new_telegram_user_id) reasonParts.push("new=" + String(obj.new_telegram_user_id));
+    if(obj && obj.note) reasonParts.push(String(obj.note));
+
+    sh.appendRow([
+      new Date().toISOString(),
+      "",                 // chat_id blank
+      "",                 // group_key blank
+      String(obj.new_telegram_user_id || ""), // store new id in telegram_user_id column
+      String(obj.username || ""),
+      "RELINK",
+      reasonParts.join(" | ")
+    ]);
+  }catch(e){
+    // Never block relink on audit issues
+  }
+}
