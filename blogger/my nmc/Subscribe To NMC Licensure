@@ -1,0 +1,1151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>QAcademy — Question Bank Plans</title>
+<style>
+  :root{
+    --brand:#0b7a75;--muted:#859998;--ink:#1f2a28;--bg:#f6f8f7;--card:#fff;--line:rgba(0,0,0,.08);
+    --soft:rgba(0,0,0,.04);
+
+    /* Hero promo styling (same family as Premium page) */
+    --promoPinkBg: rgba(255, 105, 180, .10);
+    --promoPinkBd: rgba(255, 105, 180, .22);
+    --promoPinkGlow: rgba(255, 105, 180, .18);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:900px;margin:26px auto;padding:0 14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 10px 24px rgba(0,0,0,.06);padding:16px}
+  h1{margin:0 0 8px;font-size:20px}
+  .sub{color:#51605e;margin:0 0 10px;line-height:1.5}
+  .toplink{margin:0;font-size:13px;color:#51605e}
+  .toplink a{color:var(--brand);font-weight:900;text-decoration:none}
+  .toplink a:hover{text-decoration:underline}
+
+  /* ===== HERO (shared block) ===== */
+  .hero{
+    position:relative;
+    border:1px solid rgba(0,0,0,.08);
+    border-radius:18px;
+    padding:14px;
+    margin-bottom:14px;
+    background:
+      radial-gradient(900px 240px at 10% 0%, rgba(11,122,117,.10), transparent 60%),
+      radial-gradient(900px 240px at 90% 0%, rgba(133,153,152,.10), transparent 60%),
+      #fff;
+    box-shadow:0 10px 22px rgba(0,0,0,.04);
+    overflow:hidden;
+  }
+  .hero::before{
+    content:"";
+    position:absolute;inset:-2px;
+    border-radius:20px;
+    background: linear-gradient(135deg, rgba(11,122,117,.35), rgba(255,105,180,.25), rgba(133,153,152,.28));
+    filter: blur(10px);
+    opacity:.42;
+    z-index:0;
+    pointer-events:none;
+  }
+  .hero::after{
+    content:"";
+    position:absolute;inset:0;
+    border-radius:18px;
+    background: linear-gradient(135deg, rgba(11,122,117,.06), rgba(255,105,180,.04));
+    z-index:0;
+    pointer-events:none;
+  }
+  .hero > *{position:relative; z-index:1}
+
+  .heroTop{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+  .heroLeft{min-width:260px;flex:1}
+  .heroKicker{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:12px;font-weight:1000;color:var(--brand);
+    background:rgba(11,122,117,.08);
+    border:1px solid rgba(11,122,117,.18);
+    border-radius:999px;
+    padding:6px 10px;
+    margin-bottom:10px;
+  }
+  .hero h1{font-size:22px;margin:0 0 6px}
+  .hero .sub{margin:0 0 10px}
+
+  .heroPrice{
+    margin-left:auto;
+    border:1px solid var(--promoPinkBd);
+    background:
+      radial-gradient(260px 120px at 20% 15%, rgba(255,255,255,.65), transparent 60%),
+      var(--promoPinkBg);
+    border-radius:16px;
+    padding:10px 12px;
+    min-width:190px;
+    text-align:right;
+    box-shadow: 0 10px 22px rgba(0,0,0,.05), 0 0 0 4px rgba(255,105,180,.06);
+  }
+  .heroPriceLabel{font-size:11px;color:#6b7b7a;font-weight:900}
+  .heroPriceValue{font-size:18px;font-weight:1000;color:#1f2a28;margin-top:2px;white-space:nowrap}
+  .heroPriceSub{font-size:11px;color:#6b7b7a;margin-top:2px}
+
+  @media(max-width:720px){
+    .heroPrice{width:100%;text-align:left}
+  }
+
+  /* Minimal wizard header */
+  .wizTop{
+    display:flex;gap:12px;align-items:center;flex-wrap:wrap;
+    padding:10px 12px;border:1px solid rgba(0,0,0,.06);background:rgba(0,0,0,.02);
+    border-radius:14px;margin:10px 0 14px;
+  }
+  .stepPills{display:flex;gap:8px;align-items:center}
+  .pill{
+    width:34px;height:28px;border-radius:999px;border:1px solid rgba(0,0,0,.10);
+    display:grid;place-items:center;
+    font-weight:1000;font-size:12px;color:#51605e;background:#fff;
+  }
+  .pill.on{border-color:rgba(11,122,117,.45);background:rgba(11,122,117,.08);color:var(--brand)}
+  .pill.done{border-color:rgba(11,122,117,.45);background:#fff;color:var(--brand)}
+  .wizSummary{margin-left:auto;font-size:12px;color:#51605e;font-weight:900}
+  @media(max-width:720px){.wizSummary{width:100%;margin-left:0}}
+
+  /* Panels */
+  .panel{display:none}
+  .panel.on{display:block}
+  .panelTitle{margin:8px 0 6px;font-weight:1000}
+  .panelSub{margin:0;color:#51605e;line-height:1.5}
+
+  /* Inputs */
+  label{display:block;font-size:12px;font-weight:800;color:#445150;margin:12px 0 6px}
+  input{width:100%;padding:12px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:14px;outline:none}
+  input:focus{border-color:rgba(11,122,117,.55);box-shadow:0 0 0 4px rgba(11,122,117,.12)}
+  .hint{font-size:12px;color:#51605e;margin-top:6px;line-height:1.35}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:720px){.row{grid-template-columns:1fr}}
+
+  /* Step 1: Program list (search + rows) */
+  .searchRow{display:flex;gap:10px;align-items:center;margin-top:10px}
+  .searchRow input{flex:1}
+  .miniTag{
+    font-size:11px;font-weight:1000;color:#51605e;
+    border:1px solid rgba(0,0,0,.10);background:#fff;border-radius:999px;padding:8px 10px;
+    white-space:nowrap;
+  }
+
+  .pickList{
+    margin-top:10px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:#fff;
+    overflow:hidden;box-shadow:0 10px 22px rgba(0,0,0,.05);
+  }
+  .pickRow{
+    display:flex;gap:12px;align-items:flex-start;
+    padding:12px 12px;border-bottom:1px solid rgba(0,0,0,.06);
+    cursor:pointer;transition:background .12s ease;
+    background:#fff;
+  }
+  .pickRow:last-child{border-bottom:0}
+  .pickRow:hover{background:rgba(11,122,117,.04)}
+  .pickRow.on{background:rgba(11,122,117,.07)}
+  .pickIcon{
+    width:44px;height:44px;border-radius:14px;
+    border:1px solid rgba(0,0,0,.08);background:linear-gradient(135deg, rgba(11,122,117,.10), rgba(133,153,152,.10));
+    display:grid;place-items:center;flex:0 0 auto;
+  }
+  .pickIcon svg{width:22px;height:22px;opacity:.65}
+  .pickMain{min-width:0;flex:1}
+  .pickTitle{
+    font-weight:1000;color:#1f2a28;
+    white-space:normal;overflow:visible;text-overflow:clip;
+    word-break:break-word;line-height:1.25;
+  }
+  .pickMeta{
+    margin-top:4px;font-size:11px;color:#6b7b7a;
+    white-space:normal;overflow:visible;text-overflow:clip;
+    word-break:break-word;
+  }
+  .pickCheck{
+    width:28px;height:28px;border-radius:999px;border:1px solid rgba(0,0,0,.12);
+    display:grid;place-items:center;color:var(--brand);font-weight:1000;
+    background:rgba(255,255,255,.92);
+    opacity:0;transform:scale(.92);transition:opacity .12s ease, transform .12s ease;
+    flex:0 0 auto;
+  }
+  .pickRow.on .pickCheck{opacity:1;transform:scale(1)}
+
+  /* Step 2: Plan picker */
+  .miniBar{
+    margin-top:10px;border:1px solid rgba(0,0,0,.06);background:rgba(0,0,0,.02);
+    border-radius:14px;padding:10px;display:flex;flex-wrap:wrap;gap:10px;align-items:center
+  }
+  .miniKey{font-size:12px;font-weight:1000;color:#445150}
+  .miniVal{font-size:12px;font-weight:1000;color:#1f2a28;word-break:break-word}
+  .miniLink{margin-left:auto;font-size:12px;font-weight:1000;color:var(--brand);text-decoration:none}
+  .miniLink:hover{text-decoration:underline}
+  @media(max-width:720px){.miniLink{width:100%;margin-left:0}}
+
+  .planBox{
+    margin-top:10px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:#fff;
+    overflow:hidden;box-shadow:0 10px 22px rgba(0,0,0,.05);
+  }
+  .planSection{
+    padding:10px 12px;background:rgba(0,0,0,.02);border-bottom:1px solid rgba(0,0,0,.06);
+    font-size:12px;font-weight:1000;color:#445150;
+  }
+
+  .planRow{
+    display:flex;gap:10px;align-items:flex-start;
+    padding:10px 12px;border-bottom:1px solid rgba(0,0,0,.06);
+    cursor:pointer;transition:background .12s ease;
+    background:#fff;
+    flex-wrap:wrap;
+  }
+  .planRow:last-child{border-bottom:0}
+  .planRow:hover{background:rgba(11,122,117,.04)}
+  .planRow.on{background:rgba(11,122,117,.07)}
+  .radioDot{
+    width:16px;height:16px;border-radius:999px;border:2px solid rgba(0,0,0,.18);
+    display:grid;place-items:center;flex:0 0 auto;margin-top:2px
+  }
+  .planRow.on .radioDot{border-color:rgba(11,122,117,.65)}
+  .radioDot::after{content:'';width:9px;height:9px;border-radius:999px;background:transparent}
+  .planRow.on .radioDot::after{background:var(--brand)}
+  .planMain{min-width:0;flex:1}
+  .planName{
+    font-weight:1000;color:#1f2a28;
+    white-space:normal;overflow:visible;text-overflow:clip;
+    word-break:break-word;line-height:1.25;
+  }
+  .planMeta{
+    margin-top:4px;font-size:12px;color:#51605e;line-height:1.35;
+    display:flex;gap:6px;flex-wrap:wrap
+  }
+  .metaChip{
+    font-size:10px;font-weight:1000;color:#51605e;background:rgba(0,0,0,.02);
+    border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:5px 7px
+  }
+  .planPrice{
+    width:100%;
+    margin-left:26px;
+    margin-top:6px;
+    text-align:right;
+    font-weight:1000;color:#1f2a28;font-size:13px;
+    white-space:nowrap;
+  }
+
+  /* CTA row */
+  .ctaRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .btn{
+    width:100%;border:0;border-radius:999px;padding:12px 16px;background:var(--brand);
+    color:#fff;font-weight:900;font-size:14px;cursor:pointer
+  }
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .btn.secondary{background:#fff;color:#1f2a28;border:1px solid var(--line)}
+  .btn.inline{width:auto}
+
+  .err{margin-top:10px;color:#8f2727;font-weight:800;font-size:13px}
+  .ok{margin-top:10px;color:#0a6c67;font-weight:800;font-size:13px}
+
+  /* Mobile: keep Continue visible (Step 1 + Step 2) */
+  @media(max-width:720px){
+    #panel1 .ctaRow, #panel2 .ctaRow{
+      position: sticky;
+      bottom: 0;
+      z-index: 5;
+      background: rgba(246,248,247,.92);
+      backdrop-filter: blur(6px);
+      border-top: 1px solid rgba(0,0,0,.08);
+      margin-left:-16px;
+      margin-right:-16px;
+      padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+      box-shadow: 0 -10px 22px rgba(0,0,0,.05);
+    }
+    /* breathing room so list bottom isn't hidden behind sticky bar */
+    #panel1 .pickList{margin-bottom:12px}
+    #panel2 .planBox{margin-bottom:12px}
+    #panel2{padding-bottom:10px}
+  }
+
+  /* loader */
+  .qa-loader{position:fixed;inset:0;display:none;place-items:center;background:rgba(246,248,247,.82);backdrop-filter:blur(2px);z-index:9999}
+  .qa-loader.on{display:grid}
+  .spin{width:34px;height:34px;border-radius:50%;border:3px solid rgba(11,122,117,.25);border-top-color:var(--brand);animation:rot 1s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+
+  /* modal */
+  .qa-modal{position:fixed;inset:0;display:none;place-items:center;padding:18px;background:rgba(31,42,40,.45);backdrop-filter:blur(2px);z-index:10000}
+  .qa-modal.on{display:grid}
+  .qa-modalCard{
+    width:min(520px, 100%); background:#fff; border:1px solid var(--line);
+    border-radius:18px; box-shadow:0 18px 44px rgba(0,0,0,.18);
+    padding:14px;
+  }
+  .qa-modalTitle{margin:0 0 6px;font-size:16px}
+  .qa-modalMsg{margin:0;color:#51605e;line-height:1.5;font-size:13px}
+  .qa-modalBtns{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+  .qa-miniBtn{
+    border:1px solid var(--line);background:#fff;color:#1f2a28;
+    padding:10px 12px;border-radius:999px;font-weight:1000;font-size:13px;cursor:pointer
+  }
+  .qa-miniBtn.primary{background:var(--brand);color:#fff;border-color:transparent}
+  .qa-miniBtn:hover{box-shadow:0 8px 18px rgba(0,0,0,.08)}
+
+  /* Desktop/Wide screens */
+  @media (min-width: 721px){
+    .pickRow{ align-items:center; }
+    .pickTitle, .pickMeta{
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      word-break:normal;
+    }
+
+    .planRow{
+      flex-wrap:nowrap;
+      padding:12px;
+      gap:12px;
+      align-items:flex-start;
+    }
+    .radioDot{ width:18px;height:18px; }
+    .radioDot::after{ width:10px;height:10px; }
+
+    .planName{
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      word-break:normal;
+    }
+    .planMeta{ margin-top:6px; gap:10px; }
+    .metaChip{ font-size:11px; padding:6px 8px; }
+
+    .planPrice{
+      width:auto;
+      margin-left:0;
+      margin-top:2px;
+      text-align:left;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="qa-loader" id="loader"><div class="spin" aria-label="Loading"></div></div>
+
+<!-- Modal -->
+<div class="qa-modal" id="modal" aria-hidden="true">
+  <div class="qa-modalCard" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <h3 class="qa-modalTitle" id="mTitle">Notice</h3>
+    <p class="qa-modalMsg" id="mMsg">—</p>
+    <div class="qa-modalBtns" id="mBtns"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="card" id="card">
+
+    <!-- ===== HERO (shared across steps) ===== -->
+    <div class="hero" id="hero">
+      <div class="heroTop">
+        <div class="heroLeft">
+          <div class="heroKicker">Question Bank • Plans</div>
+          <h1>QAcademy NMC Licensure Prep — Question Bank Plans</h1>
+          <p class="sub">Pick a program, choose a plan, then pay securely. If you’re new, you’ll complete account setup after payment.</p>
+          <p class="toplink"><a href="#" id="loginLinkTop">Already have an account? Log in</a></p>
+        </div>
+
+        <div class="heroPrice" id="heroPriceWrap" style="display:none">
+          <div class="heroPriceLabel" id="heroPriceLabel">Least → Highest</div>
+          <div class="heroPriceValue" id="heroPrice">—</div>
+          <div class="heroPriceSub" id="heroPriceSub">Single course / Full program access</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wizTop">
+      <div class="stepPills" aria-label="Progress">
+        <div class="pill" id="pill1">1</div>
+        <div class="pill" id="pill2">2</div>
+        <div class="pill" id="pill3">3</div>
+      </div>
+      <div class="wizSummary" id="wizSummary">Step 1: Choose a program</div>
+    </div>
+
+    <!-- ========== STEP 1: PROGRAM ========== -->
+    <div class="panel on" id="panel1">
+      <div class="panelTitle">Choose your program</div>
+      <p class="panelSub">Use the search to find your program quickly.</p>
+
+      <div class="searchRow">
+        <input id="programSearch" placeholder="Search program… (e.g., RN, RM, NAC)" autocomplete="off" />
+        <div class="miniTag" id="programCount">0</div>
+      </div>
+
+      <div class="pickList" id="programList"></div>
+
+      <div class="ctaRow">
+        <button class="btn" id="toStep2" disabled>Continue</button>
+      </div>
+
+      <div class="err" id="err1"></div>
+    </div>
+
+    <!-- ========== STEP 2: PLAN ========== -->
+    <div class="panel" id="panel2">
+      <div class="miniBar">
+        <div><span class="miniKey">Program:</span> <span class="miniVal" id="selProgramName">—</span></div>
+        <a href="#" class="miniLink" id="changeProgram">Change</a>
+      </div>
+
+      <div class="panelTitle">Choose your plan</div>
+      <p class="panelSub">Suggested plans for your program appear first. If you only want General Paper, choose the General Paper plan.</p>
+
+      <div class="planBox" id="planBox"></div>
+
+      <div class="ctaRow">
+        <button class="btn secondary inline" id="backTo1">Back</button>
+        <button class="btn" id="toStep3" disabled style="flex:1">Continue</button>
+      </div>
+
+      <div class="err" id="err2"></div>
+    </div>
+
+    <!-- ========== STEP 3: PAY-FIRST DETAILS ========== -->
+    <div class="panel" id="panel3">
+      <div class="miniBar">
+        <div><span class="miniKey">Program:</span> <span class="miniVal" id="sumProgram">—</span></div>
+        <div><span class="miniKey">Plan:</span> <span class="miniVal" id="sumPlan">—</span></div>
+        <a href="#" class="miniLink" id="changePlan">Change</a>
+      </div>
+
+      <div class="panelTitle">Enter your email</div>
+      <p class="panelSub">We’ll use this email to activate your access. If you’re new, you’ll complete setup on the confirmation page after payment.</p>
+
+      <div class="row">
+        <div>
+          <label>Email</label>
+          <input id="email" type="email" autocomplete="email" />
+        </div>
+        <div>
+          <label>Confirm email</label>
+          <input id="email2" type="email" autocomplete="email" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Phone (optional)</label>
+          <input id="phone" autocomplete="tel" />
+          <div class="hint">Optional. Use a WhatsApp / MoMo number if you want.</div>
+        </div>
+        <div></div>
+      </div>
+
+      <div class="ctaRow">
+        <button class="btn secondary inline" id="backTo2">Back</button>
+        <button class="btn" id="payBtn" style="flex:1">Continue to payment</button>
+      </div>
+
+      <div class="err" id="err"></div>
+      <div class="ok" id="ok"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ====== CONFIG ======
+  const PAYMENTS_URL = 'https://script.google.com/macros/s/AKfycbyvUw_eEGzHZd0wBsuKDNckQNFXJU-Xhr3T6J8pAuMRlgQbDhVy2nqp9H_QpeUQAI5I/exec';
+
+  // Clone-safe defaults (edit slugs if yours differ)
+  const LOGIN_SLUG   = '/p/login_23.html';
+  const SUCCESS_SLUG = '/p/payment-confirmation.html';
+  const LOGIN_URL   = location.origin + LOGIN_SLUG;
+  const SUCCESS_URL = location.origin + SUCCESS_SLUG;
+
+  // IMPORTANT: hide Premium Prep items on this page
+  const HIDE_PREP_SUFFIX = '_2026_PREP';
+
+  // ====== STATE ======
+  let META = { programs:[], products:[] };
+  let step = 1;
+
+  let selectedProgramId = '';
+  let selectedProgramName = '';
+  let selectedProductId = '';
+  let selectedProductName = '';
+  let selectedProductPriceMinor = 0;
+  let selectedProductCurrency = 'GHS';
+
+  // Hero pricing
+  let GLOBAL_RANGE = null;       // {minMinor, maxMinor}
+  let PROGRAMS_WITH_PLANS = null; // Set(program_id) that actually has NON-PREP products
+
+  const $ = (id)=>document.getElementById(id);
+  const loaderOn  = ()=>$('loader').classList.add('on');
+  const loaderOff = ()=>$('loader').classList.remove('on');
+
+  const setErr = (m)=>{ $('err').textContent = m||''; $('ok').textContent=''; };
+  const setOk  = (m)=>{ $('ok').textContent = m||''; $('err').textContent=''; };
+
+  function setStepErr(n, msg){
+    const el = $('err'+n);
+    if(el) el.textContent = msg || '';
+  }
+
+  function scrollIntoViewNice(el){
+    if(!el) return;
+    try{ el.scrollIntoView({ behavior:'smooth', block:'center' }); } catch(_){}
+  }
+  function focusField(id){
+    const el = $(id);
+    if(!el) return;
+    el.focus();
+    scrollIntoViewNice(el);
+  }
+  function showInlineError(msg, fieldId){
+    setErr(msg);
+    if(fieldId) focusField(fieldId);
+    else scrollIntoViewNice($('err'));
+  }
+
+  // ====== Modal ======
+  function modalClose(){
+    $('modal').classList.remove('on');
+    $('modal').setAttribute('aria-hidden','true');
+    $('mBtns').innerHTML = '';
+  }
+  function modalShow(title, msg, buttons){
+    $('mTitle').textContent = title || 'Notice';
+    $('mMsg').textContent = msg || '';
+    const wrap = $('mBtns');
+    wrap.innerHTML = '';
+
+    (buttons || []).forEach(b=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'qa-miniBtn' + (b.primary ? ' primary' : '');
+      btn.textContent = b.text || 'OK';
+      btn.addEventListener('click', ()=>{
+        if (b.close !== false) modalClose();
+        if (typeof b.onClick === 'function') b.onClick();
+      });
+      wrap.appendChild(btn);
+    });
+
+    if(!buttons || !buttons.length){
+      const btn = document.createElement('button');
+      btn.type='button';
+      btn.className='qa-miniBtn primary';
+      btn.textContent='OK';
+      btn.addEventListener('click', modalClose);
+      wrap.appendChild(btn);
+    }
+
+    $('modal').classList.add('on');
+    $('modal').setAttribute('aria-hidden','false');
+  }
+
+  $('modal').addEventListener('click', (e)=>{
+    if(e.target === $('modal')) modalClose();
+  });
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && $('modal').classList.contains('on')) modalClose();
+  });
+
+  function addQuery(url, key, value){
+    const u = new URL(url, location.href);
+    u.searchParams.set(key, value);
+    return u.toString();
+  }
+  function goLogin(){
+    const back = location.href;
+    let url = LOGIN_URL;
+    url = addQuery(url, 'next', back);
+    url = addQuery(url, 'return', back);
+    location.href = url;
+  }
+
+  const fmtMoney = (minor, cur)=>{
+    const v = Number(minor||0)/100;
+    try{ return new Intl.NumberFormat('en-GB',{style:'currency',currency:cur||'GHS'}).format(v); }
+    catch(_){ return (cur||'GHS') + ' ' + v.toFixed(2); }
+  };
+
+  function isEmailLikelyValid(email){
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || '');
+  }
+
+  async function apiGetMeta(){
+    const url = PAYMENTS_URL + '?action=meta&ts=' + Date.now();
+    const r = await fetch(url, { method:'GET' });
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error || 'meta_failed');
+    return j;
+  }
+
+  function escapeHtml(s){
+    return String(s||'').replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
+  }
+
+  function programIconSvg(){
+    return `
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 6.5C4 5.12 5.12 4 6.5 4h11C18.88 4 20 5.12 20 6.5v11c0 1.38-1.12 2.5-2.5 2.5h-11C5.12 20 4 18.88 4 17.5v-11Z" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M8 12h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M8 9h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    `;
+  }
+
+  // ===== hide PREP products (RN_2026_PREP etc.) =====
+  function isHiddenPrepProductId(id){
+    const s = String(id||'').toUpperCase().trim();
+    return !!(s && s.endsWith(HIDE_PREP_SUFFIX));
+  }
+
+  // ===== Hero pricing (context-aware) =====
+  function toProductsNormalized(list){
+    return (list || []).map(p=>{
+      const id = (p.product_id || '').toString().trim().toUpperCase();
+      return {
+        product_id: id,
+        name: p.name || id,
+        price_minor: Number(p.price_minor||0),
+        currency: (p.currency || 'GHS').toString().toUpperCase(),
+        courses_included: p.courses_included,
+        duration_days: p.duration_days,
+        kind: p.kind,
+        status: p.status
+      };
+    })
+    .filter(x=>x.product_id)
+    .filter(x=>!isHiddenPrepProductId(x.product_id)); // <-- key filter
+  }
+
+  function computeMinMax(products){
+    let min = null, max = null;
+    (products || []).forEach(p=>{
+      const pm = Number(p.price_minor || 0);
+      if(!isFinite(pm) || pm <= 0) return; // ignore free/invalid
+      if(min === null || pm < min) min = pm;
+      if(max === null || pm > max) max = pm;
+    });
+    if(min === null || max === null) return null;
+    return { minMinor:min, maxMinor:max };
+  }
+
+  function renderHeroPricing(){
+    const wrap  = $('heroPriceWrap');
+    const label = $('heroPriceLabel');
+    const val   = $('heroPrice');
+    if(!wrap || !label || !val) return;
+
+    // Step 3: show exact selected plan price
+    if(selectedProductId && selectedProductPriceMinor > 0){
+      label.textContent = 'Selected price';
+      val.textContent = fmtMoney(selectedProductPriceMinor, selectedProductCurrency || 'GHS');
+      wrap.style.display = '';
+      return;
+    }
+
+    // Step 2: program-specific range
+    let range = null;
+    if(selectedProgramId){
+      const groups = groupProductsForProgram(selectedProgramId);
+      const list = (groups.recommended || []).concat(groups.other || []);
+      range = computeMinMax(list);
+    } else {
+      // Step 1: global range (non-PREP only)
+      range = GLOBAL_RANGE;
+    }
+
+    if(!range){
+      wrap.style.display = 'none';
+      return;
+    }
+
+label.textContent = 'Least \u2192 Highest'; // → safe in Blogger script
+
+    if(range.minMinor === range.maxMinor){
+      label.textContent = 'Price';
+      val.textContent = fmtMoney(range.minMinor, 'GHS');
+    } else {
+val.textContent = fmtMoney(range.minMinor, 'GHS') + ' \u2014 ' + fmtMoney(range.maxMinor, 'GHS'); // — safe
+    }
+
+    wrap.style.display = '';
+  }
+
+  function computeProgramsWithPlans(){
+    const prods = toProductsNormalized(META.products || []);
+    const progs = (META.programs || []).map(p=>{
+      const pid = String(p.program_id || '').trim().toUpperCase();
+      return pid;
+    }).filter(Boolean);
+
+    const set = new Set();
+    progs.forEach(pid=>{
+      const has = prods.some(pr => pr.product_id === pid || pr.product_id.startsWith(pid + '_'));
+      if(has) set.add(pid);
+    });
+    PROGRAMS_WITH_PLANS = set;
+  }
+
+  // ----- Programs (searchable list) -----
+  function getProgramItemsFiltered(){
+    const q = ($('programSearch').value || '').trim().toLowerCase();
+
+    let items = (META.programs || []).map(p=>{
+      const pid  = (p.program_id || '').trim().toUpperCase();
+      const name = p.program_name || p.name || pid || '—';
+      return { program_id: pid, program_name: name };
+    }).filter(x=>x.program_id);
+
+    // Hide programs that only have PREP products (or no non-PREP plans)
+    if(PROGRAMS_WITH_PLANS && PROGRAMS_WITH_PLANS.size){
+      items = items.filter(x => PROGRAMS_WITH_PLANS.has(x.program_id));
+    }
+
+    if(!q) return items.sort((a,b)=>String(a.program_name).localeCompare(String(b.program_name)));
+    return items.filter(x=>{
+      return (x.program_id || '').toLowerCase().includes(q) || (x.program_name || '').toLowerCase().includes(q);
+    }).sort((a,b)=>String(a.program_name).localeCompare(String(b.program_name)));
+  }
+
+  function renderPrograms(){
+    const list = $('programList');
+    list.innerHTML = '';
+
+    const items = getProgramItemsFiltered();
+    $('programCount').textContent = items.length + ' programs';
+
+    if(!items.length){
+      const empty = document.createElement('div');
+      empty.style.padding = '12px';
+      empty.style.color = '#51605e';
+      empty.style.fontWeight = '900';
+      empty.textContent = 'No programs found. Try a different search.';
+      list.appendChild(empty);
+      $('toStep2').disabled = true;
+      renderHeroPricing();
+      return;
+    }
+
+    items.forEach(p=>{
+      const pid = p.program_id;
+      const name = p.program_name;
+
+      const row = document.createElement('div');
+      row.className = 'pickRow' + (pid === selectedProgramId ? ' on' : '');
+      row.setAttribute('data-program-id', pid);
+
+      row.innerHTML = `
+        <div class="pickIcon">${programIconSvg()}</div>
+        <div class="pickMain">
+          <div class="pickTitle">${escapeHtml(name)}</div>
+          <div class="pickMeta">${escapeHtml(pid)}</div>
+        </div>
+        <div class="pickCheck">✓</div>
+      `;
+
+      row.addEventListener('click', ()=>{
+        selectedProgramId = pid;
+        selectedProgramName = name;
+
+        // reset plan selection when program changes
+        selectedProductId = '';
+        selectedProductName = '';
+        selectedProductPriceMinor = 0;
+        selectedProductCurrency = 'GHS';
+
+        setStepErr(1,'');
+        setStepErr(2,'');
+        updateUI();
+        renderPrograms();
+        renderProducts();
+        renderHeroPricing();
+      });
+
+      list.appendChild(row);
+    });
+
+    $('toStep2').disabled = !selectedProgramId;
+    renderHeroPricing();
+  }
+
+  // ----- Products grouping (FULL first) -----
+  function isFullPlan(p){
+    const id = String(p && p.product_id || '').toUpperCase();
+    return id.includes('_FULL');
+  }
+
+  function sortFullFirstThenName(a,b){
+    const af = isFullPlan(a), bf = isFullPlan(b);
+    if(af !== bf) return af ? -1 : 1;
+    return String(a.name||'').localeCompare(String(b.name||''));
+  }
+
+  function groupProductsForProgram(programId){
+    const pid = (programId||'').toUpperCase();
+
+    // already filtered to non-PREP products
+    const all = toProductsNormalized(META.products || []);
+
+    const programMatch = [];
+    const gpOnly = [];
+    const other = [];
+    const seen = new Set();
+
+    all.forEach(x=>{
+      if(seen.has(x.product_id)) return;
+      seen.add(x.product_id);
+
+      const id = x.product_id;
+
+      // strict match: avoid RM matching RMHN etc.
+      const matchesProgram = (pid && (id === pid || id.startsWith(pid + '_')));
+
+      if (matchesProgram) programMatch.push(x);
+      else if (id === 'GP_ONLY') gpOnly.push(x);
+      else other.push(x);
+    });
+
+    programMatch.sort(sortFullFirstThenName);
+    other.sort(sortFullFirstThenName);
+
+    const recommended = programMatch.concat(gpOnly);
+    return { recommended, other };
+  }
+
+  function formatProductMetaChips(p){
+    const chips = [];
+
+    const dur = Number(p.duration_days||0);
+    if (dur > 0) chips.push('Duration: ' + dur + ' days');
+
+    const ci = (p.courses_included || '').toString().trim();
+    if (ci) chips.push('Includes: ' + ci);
+
+    const kind = (p.kind || '').toString().trim();
+    if (kind) chips.push('Type: ' + kind);
+
+    return chips;
+  }
+
+  function renderProducts(){
+    const box = $('planBox');
+    box.innerHTML = '';
+
+    const groups = groupProductsForProgram(selectedProgramId);
+
+    const addSection = (title, items)=>{
+      const head = document.createElement('div');
+      head.className = 'planSection';
+      head.textContent = title;
+      box.appendChild(head);
+
+      items.forEach(p=>{
+        box.appendChild(makePlanRow(p));
+      });
+    };
+
+    if(groups.recommended.length){
+      addSection('Recommended', groups.recommended);
+    }
+    if(groups.other.length){
+      addSection('Other plans', groups.other);
+    }
+
+    $('toStep3').disabled = !selectedProductId;
+    renderHeroPricing();
+  }
+
+  function makePlanRow(p){
+    const id = p.product_id;
+    const name = p.name || id;
+    const price = fmtMoney(p.price_minor, p.currency);
+
+    const chips = formatProductMetaChips(p);
+
+    const row = document.createElement('div');
+    row.className = 'planRow' + (id === selectedProductId ? ' on' : '');
+    row.setAttribute('data-product-id', id);
+
+    row.innerHTML = `
+      <div class="radioDot" aria-hidden="true"></div>
+      <div class="planMain">
+        <div class="planName">${escapeHtml(name)}</div>
+        <div class="planMeta" ${chips.length ? '' : 'style="display:none"'}>${chips.map(c=>`<span class="metaChip">${escapeHtml(c)}</span>`).join('')}</div>
+      </div>
+      <div class="planPrice">${escapeHtml(price)}</div>
+    `;
+
+    row.addEventListener('click', ()=>{
+      selectedProductId = id;
+      selectedProductName = name;
+      selectedProductPriceMinor = p.price_minor;
+      selectedProductCurrency = p.currency || 'GHS';
+      setStepErr(2,'');
+      updateUI();
+      renderProducts();
+      renderHeroPricing();
+    });
+
+    return row;
+  }
+
+  // ----- Steps / Header -----
+  function setStep(n){
+    step = n;
+    $('panel1').classList.toggle('on', n===1);
+    $('panel2').classList.toggle('on', n===2);
+    $('panel3').classList.toggle('on', n===3);
+
+    $('pill1').className = 'pill' + (n===1 ? ' on' : (selectedProgramId ? ' done' : ''));
+    $('pill2').className = 'pill' + (n===2 ? ' on' : (selectedProductId ? ' done' : ''));
+    $('pill3').className = 'pill' + (n===3 ? ' on' : '');
+
+    $('selProgramName').textContent = selectedProgramName || selectedProgramId || '—';
+    $('sumProgram').textContent = selectedProgramName || selectedProgramId || '—';
+    $('sumPlan').textContent = selectedProductName || selectedProductId || '—';
+
+    if(n===1) $('wizSummary').textContent = 'Step 1: Choose a program';
+    else if(n===2) $('wizSummary').textContent = 'Step 2: Choose a plan';
+    else $('wizSummary').textContent = 'Step 3: Payment details';
+
+    if(n !== 3){ setErr(''); setOk(''); }
+
+    renderHeroPricing();
+    scrollIntoViewNice($('card'));
+  }
+
+  function updateUI(){
+    $('toStep2').disabled = !selectedProgramId;
+    $('toStep3').disabled = !selectedProductId;
+  }
+
+  async function postForm(payload){
+    const form = new URLSearchParams();
+    Object.keys(payload || {}).forEach(k => {
+      const v = payload[k];
+      if (v === undefined || v === null) return;
+      form.append(k, String(v));
+    });
+
+    const r = await fetch(PAYMENTS_URL, { method:'POST', body: form });
+    const txt = await r.text();
+    try { return JSON.parse(txt); }
+    catch(_) { return { ok:false, error:'bad_json_response', raw: txt.slice(0, 400) }; }
+  }
+
+  function valPayFirst(){
+    const email  = ($('email').value || '').trim().toLowerCase();
+    const email2 = ($('email2').value || '').trim().toLowerCase();
+    const phone_number = ($('phone').value || '').trim();
+
+    const program_id = (selectedProgramId || '').toUpperCase();
+    const product_id = (selectedProductId || '').toUpperCase();
+
+    if(!program_id) return { ok:false, msg:'Please select your program.', field:null, step:1 };
+    if(!product_id) return { ok:false, msg:'Please select your plan.', field:null, step:2 };
+
+    if(!email)  return { ok:false, msg:'Please enter your email address.', field:'email', step:3 };
+    if(!email2) return { ok:false, msg:'Please confirm your email address.', field:'email2', step:3 };
+    if(!isEmailLikelyValid(email)) return { ok:false, msg:'Please enter a valid email address.', field:'email', step:3 };
+    if(email !== email2) return { ok:false, msg:'Email addresses do not match.', field:'email2', step:3 };
+
+    if(phone_number && phone_number.replace(/[^\d]/g,'').length < 7){
+      return { ok:false, msg:'Phone number looks too short. Please check it, or leave it blank.', field:'phone', step:3 };
+    }
+
+    return { ok:true, email, phone_number, program_id, product_id };
+  }
+
+  // ====== init ======
+  async function init(){
+    loaderOn();
+    try{
+      const meta = await apiGetMeta();
+      META = meta;
+
+      // programs list should reflect non-PREP products
+      computeProgramsWithPlans();
+
+      // global least->highest across ALL paid NON-PREP products
+      const allProducts = toProductsNormalized(META.products || []);
+      GLOBAL_RANGE = computeMinMax(allProducts);
+
+      const qs = new URLSearchParams(location.search);
+      const pid = (qs.get('program_id')||localStorage.getItem('qa_join_program')||'').toUpperCase();
+      const prod = (qs.get('product_id')||localStorage.getItem('qa_join_product')||'').toUpperCase();
+
+      if(pid){
+        const pObj = (META.programs||[]).find(x => (x.program_id||'').toUpperCase() === pid);
+        selectedProgramId = pid;
+        selectedProgramName = pObj ? (pObj.program_name || pObj.name || pid) : pid;
+
+        // if program has no non-PREP plans, reset
+        if(PROGRAMS_WITH_PLANS && !PROGRAMS_WITH_PLANS.has(selectedProgramId)){
+          selectedProgramId = '';
+          selectedProgramName = '';
+        }
+      }
+
+      renderPrograms();
+
+      if(selectedProgramId){
+        renderProducts();
+
+        if(prod){
+          const all = groupProductsForProgram(selectedProgramId);
+          const allList = all.recommended.concat(all.other);
+
+          const found = allList.find(x => x.product_id === prod);
+          if(found){
+            selectedProductId = found.product_id;
+            selectedProductName = found.name;
+            selectedProductPriceMinor = found.price_minor;
+            selectedProductCurrency = found.currency || 'GHS';
+            renderProducts();
+          }
+        }
+      }
+
+      if(selectedProgramId && selectedProductId) setStep(3);
+      else if(selectedProgramId) setStep(2);
+      else setStep(1);
+
+      updateUI();
+      setStepErr(1,'');
+      setStepErr(2,'');
+      setErr('');
+      renderHeroPricing();
+
+    } catch(e){
+      setStepErr(1, 'Could not load programs/plans. Please refresh. (' + (e.message||e) + ')');
+      setStep(1);
+      renderHeroPricing();
+    } finally{
+      loaderOff();
+    }
+  }
+
+  // ====== events ======
+  $('loginLinkTop').addEventListener('click', (e)=>{ e.preventDefault(); goLogin(); });
+
+  $('programSearch').addEventListener('input', ()=> renderPrograms());
+
+  $('toStep2').addEventListener('click', ()=>{
+    if(!selectedProgramId){
+      setStepErr(1,'Please choose a program to continue.');
+      scrollIntoViewNice($('err1'));
+      return;
+    }
+    localStorage.setItem('qa_join_program', selectedProgramId);
+    renderProducts();
+    setStep(2);
+  });
+
+  $('toStep3').addEventListener('click', ()=>{
+    if(!selectedProductId){
+      setStepErr(2,'Please choose a plan to continue.');
+      scrollIntoViewNice($('err2'));
+      return;
+    }
+    localStorage.setItem('qa_join_product', selectedProductId);
+    setStep(3);
+  });
+
+  $('backTo1').addEventListener('click', ()=>setStep(1));
+  $('backTo2').addEventListener('click', ()=>setStep(2));
+
+  $('changeProgram').addEventListener('click', (e)=>{ e.preventDefault(); setStep(1); });
+  $('changePlan').addEventListener('click', (e)=>{ e.preventDefault(); setStep(2); });
+
+  // Enter key behaviour
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' && !$('modal').classList.contains('on')){
+      if(step === 1) $('toStep2').click();
+      else if(step === 2) $('toStep3').click();
+      else if(step === 3) $('payBtn').click();
+    }
+  });
+
+  // ====== Payment handler (PAY-FIRST) ======
+  async function runPayInitQuick(){
+    setErr('');
+    setOk('');
+
+    const v = valPayFirst();
+    if(!v.ok){
+      if(v.step === 1){
+        setStepErr(1, v.msg);
+        setStep(1);
+        return;
+      }
+      if(v.step === 2){
+        setStepErr(2, v.msg);
+        setStep(2);
+        return;
+      }
+      showInlineError(v.msg, v.field);
+      return;
+    }
+
+    $('payBtn').disabled = true;
+    loaderOn();
+    try{
+      const payload = {
+        action:'pay_init_quick',
+        email: v.email,
+        product_id: v.product_id,
+        program_id: v.program_id,
+        phone_number: v.phone_number || '',
+        callback_url: SUCCESS_URL
+      };
+
+      const res = await postForm(payload);
+
+      if(!res.ok){
+        const msg = (res.error || 'Please try again.');
+        modalShow('Could not start payment', msg, [{ text:'Try again', primary:true }]);
+        return;
+      }
+
+      if(!res.authorization_url){
+        modalShow(
+          'Payment session error',
+          'Payment session could not be created. Please try again.',
+          [{ text:'Try again', primary:true }]
+        );
+        return;
+      }
+
+      // Store context for confirmation / recovery
+      localStorage.setItem('qa_last_reference', res.reference || '');
+      localStorage.setItem('qa_last_email', res.email || v.email);
+      localStorage.setItem('qa_last_product_id', res.product_id || v.product_id);
+
+      localStorage.setItem('qa_join_program', selectedProgramId || v.program_id || '');
+      localStorage.setItem('qa_join_product', selectedProductId || v.product_id || '');
+
+      if (v.phone_number) localStorage.setItem('qa_last_phone', v.phone_number);
+
+      location.href = res.authorization_url;
+
+    } catch(e){
+      modalShow('Network error', 'Please check your connection and try again.', [
+        { text:'Try again', primary:true }
+      ]);
+    } finally{
+      $('payBtn').disabled = false;
+      loaderOff();
+    }
+  }
+
+  $('payBtn').addEventListener('click', runPayInitQuick);
+
+  // ====== bootstrap ======
+  init();
+</script>
+</body>
+</html>
