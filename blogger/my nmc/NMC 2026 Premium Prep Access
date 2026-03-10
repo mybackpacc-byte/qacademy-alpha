@@ -1,0 +1,999 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>QAcademy — NMC Licensure 2026 Premium Prep</title>
+<style>
+  :root{
+    --brand:#0b7a75;--muted:#859998;--ink:#1f2a28;--bg:#f6f8f7;--card:#fff;--line:rgba(0,0,0,.08);
+
+    /* NEW: soft promo pink (not “error” red) */
+    --promoPinkBg: rgba(255, 105, 180, .10);
+    --promoPinkBd: rgba(255, 105, 180, .22);
+    --promoPinkGlow: rgba(255, 105, 180, .18);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:920px;margin:26px auto;padding:0 14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:0 10px 24px rgba(0,0,0,.06);padding:16px}
+
+  h1{margin:0 0 8px;font-size:20px}
+  .sub{color:#51605e;margin:0 0 12px;line-height:1.5}
+  .toplink{margin:0;font-size:13px;color:#51605e}
+  .toplink a{color:var(--brand);font-weight:900;text-decoration:none}
+  .toplink a:hover{text-decoration:underline}
+
+  /* ===== HERO (shared block) ===== */
+  .hero{
+    position:relative;
+    border:1px solid rgba(0,0,0,.08);
+    border-radius:18px;
+    padding:14px;
+    margin-bottom:14px;
+    background:
+      radial-gradient(900px 240px at 10% 0%, rgba(11,122,117,.10), transparent 60%),
+      radial-gradient(900px 240px at 90% 0%, rgba(133,153,152,.10), transparent 60%),
+      #fff;
+    box-shadow:0 10px 22px rgba(0,0,0,.04);
+    overflow:hidden;
+  }
+
+  /* NEW: premium glow edges (subtle) */
+  .hero::before{
+    content:"";
+    position:absolute;inset:-2px;
+    border-radius:20px;
+    background: linear-gradient(135deg, rgba(11,122,117,.35), rgba(255,105,180,.25), rgba(133,153,152,.28));
+    filter: blur(10px);
+    opacity:.45;
+    z-index:0;
+    pointer-events:none;
+  }
+  .hero::after{
+    content:"";
+    position:absolute;inset:0;
+    border-radius:18px;
+    background: linear-gradient(135deg, rgba(11,122,117,.06), rgba(255,105,180,.04));
+    z-index:0;
+    pointer-events:none;
+  }
+  .hero > *{position:relative; z-index:1}
+
+  .heroTop{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+  .heroLeft{min-width:260px;flex:1}
+  .heroKicker{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:12px;font-weight:1000;color:var(--brand);
+    background:rgba(11,122,117,.08);
+    border:1px solid rgba(11,122,117,.18);
+    border-radius:999px;
+    padding:6px 10px;
+    margin-bottom:10px;
+  }
+  .hero h1{font-size:22px;margin:0 0 6px}
+  .hero .sub{margin:0 0 10px}
+
+  /* NEW: pink promo price card */
+  .heroPrice{
+    margin-left:auto;
+    border:1px solid var(--promoPinkBd);
+    background:
+      radial-gradient(260px 120px at 20% 15%, rgba(255,255,255,.65), transparent 60%),
+      var(--promoPinkBg);
+    border-radius:16px;
+    padding:10px 12px;
+    min-width:170px;
+    text-align:right;
+    box-shadow: 0 10px 22px rgba(0,0,0,.05), 0 0 0 4px rgba(255,105,180,.06);
+  }
+  .heroPriceLabel{font-size:11px;color:#6b7b7a;font-weight:900}
+  .heroPriceValue{font-size:18px;font-weight:1000;color:#1f2a28;margin-top:2px}
+  .heroPriceSub{font-size:11px;color:#6b7b7a;margin-top:2px}
+
+  .heroCtaRow{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
+  .heroCtaRow .btn{width:auto;flex:1}
+  @media(max-width:720px){
+    .heroPrice{width:100%;text-align:left}
+    .heroCtaRow .btn{width:100%;flex:unset}
+  }
+
+  /* Panels */
+  .panel{display:none}
+  .panel.on{display:block}
+  .panelTitle{margin:8px 0 6px;font-weight:1000}
+  .panelSub{margin:0;color:#51605e;line-height:1.5}
+
+  /* Preflight */
+  .preBox{
+    border:1px solid rgba(0,0,0,.08);
+    background:rgba(0,0,0,.02);
+    border-radius:16px;
+    padding:12px;
+    margin-top:10px;
+  }
+  .preLead{font-weight:1000;margin:0 0 6px}
+  .preSteps{margin:10px 0 0;padding-left:18px;color:#354241;font-size:13px;line-height:1.5}
+  .preSteps li{margin:6px 0}
+  .preFoot{
+    margin-top:10px;
+    border-top:1px dashed rgba(0,0,0,.10);
+    padding-top:10px;
+    color:#51605e;
+    font-size:13px;
+    line-height:1.45;
+  }
+
+  .helpBar{
+    margin-top:10px;
+    display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+    border:1px solid rgba(0,0,0,.08);
+    background:#fff;
+    border-radius:14px;
+    padding:10px;
+  }
+  .helpTxt{font-size:13px;color:#51605e;line-height:1.35}
+  .helpTxt b{color:#1f2a28}
+  .helpBtn{
+    margin-left:auto;
+    border:0;
+    border-radius:999px;
+    padding:10px 12px;
+    background:var(--brand);
+    color:#fff;
+    font-weight:1000;
+    cursor:pointer;
+    text-decoration:none;
+    white-space:nowrap;
+  }
+  .helpBtn.ghost{
+    background:#fff;color:var(--brand);
+    border:1px solid rgba(11,122,117,.35);
+  }
+  @media(max-width:720px){ .helpBtn{width:100%;margin-left:0;text-align:center} }
+
+  /* Program list */
+  .searchRow{display:flex;gap:10px;align-items:center;margin-top:10px}
+  .searchRow input{flex:1}
+  .miniTag{
+    font-size:11px;font-weight:1000;color:#51605e;
+    border:1px solid rgba(0,0,0,.10);background:#fff;border-radius:999px;padding:8px 10px;
+    white-space:nowrap;
+  }
+  .pickList{
+    margin-top:10px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:#fff;
+    overflow:hidden;box-shadow:0 10px 22px rgba(0,0,0,.05);
+  }
+  .pickRow{
+    display:flex;gap:12px;align-items:center;
+    padding:12px 12px;border-bottom:1px solid rgba(0,0,0,.06);
+    cursor:pointer;transition:background .12s ease;
+    background:#fff;
+  }
+  .pickRow:last-child{border-bottom:0}
+  .pickRow:hover{background:rgba(11,122,117,.04)}
+  .pickRow.on{background:rgba(11,122,117,.07)}
+  .pickIcon{
+    width:44px;height:44px;border-radius:14px;
+    border:1px solid rgba(0,0,0,.08);
+    background:linear-gradient(135deg, rgba(11,122,117,.10), rgba(133,153,152,.10));
+    display:grid;place-items:center;flex:0 0 auto;
+  }
+  .pickIcon svg{width:22px;height:22px;opacity:.65}
+  .pickMain{min-width:0;flex:1}
+  .pickTitle{font-weight:1000;color:#1f2a28;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pickMeta{margin-top:4px;font-size:11px;color:#6b7b7a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pickCheck{
+    width:28px;height:28px;border-radius:999px;border:1px solid rgba(0,0,0,.12);
+    display:grid;place-items:center;color:var(--brand);font-weight:1000;
+    background:rgba(255,255,255,.92);
+    opacity:0;transform:scale(.92);transition:opacity .12s ease, transform .12s ease;
+    flex:0 0 auto;
+  }
+  .pickRow.on .pickCheck{opacity:1;transform:scale(1)}
+  @media(max-width:720px){
+    .pickRow{align-items:flex-start}
+    .pickTitle,.pickMeta{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;word-break:break-word}
+    .pickMain{padding-top:2px}
+    .pickCheck{margin-top:6px}
+  }
+
+  /* Plan summary */
+  .summaryBox{
+    margin-top:12px;border:1px solid rgba(0,0,0,.08);border-radius:16px;background:#fff;
+    padding:12px;box-shadow:0 10px 22px rgba(0,0,0,.05);
+  }
+  .sumTop{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+  .sumName{font-weight:1000}
+  .sumPrice{margin-left:auto;font-weight:1000;white-space:nowrap}
+  .sumChips{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{
+    font-size:11px;font-weight:1000;color:#51605e;background:rgba(0,0,0,.02);
+    border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:6px 8px
+  }
+
+  /* NEW: Sticky action bar for Panel 1 (mobile) */
+  .ctaRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  @media(max-width:720px){
+    #panel1 .ctaRow{
+      position: sticky;
+      bottom: 0;
+      z-index: 5;
+      background: rgba(246,248,247,.92);
+      backdrop-filter: blur(6px);
+      border-top: 1px solid rgba(0,0,0,.08);
+      margin-left:-16px;
+      margin-right:-16px;
+      padding:10px 16px calc(10px + env(safe-area-inset-bottom));
+      box-shadow: 0 -10px 22px rgba(0,0,0,.05);
+    }
+    /* give the list breathing room so last items aren't hidden behind sticky bar */
+    #panel1 .pickList{margin-bottom:10px}
+    #panel1{padding-bottom:10px}
+    #panel1 .summaryBox{margin-bottom:10px}
+  }
+
+  /* Inputs */
+  label{display:block;font-size:12px;font-weight:800;color:#445150;margin:12px 0 6px}
+  input{width:100%;padding:12px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:14px;outline:none}
+  input:focus{border-color:rgba(11,122,117,.55);box-shadow:0 0 0 4px rgba(11,122,117,.12)}
+  .hint{font-size:12px;color:#51605e;margin-top:6px;line-height:1.35}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:720px){.row{grid-template-columns:1fr}}
+
+  /* Buttons */
+  .btn{
+    width:100%;border:0;border-radius:999px;padding:12px 16px;background:var(--brand);
+    color:#fff;font-weight:900;font-size:14px;cursor:pointer
+  }
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+  .btn.secondary{background:#fff;color:#1f2a28;border:1px solid var(--line)}
+  .btn.inline{width:auto}
+
+  .err{margin-top:10px;color:#8f2727;font-weight:800;font-size:13px;white-space:pre-line}
+  .ok{margin-top:10px;color:#0a6c67;font-weight:800;font-size:13px;white-space:pre-line}
+
+  /* loader */
+  .qa-loader{position:fixed;inset:0;display:none;place-items:center;background:rgba(246,248,247,.82);backdrop-filter:blur(2px);z-index:9999}
+  .qa-loader.on{display:grid}
+  .spin{width:34px;height:34px;border-radius:50%;border:3px solid rgba(11,122,117,.25);border-top-color:var(--brand);animation:rot 1s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+
+  /* modal */
+  .qa-modal{position:fixed;inset:0;display:none;place-items:center;padding:18px;background:rgba(31,42,40,.45);backdrop-filter:blur(2px);z-index:10000}
+  .qa-modal.on{display:grid}
+  .qa-modalCard{
+    width:min(520px, 100%); background:#fff; border:1px solid var(--line);
+    border-radius:18px; box-shadow:0 18px 44px rgba(0,0,0,.18);
+    padding:14px;
+  }
+  .qa-modalTitle{margin:0 0 6px;font-size:16px}
+  .qa-modalMsg{margin:0;color:#51605e;line-height:1.5;font-size:13px;white-space:pre-line}
+  .qa-modalBtns{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+  .qa-miniBtn{
+    border:1px solid var(--line);background:#fff;color:#1f2a28;
+    padding:10px 12px;border-radius:999px;font-weight:1000;font-size:13px;cursor:pointer
+  }
+  .qa-miniBtn.primary{background:var(--brand);color:#fff;border-color:transparent}
+  .qa-miniBtn:hover{box-shadow:0 8px 18px rgba(0,0,0,.08)}
+
+  /* NEW: Panel 2 compact selected-program header */
+  .summaryCompact{
+    padding:10px 12px;
+    border-radius:14px;
+  }
+  .summaryCompact .sumTop{align-items:center}
+  .summaryCompact .sumName{font-size:13px}
+  .summaryCompact .sumPrice{font-size:13px}
+  .summaryCompact .sumChips{margin-top:8px}
+  .sumToggleRow{
+    margin-top:8px;
+    display:flex;
+    justify-content:flex-end;
+  }
+  .sumToggleBtn{
+    border:1px solid rgba(0,0,0,.10);
+    background:#fff;
+    color:#1f2a28;
+    font-weight:900;
+    font-size:12px;
+    border-radius:999px;
+    padding:7px 10px;
+    cursor:pointer;
+  }
+  .sumToggleBtn:hover{box-shadow:0 8px 18px rgba(0,0,0,.06)}
+</style>
+</head>
+<body>
+<div class="qa-loader" id="loader"><div class="spin" aria-label="Loading"></div></div>
+
+<!-- Modal -->
+<div class="qa-modal" id="modal" aria-hidden="true">
+  <div class="qa-modalCard" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <h3 class="qa-modalTitle" id="mTitle">Notice</h3>
+    <p class="qa-modalMsg" id="mMsg">—</p>
+    <div class="qa-modalBtns" id="mBtns"></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="card" id="card">
+
+    <!-- ===== HERO (shared across panels) ===== -->
+    <div class="hero" id="hero">
+      <div class="heroTop">
+        <div class="heroLeft">
+          <div class="heroKicker">Premium Prep • 2026</div>
+          <h1>QAcademy — NMC Licensure 2026 Premium Prep</h1>
+          <p class="sub">Choose your program, pay securely, then finish setup after payment (takes under 1 minute).</p>
+          <p class="toplink"><a href="#" id="loginLinkTop">Already have an account? Log in</a></p>
+        </div>
+
+        <div class="heroPrice" id="heroPriceWrap" style="display:none">
+          <div class="heroPriceLabel">From</div>
+          <div class="heroPriceValue" id="heroPrice">—</div>
+          <div class="heroPriceSub">Same price across programs</div>
+        </div>
+      </div>
+
+      <!-- Quick-start CTA (only visible on Panel 0) -->
+      <div class="heroCtaRow" id="heroStartRow" style="display:none">
+        <button class="btn" id="startBtnTop">Start subscription</button>
+      </div>
+    </div>
+
+    <!-- ========== PANEL 0: PREFLIGHT ========== -->
+    <div class="panel" id="panel0">
+      <div class="panelTitle">Before you start (read once)</div>
+      <p class="panelSub">This is quick. The main delay is the MoMo approval step.</p>
+
+      <div class="preBox">
+        <p class="preLead">How it works (Pay-first)</p>
+        <ol class="preSteps">
+          <li>Select your <b>program</b> → Continue</li>
+          <li>Enter your <b>email</b> (and phone if you want) → <b>Proceed to payment</b></li>
+          <li>On Paystack: enter/confirm your <b>MoMo number</b></li>
+          <li>Approve on your phone: <b>enter PIN → confirm YES</b></li>
+          <li>After payment, you’ll land on the <b>confirmation page</b> to finish account setup.</li>
+        </ol>
+
+        <div class="preFoot">
+          If activation delays, screenshot the page showing your <b>reference</b> and WhatsApp support.
+          <br><br>
+          Use a valid email (we’ll send confirmation).
+        </div>
+      </div>
+
+      <!-- Original CTA kept (as requested) -->
+      <div class="ctaRow">
+        <button class="btn" id="startBtn">Start subscription</button>
+      </div>
+
+      <div class="helpBar" id="helpBar0" style="display:none">
+        <div class="helpTxt">
+          Need help? WhatsApp support: <b id="helpNumTxt0">—</b>
+          <div style="margin-top:4px;font-size:12px;color:#6b7b7a">Send your email + payment reference if available.</div>
+        </div>
+        <a class="helpBtn" id="helpBtn0" href="#" rel="noopener">WhatsApp support</a>
+        <a class="helpBtn ghost" id="helpCopy0" href="#" rel="noopener">Copy number</a>
+      </div>
+    </div>
+
+    <!-- ========== PANEL 1: PROGRAM ========== -->
+    <div class="panel on" id="panel1">
+      <div class="panelTitle">Choose your program</div>
+      <p class="panelSub">Only 2026 Prep plans are shown here.</p>
+
+      <div class="searchRow">
+        <input id="programSearch" placeholder="Search program… (e.g., RN, RM, RPHN, RMHN)" autocomplete="off" />
+        <div class="miniTag" id="programCount">0</div>
+      </div>
+
+      <div class="pickList" id="programList"></div>
+
+      <div class="summaryBox" id="planSummary" style="display:none">
+        <div class="sumTop">
+          <div class="sumName" id="sumName">—</div>
+          <div class="sumPrice" id="sumPrice">—</div>
+        </div>
+        <div class="sumChips" id="sumChips"></div>
+      </div>
+
+      <!-- Sticky on mobile -->
+      <div class="ctaRow" id="panel1Cta">
+        <button class="btn secondary inline" id="backToPreflight">Back</button>
+        <button class="btn" id="toPay" style="flex:1" disabled>Continue</button>
+      </div>
+
+      <div class="err" id="err1"></div>
+    </div>
+
+    <!-- ========== PANEL 2: PAY-FIRST DETAILS ========== -->
+    <div class="panel" id="panel2">
+      <div class="summaryBox summaryCompact" id="sumBox2" style="margin-top:0">
+        <div class="sumTop">
+          <div class="sumName" id="sumProgramLine">—</div>
+          <div class="sumPrice" id="sumPrice2">—</div>
+        </div>
+
+        <!-- NEW: chips are optional (hidden by default) -->
+        <div class="sumChips" id="sumChips2" style="display:none"></div>
+
+        <div class="sumToggleRow">
+          <button type="button" class="sumToggleBtn" id="sumToggleBtn">Details</button>
+        </div>
+      </div>
+
+      <div class="panelTitle" style="margin-top:12px">Proceed to payment</div>
+      <p class="panelSub">Enter your email (and phone if you want). You’ll finish account setup after payment.</p>
+
+      <div class="row">
+        <div>
+          <label>Email</label>
+          <input id="email" type="email" autocomplete="email" />
+        </div>
+        <div>
+          <label>Confirm email</label>
+          <input id="email2" type="email" autocomplete="email" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label>Phone (optional)</label>
+          <input id="phone" autocomplete="tel" />
+          <div class="hint">Optional. Use a WhatsApp / MoMo number if you want.</div>
+        </div>
+        <div></div>
+      </div>
+
+      <div class="ctaRow">
+        <button class="btn secondary inline" id="backToPrograms">Back</button>
+        <button class="btn" id="payBtn" style="flex:1">Proceed to Payment</button>
+      </div>
+
+      <div class="err" id="err"></div>
+      <div class="ok" id="ok"></div>
+
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // =======================
+  // CONFIG (CLONING SPOTS)
+  // =======================
+  const PAYMENTS_URL = 'https://script.google.com/macros/s/AKfycbyvUw_eEGzHZd0wBsuKDNckQNFXJU-Xhr3T6J8pAuMRlgQbDhVy2nqp9H_QpeUQAI5I/exec';
+  const LOGIN_SLUG   = '/p/login_23.html';
+  const SUCCESS_SLUG = '/p/payment-confirmation.html';
+
+  // Support (public)
+  const SUPPORT_WA_E164 = '233538132277';
+
+  const LOGIN_URL   = location.origin + LOGIN_SLUG;
+  const SUCCESS_URL = location.origin + SUCCESS_SLUG;
+
+  // =======================
+  // STATE
+  // =======================
+  let META = { programs:[], products:[] };
+  let PREP_ITEMS = []; // [{ program_id, program_name, product }]
+  let selected = null; // { program_id, program_name, product }
+
+  const $ = (id)=>document.getElementById(id);
+  const loaderOn  = ()=>$('loader').classList.add('on');
+  const loaderOff = ()=>$('loader').classList.remove('on');
+
+  const setErr = (m)=>{ $('err').textContent = m||''; $('ok').textContent=''; };
+  const setOk  = (m)=>{ $('ok').textContent = m||''; $('err').textContent=''; };
+  const setStepErr = (msg)=>{ $('err1').textContent = msg||''; };
+
+  function scrollIntoViewNice(el){
+    if(!el) return;
+    try{ el.scrollIntoView({ behavior:'smooth', block:'center' }); } catch(_){}
+  }
+  function focusField(id){
+    const el = $(id);
+    if(!el) return;
+    el.focus();
+    scrollIntoViewNice(el);
+  }
+
+  // ===== Modal =====
+  function modalClose(){
+    $('modal').classList.remove('on');
+    $('modal').setAttribute('aria-hidden','true');
+    $('mBtns').innerHTML = '';
+  }
+  function modalShow(title, msg, buttons){
+    $('mTitle').textContent = title || 'Notice';
+    $('mMsg').textContent = msg || '';
+    const wrap = $('mBtns');
+    wrap.innerHTML = '';
+
+    (buttons || []).forEach(b=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'qa-miniBtn' + (b.primary ? ' primary' : '');
+      btn.textContent = b.text || 'OK';
+      btn.addEventListener('click', ()=>{
+        if (b.close !== false) modalClose();
+        if (typeof b.onClick === 'function') b.onClick();
+      });
+      wrap.appendChild(btn);
+    });
+
+    if(!buttons || !buttons.length){
+      const btn = document.createElement('button');
+      btn.type='button';
+      btn.className='qa-miniBtn primary';
+      btn.textContent='OK';
+      btn.addEventListener('click', modalClose);
+      wrap.appendChild(btn);
+    }
+
+    $('modal').classList.add('on');
+    $('modal').setAttribute('aria-hidden','false');
+  }
+  $('modal').addEventListener('click', (e)=>{ if(e.target === $('modal')) modalClose(); });
+  document.addEventListener('keydown', (e)=>{ if(e.key === 'Escape' && $('modal').classList.contains('on')) modalClose(); });
+
+  // ===== Utils =====
+  function addQuery(url, key, value){
+    const u = new URL(url, location.href);
+    u.searchParams.set(key, value);
+    return u.toString();
+  }
+  function goLogin(){
+    const back = location.href;
+    let url = LOGIN_URL;
+    url = addQuery(url, 'next', back);
+    url = addQuery(url, 'return', back);
+    location.href = url;
+  }
+  function escapeHtml(s){
+    return String(s||'').replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[m]));
+  }
+  const fmtMoney = (minor, cur)=>{
+    const v = Number(minor||0)/100;
+    try{ return new Intl.NumberFormat('en-GB',{style:'currency',currency:cur||'GHS'}).format(v); }
+    catch(_){ return (cur||'GHS') + ' ' + v.toFixed(2); }
+  };
+  function programIconSvg(){
+    return `
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 6.5C4 5.12 5.12 4 6.5 4h11C18.88 4 20 5.12 20 6.5v11c0 1.38-1.12 2.5-2.5 2.5h-11C5.12 20 4 18.88 4 17.5v-11Z" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M8 12h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M8 9h5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    `;
+  }
+  function isEmailLikelyValid(email){
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email || '');
+  }
+
+  function waLink(){
+    if(!SUPPORT_WA_E164) return '';
+    const msg = encodeURIComponent('Hi QAcademy Support, I need help with Premium Prep subscription. My email is: ____  My reference (if any) is: ____');
+    return 'https://wa.me/' + encodeURIComponent(SUPPORT_WA_E164) + '?text=' + msg;
+  }
+
+  function wireSupportBars(){
+    const has = !!SUPPORT_WA_E164;
+
+    // Panel 0
+    const b0 = $('helpBar0');
+    if(b0){
+      b0.style.display = has ? '' : 'none';
+      if(has){
+        $('helpNumTxt0').textContent = '+' + SUPPORT_WA_E164;
+        $('helpBtn0').href = waLink();
+        $('helpCopy0').addEventListener('click', async (e)=>{
+          e.preventDefault();
+          try{
+            await navigator.clipboard.writeText('+' + SUPPORT_WA_E164);
+            modalShow('Copied', 'Support number copied ✅', [{ text:'OK', primary:true }]);
+          } catch(_){
+            modalShow('Copy failed', 'Please copy manually: +' + SUPPORT_WA_E164, [{ text:'OK', primary:true }]);
+          }
+        });
+      }
+    }
+
+
+  }
+
+  // ===== API calls =====
+  async function apiGetMeta(){
+    const url = PAYMENTS_URL + '?action=meta&ts=' + Date.now();
+    const r = await fetch(url, { method:'GET' });
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.error || 'meta_failed');
+    return j;
+  }
+
+  async function postPayInit(payload){
+    const form = new URLSearchParams();
+    Object.keys(payload || {}).forEach(k => {
+      const v = payload[k];
+      if (v === undefined || v === null) return;
+      form.append(k, String(v));
+    });
+
+    const r = await fetch(PAYMENTS_URL, { method:'POST', body: form });
+    const txt = await r.text();
+    try { return JSON.parse(txt); }
+    catch(_) { return { ok:false, error:'bad_json_response', raw: txt.slice(0, 400) }; }
+  }
+
+  // ===== Prep filtering =====
+  function buildPrepItems(meta){
+    const programs = (meta.programs || []).map(p=>{
+      const pid = String(p.program_id||'').trim().toUpperCase();
+      const name = p.program_name || p.name || pid;
+      return { program_id: pid, program_name: name };
+    }).filter(x=>x.program_id);
+
+    const products = (meta.products || []).map(p=>{
+      const id = String(p.product_id||'').trim().toUpperCase();
+      return {
+        product_id: id,
+        name: p.name || id,
+        price_minor: Number(p.price_minor||0),
+        currency: p.currency || 'GHS',
+        courses_included: p.courses_included,
+        duration_days: p.duration_days
+      };
+    }).filter(x=>x.product_id);
+
+    const SUFFIX = '_2026_PREP';
+    const prep = products.filter(x => x.product_id.endsWith(SUFFIX));
+
+    const byPid = new Map();
+    prep.forEach(prod=>{
+      const programId = prod.product_id.slice(0, -SUFFIX.length);
+      if(!byPid.has(programId)) byPid.set(programId, prod);
+    });
+
+    return programs
+      .filter(pr => byPid.has(pr.program_id))
+      .map(pr => ({ ...pr, product: byPid.get(pr.program_id) }))
+      .sort((a,b)=>String(a.program_name).localeCompare(String(b.program_name)));
+  }
+
+  function computeLowestPrice(items){
+    let minMinor = null;
+    let currency = null;
+    let sameCurrency = true;
+
+    (items || []).forEach(it=>{
+      const p = it && it.product ? it.product : null;
+      if(!p) return;
+
+      const pm = Number(p.price_minor || 0);
+      const cur = String(p.currency || 'GHS').toUpperCase();
+
+      if(currency === null) currency = cur;
+      else if(cur !== currency) sameCurrency = false;
+
+      if(!isFinite(pm) || pm <= 0) return;
+      if(minMinor === null || pm < minMinor) minMinor = pm;
+    });
+
+    if(minMinor === null) return null;
+    if(!sameCurrency) return null;
+
+    return { minor: minMinor, currency };
+  }
+
+  function renderHeroPrice(){
+    const wrap = $('heroPriceWrap');
+    const val  = $('heroPrice');
+    if(!wrap || !val) return;
+
+    const low = computeLowestPrice(PREP_ITEMS);
+    if(!low){
+      wrap.style.display = 'none';
+      return;
+    }
+
+    val.textContent = fmtMoney(low.minor, low.currency);
+    wrap.style.display = '';
+  }
+
+  function getProgramItemsFiltered(){
+    const q = ($('programSearch').value || '').trim().toLowerCase();
+    if(!q) return PREP_ITEMS;
+    return PREP_ITEMS.filter(x=>{
+      return (x.program_id||'').toLowerCase().includes(q) || (x.program_name||'').toLowerCase().includes(q);
+    });
+  }
+
+  function renderPrograms(){
+    const list = $('programList');
+    list.innerHTML = '';
+
+    const items = getProgramItemsFiltered();
+    $('programCount').textContent = items.length + ' programs';
+
+    if(!items.length){
+      const empty = document.createElement('div');
+      empty.style.padding = '12px';
+      empty.style.color = '#51605e';
+      empty.style.fontWeight = '900';
+      empty.textContent = 'No programs found. Try a different search.';
+      list.appendChild(empty);
+      $('toPay').disabled = true;
+      $('planSummary').style.display = 'none';
+      return;
+    }
+
+    items.forEach(p=>{
+      const pid = p.program_id;
+      const name = p.program_name;
+
+      const row = document.createElement('div');
+      row.className = 'pickRow' + (selected && selected.program_id === pid ? ' on' : '');
+      row.innerHTML = `
+        <div class="pickIcon">${programIconSvg()}</div>
+        <div class="pickMain">
+          <div class="pickTitle">${escapeHtml(name)}</div>
+          <div class="pickMeta">${escapeHtml(pid)} • Premium Prep</div>
+        </div>
+        <div class="pickCheck">✓</div>
+      `;
+
+      row.addEventListener('click', ()=>{
+        selected = { program_id: pid, program_name: name, product: p.product };
+        setStepErr('');
+        renderPrograms();
+        renderSummary();
+        $('toPay').disabled = false;
+      });
+
+      list.appendChild(row);
+    });
+
+    $('toPay').disabled = !selected;
+    renderSummary();
+  }
+
+  function summaryChipsFor(product){
+    const chips = [];
+    const dur = Number(product.duration_days||0);
+    if(dur > 0) chips.push('Duration: ' + dur + ' days');
+    const ci = (product.courses_included || '').toString().trim();
+    if(ci) chips.push('Includes: ' + ci);
+    const pid = (product.product_id || '').toString().trim();
+    if(pid) chips.push('Product: ' + pid);
+    return chips;
+  }
+
+  function renderSummary(){
+    const box = $('planSummary');
+    if(!selected || !selected.product){
+      box.style.display = 'none';
+      return;
+    }
+    const p = selected.product;
+    const name = p.name || p.product_id;
+    const price = fmtMoney(p.price_minor, p.currency);
+
+    $('sumName').textContent = name;
+    $('sumPrice').textContent = price;
+
+    const chips = summaryChipsFor(p);
+    $('sumChips').innerHTML = chips.map(c=>`<span class="chip">${escapeHtml(c)}</span>`).join('');
+
+    // panel2 mirror (now compact)
+    $('sumProgramLine').textContent = (selected.program_name || selected.program_id) + ' - ' + (p.name || 'Premium Prep');
+    $('sumPrice2').textContent = price;
+    $('sumChips2').innerHTML = chips.map(c=>`<span class="chip">${escapeHtml(c)}</span>`).join('');
+
+    box.style.display = '';
+  }
+
+  function updateHeroForPanel(n){
+    const row = $('heroStartRow');
+    if(row) row.style.display = (n===0 ? '' : 'none');
+  }
+
+  function showPanel(n){
+    $('panel0').classList.toggle('on', n===0);
+    $('panel1').classList.toggle('on', n===1);
+    $('panel2').classList.toggle('on', n===2);
+    updateHeroForPanel(n);
+    scrollIntoViewNice($('card'));
+  }
+
+  function valPayFirst(){
+    if(!selected || !selected.program_id || !selected.product || !selected.product.product_id){
+      return { ok:false, msg:'Please choose your program to continue.', field:null, step:1 };
+    }
+
+    const email    = $('email').value.trim().toLowerCase();
+    const email2   = $('email2').value.trim().toLowerCase();
+    const phone_number = $('phone').value.trim();
+
+    const program_id = selected.program_id;
+    const product_id = selected.product.product_id;
+
+    if(!email)  return { ok:false, msg:'Please enter your email address.', field:'email', step:2 };
+    if(!email2) return { ok:false, msg:'Please confirm your email address.', field:'email2', step:2 };
+    if(!isEmailLikelyValid(email)) return { ok:false, msg:'Please enter a valid email address.', field:'email', step:2 };
+    if(email !== email2) return { ok:false, msg:'Email addresses do not match.', field:'email2', step:2 };
+
+    if(phone_number && phone_number.replace(/[^\d]/g,'').length < 7){
+      return { ok:false, msg:'Phone number looks too short. Please check it, or leave it blank.', field:'phone', step:2 };
+    }
+
+    return { ok:true, email, phone_number, program_id, product_id };
+  }
+
+  async function runPayInitQuick(){
+    setErr('');
+    setOk('');
+
+    const v = valPayFirst();
+    if(!v.ok){
+      if(v.step === 1){
+        setStepErr(v.msg);
+        showPanel(1);
+        return;
+      }
+      setErr(v.msg);
+      if(v.field) focusField(v.field);
+      return;
+    }
+
+    $('payBtn').disabled = true;
+    loaderOn();
+    try{
+      const payload = {
+        action: 'pay_init_quick',
+        product_id: v.product_id,
+        email: v.email,
+        phone_number: v.phone_number || '',
+        program_id: v.program_id || '',
+        callback_url: SUCCESS_URL
+      };
+
+      const res = await postPayInit(payload);
+
+      if(!res || !res.ok){
+        modalShow(
+          'Could not start payment',
+          String((res && (res.error || res.detail)) || 'Please try again.'),
+          [{ text:'Try again', primary:true }]
+        );
+        return;
+      }
+
+      if(!res.authorization_url){
+        modalShow('Payment session error', 'Payment session could not be created. Please try again.', [
+          { text:'Try again', primary:true }
+        ]);
+        return;
+      }
+
+      // Continuity keys (helps confirmation page + support)
+      localStorage.setItem('qa_last_reference', res.reference || '');
+      localStorage.setItem('qa_last_email', res.email || v.email);
+      localStorage.setItem('qa_last_product_id', res.product_id || v.product_id);
+      localStorage.setItem('qa_last_program_id', v.program_id || '');
+
+      localStorage.setItem('qa_join_program', v.program_id || '');
+      localStorage.setItem('qa_join_product', v.product_id || '');
+
+      location.href = res.authorization_url;
+
+    } catch(e){
+      modalShow('Network error', 'Please check your connection and try again.', [
+        { text:'Try again', primary:true }
+      ]);
+    } finally{
+      $('payBtn').disabled = false;
+      loaderOff();
+    }
+  }
+
+  // ===== Events =====
+  $('loginLinkTop').addEventListener('click', (e)=>{ e.preventDefault(); goLogin(); });
+
+  // Top + original Start buttons both do the same thing
+  $('startBtnTop').addEventListener('click', ()=> showPanel(1));
+  $('startBtn').addEventListener('click', ()=> showPanel(1));
+
+  $('programSearch').addEventListener('input', ()=> renderPrograms());
+
+  $('toPay').addEventListener('click', ()=>{
+    if(!selected){
+      setStepErr('Please choose a program to continue.');
+      scrollIntoViewNice($('err1'));
+      return;
+    }
+    localStorage.setItem('qa_join_program', selected.program_id);
+    localStorage.setItem('qa_join_product', selected.product.product_id);
+    showPanel(2);
+  });
+
+  $('backToPrograms').addEventListener('click', ()=> showPanel(1));
+  $('backToPreflight').addEventListener('click', ()=> showPanel(0));
+
+  $('payBtn').addEventListener('click', runPayInitQuick);
+
+  // NEW: Panel 2 “Details” toggle
+  (function(){
+    const btn = $('sumToggleBtn');
+    const chips = $('sumChips2');
+    if(btn && chips){
+      btn.addEventListener('click', ()=>{
+        const on = chips.style.display !== 'none';
+        chips.style.display = on ? 'none' : '';
+        btn.textContent = on ? 'Details' : 'Hide details';
+        scrollIntoViewNice($('sumBox2'));
+      });
+    }
+  })();
+
+  // Enter key behaviour
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' && !$('modal').classList.contains('on')){
+      if($('panel0').classList.contains('on')) $('startBtnTop').click();
+      else if($('panel1').classList.contains('on')) $('toPay').click();
+      else $('payBtn').click();
+    }
+  });
+
+  // ===== Boot =====
+  async function init(){
+    loaderOn();
+    try{
+      wireSupportBars();
+
+      META = await apiGetMeta();
+      PREP_ITEMS = buildPrepItems(META);
+
+      renderHeroPrice();
+
+      if(!PREP_ITEMS.length){
+        setStepErr('No 2026 Prep products found.\nConfirm products end with _2026_PREP and are visible in meta.');
+        renderPrograms();
+        showPanel(1);
+        return;
+      }
+
+      // Restore selection if possible
+      const qs = new URLSearchParams(location.search);
+      const restorePid = (qs.get('program_id') || localStorage.getItem('qa_join_program') || '').toUpperCase();
+
+      if(restorePid){
+        const found = PREP_ITEMS.find(x => x.program_id === restorePid);
+        if(found){
+          selected = { program_id: found.program_id, program_name: found.program_name, product: found.product };
+        }
+      }
+
+      renderPrograms();
+
+      // Panel routing:
+      const step = (qs.get('step') || '').toLowerCase();
+      if(step === 'pay' && selected) showPanel(2);
+      else if(step === 'program') showPanel(1);
+      else showPanel(0);
+
+    } catch(e){
+      setStepErr('Could not load programs. Please refresh.\n(' + (e.message||e) + ')');
+      showPanel(1);
+    } finally{
+      loaderOff();
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>
