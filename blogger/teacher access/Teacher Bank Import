@@ -1,0 +1,1321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Bank Import (CSV)</title>
+
+<style>
+  :root{
+    --brand:#0b7a75;
+    --muted:#859998;
+    --ink:#1f2a28;
+    --bg:#f6f8f7;
+    --card:#ffffff;
+    --line:rgba(0,0,0,.08);
+    --soft:rgba(0,0,0,.04);
+    --danger:#b42318;
+    --warn:#b54708;
+    --ok:#067647;
+
+    --radius:16px;
+    --shadow:0 10px 30px rgba(0,0,0,.06);
+
+    --appMax: 1640px;
+    --appPad: 16px;
+  }
+
+  *{box-sizing:border-box}
+  html, body{width:100%}
+  body{
+    margin:0;
+    overflow-x:hidden;
+    background:linear-gradient(180deg, #f6f8f7 0%, #f3f7f6 100%);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+  }
+  a{color:inherit}
+
+  #qaRoot{
+    width:100vw;
+    margin-left:calc(50% - 50vw);
+    overflow-x:hidden;
+  }
+  .post-body, .post-body-container, .widget-content{
+    padding:0 !important;
+  }
+
+  .wrap{
+    max-width:var(--appMax);
+    margin:0 auto;
+    padding:var(--appPad);
+  }
+
+  .top{
+    position:sticky;top:0;z-index:5;
+    background:rgba(246,248,247,.82);
+    backdrop-filter:saturate(1.2) blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .top .bar{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:12px;padding:12px var(--appPad);
+    max-width:var(--appMax);margin:0 auto;
+  }
+
+  .brand{display:flex;align-items:center;gap:10px;min-width:0}
+  .logo{
+    width:34px;height:34px;border-radius:10px;
+    background:linear-gradient(135deg, var(--brand), #0e8c86);
+    box-shadow:0 6px 16px rgba(11,122,117,.25);
+  }
+  .brand h1{
+    font-size:14px;margin:0;line-height:1.1;letter-spacing:.2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .brand small{
+    display:block;color:rgba(31,42,40,.65);font-size:12px;margin-top:2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+
+  .actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+  .chip{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:7px 10px;border-radius:999px;border:1px solid var(--line);
+    background:rgba(255,255,255,.8);
+    font-size:12px;color:rgba(31,42,40,.78);
+    max-width:52vw;
+  }
+  .chip b{color:rgba(31,42,40,.9);max-width:24vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dot{width:8px;height:8px;border-radius:99px;background:var(--brand)}
+  .btn{
+    appearance:none;border:1px solid var(--line);background:#fff;
+    padding:9px 12px;border-radius:12px;cursor:pointer;
+    font-weight:650;font-size:13px;
+    box-shadow:0 8px 18px rgba(0,0,0,.05);
+  }
+  .btn.primary{background:var(--brand);border-color:rgba(0,0,0,.02);color:#fff}
+  .btn.ghost{background:transparent}
+  .btn.danger{border-color:rgba(180,35,24,.25);color:var(--danger)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+
+  .grid{
+    display:grid;
+    grid-template-columns: 1.05fr .95fr;
+    gap:14px;
+    padding-top:14px;
+  }
+  @media (max-width: 980px){ .grid{grid-template-columns:1fr} }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .card .hd{
+    padding:14px 14px 10px;
+    border-bottom:1px solid var(--line);
+    display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
+  }
+  .card .hd h2{margin:0;font-size:14px;letter-spacing:.2px}
+  .card .hd p{margin:4px 0 0;color:rgba(31,42,40,.65);font-size:12px}
+  .card .bd{padding:14px}
+
+  label{display:block;font-size:12px;color:rgba(31,42,40,.7);margin-bottom:6px}
+  input, select, textarea{
+    width:100%;
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:12px;
+    padding:10px 10px;
+    font-size:13px;
+    outline:none;
+  }
+  textarea{min-height:84px;resize:vertical}
+  input:focus, select:focus, textarea:focus{
+    border-color: rgba(11,122,117,.35);
+    box-shadow: 0 0 0 4px rgba(11,122,117,.10);
+  }
+
+  .muted{color:rgba(31,42,40,.62)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;font-size:12px}
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:4px 8px;border-radius:999px;border:1px solid var(--line);
+    background:rgba(0,0,0,.02);font-size:12px;color:rgba(31,42,40,.75);
+  }
+  .pill.ok{border-color:rgba(6,118,71,.18);background:rgba(6,118,71,.06);color:var(--ok)}
+  .pill.bad{border-color:rgba(180,35,24,.18);background:rgba(180,35,24,.06);color:var(--danger)}
+  .pill.warn{border-color:rgba(181,71,8,.18);background:rgba(181,71,8,.06);color:var(--warn)}
+
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .row > *{flex:0 0 auto}
+  .row .grow{flex:1 1 260px;min-width:260px}
+
+  .hr{height:1px;background:var(--line);margin:12px 0}
+
+  .tableWrap{padding:0;border:1px solid var(--line);border-radius:14px;overflow:auto;max-height:52vh}
+  table{width:100%;border-collapse:separate;border-spacing:0;background:#fff}
+  thead th{
+    position:sticky;top:0;
+    font-size:12px;text-align:left;color:rgba(31,42,40,.65);
+    background:rgba(0,0,0,.02);
+    border-bottom:1px solid var(--line);
+    padding:10px;
+    z-index:2;
+  }
+  tbody td{
+    font-size:13px;padding:10px;border-bottom:1px solid var(--line);
+    vertical-align:top;
+  }
+  tbody tr:hover td{background:rgba(0,0,0,.01)}
+  .right{text-align:right}
+  .small{font-size:12px}
+
+  .statusBar{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:10px 14px;border-top:1px solid var(--line);
+    background:rgba(0,0,0,.015);
+  }
+  .statusMsg{
+    font-size:12px;color:rgba(31,42,40,.7);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    max-width:70%;
+  }
+  .statusMsg.ok{color:var(--ok)}
+  .statusMsg.bad{color:var(--danger)}
+  .statusMsg.warn{color:var(--warn)}
+
+  .empty{padding:14px;color:rgba(31,42,40,.65);font-size:13px}
+  .center{min-height:55vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .gate{max-width:560px}
+  .gate h2{margin:0 0 8px;font-size:16px}
+  .gate p{margin:0 0 14px;color:rgba(31,42,40,.7);font-size:13px;line-height:1.45}
+
+  .kbd{
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:2px 6px;border-radius:8px;border:1px solid var(--line);
+    background:rgba(0,0,0,.02);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;
+    font-size:12px;
+  }
+
+  .toast{
+    position:fixed;right:14px;bottom:18px;z-index:60;
+    background:#fff;border:1px solid var(--line);border-radius:14px;
+    padding:10px 12px;box-shadow:0 18px 50px rgba(0,0,0,.12);
+    max-width:min(520px, calc(100vw - 28px));
+    display:none;
+  }
+  .toast.show{display:block}
+  .toast .t{font-weight:900;margin-bottom:4px}
+  .toast .m{font-size:12px;color:rgba(31,42,40,.75);line-height:1.3}
+
+  /* =========================
+   * NEW: Expandable details
+   * ========================= */
+  .stemLine{display:flex;gap:10px;align-items:flex-start}
+  .stemMain{min-width:0;flex:1}
+  .detailsBtn{
+    border:none;background:transparent;cursor:pointer;
+    color:rgba(11,122,117,.95);
+    font-weight:800;font-size:12px;
+    padding:0;
+  }
+  .detailsBtn:hover{text-decoration:underline}
+  .detailsRow td{
+    background:rgba(11,122,117,.03);
+    border-bottom:1px solid var(--line);
+    padding:12px 10px;
+  }
+  .detailsBox{
+    border:1px solid rgba(11,122,117,.18);
+    background:rgba(255,255,255,.75);
+    border-radius:14px;
+    padding:12px;
+  }
+  .detailsGrid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:12px;
+    align-items:start;
+  }
+  @media (max-width: 980px){ .detailsGrid{grid-template-columns:1fr} }
+
+  .optList{display:flex;flex-direction:column;gap:8px}
+  .optItem{
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:12px;
+    padding:10px;
+  }
+  .optItem.correct{
+    border-color: rgba(6,118,71,.25);
+    background: rgba(6,118,71,.06);
+  }
+  .optHead{display:flex;gap:10px;align-items:center;justify-content:space-between}
+  .optLabel{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:28px;height:28px;border-radius:10px;
+    border:1px solid var(--line);
+    background:rgba(0,0,0,.02);
+    font-weight:900;
+  }
+  .optText{font-weight:750}
+  .optFb{margin-top:6px;font-size:12px;color:rgba(31,42,40,.7)}
+  .detailsTitle{font-size:12px;color:rgba(31,42,40,.65);font-weight:800;margin:0 0 8px}
+  .rationaleBox{
+    border:1px solid var(--line);
+    background:#fff;
+    border-radius:12px;
+    padding:10px;
+  }
+  .linkish{
+    color:rgba(11,122,117,.95);
+    font-weight:800;
+    text-decoration:none;
+  }
+  .linkish:hover{text-decoration:underline}
+</style>
+</head>
+
+<body>
+<div id="qaRoot">
+
+  <div class="top">
+    <div class="bar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div style="min-width:0">
+          <h1>QAcademy — Bank Import (CSV)</h1>
+          <small id="subline">Checking access…</small>
+        </div>
+      </div>
+
+      <div class="actions">
+        <span class="chip" id="teacherChip" style="display:none">
+          <span class="dot"></span>
+          <span><b id="teacherName">Teacher</b> · <span id="teacherPlan">FREE</span></span>
+        </span>
+
+        <button class="btn ghost" id="btnBack" disabled>Back</button>
+        <button class="btn" id="btnDownloadTemplate" disabled>Download template</button>
+        <button class="btn primary" id="btnImport" disabled>Import</button>
+        <button class="btn" id="btnSignOut">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap" id="app" style="display:none">
+    <div class="grid">
+
+      <!-- LEFT: Upload + Preview -->
+      <section class="card">
+        <div class="hd">
+          <div>
+            <h2>Upload CSV</h2>
+            <p>Upload, preview, then bulk add into your Teacher Bank.</p>
+          </div>
+          <div class="row" style="gap:8px;align-items:center">
+            <span class="pill" id="pillCap">Cap: 300 rows</span>
+            <span class="pill" id="pillParsed">0 parsed</span>
+            <span class="pill ok" id="pillValid" style="display:none">0 valid</span>
+            <span class="pill bad" id="pillInvalid" style="display:none">0 invalid</span>
+          </div>
+        </div>
+
+        <div class="bd">
+          <div class="row">
+            <div class="grow">
+              <label>CSV file</label>
+              <input type="file" id="file" accept=".csv,text/csv" />
+              <div class="muted small" style="margin-top:6px">
+                Must include headers. Use <span class="kbd">Download template</span> for the correct format.
+              </div>
+            </div>
+            <div>
+              <label>&nbsp;</label>
+              <button class="btn" id="btnParse" disabled>Parse</button>
+            </div>
+            <div>
+              <label>&nbsp;</label>
+              <button class="btn ghost" id="btnClear" disabled>Clear</button>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="row" style="justify-content:space-between">
+            <div class="muted small" id="parseNote">No file loaded.</div>
+            <div class="row" style="gap:8px">
+              <label style="margin:0;display:flex;gap:8px;align-items:center;font-size:12px;color:rgba(31,42,40,.7)">
+                <input type="checkbox" id="toggleOnlyErrors" style="width:auto" />
+                Show only errors
+              </label>
+              <label style="margin:0;display:flex;gap:8px;align-items:center;font-size:12px;color:rgba(31,42,40,.7)">
+                <input type="checkbox" id="toggleSendOnlyValid" style="width:auto" checked />
+                Import only valid rows
+              </label>
+            </div>
+          </div>
+
+          <div style="margin-top:10px" class="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:74px">Line</th>
+                  <th>Stem</th>
+                  <th style="width:80px">Correct</th>
+                  <th style="width:120px">Difficulty</th>
+                  <th style="width:90px" class="right">Marks</th>
+                  <th style="width:130px">Status</th>
+                </tr>
+              </thead>
+              <tbody id="previewRows">
+                <tr><td colspan="6" class="empty">Upload a CSV and click “Parse”.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="muted small" style="margin-top:10px">
+            Tip: Click <b>Details</b> on a row to see Options A–F (and rationale if present).
+          </div>
+        </div>
+
+        <div class="statusBar">
+          <div class="statusMsg" id="leftMsg">Ready.</div>
+          <div class="muted small" id="leftHint"></div>
+        </div>
+      </section>
+
+      <!-- RIGHT: Rules + Import Results -->
+      <section class="card">
+        <div class="hd">
+          <div>
+            <h2>Rules & results</h2>
+            <p>Server is authoritative; invalid rows won’t be created.</p>
+          </div>
+          <div class="row" style="gap:8px">
+            <button class="btn" id="btnDownloadErrors" disabled>Download errors CSV</button>
+            <button class="btn ghost" id="btnCopyIds" disabled>Copy created IDs</button>
+          </div>
+        </div>
+
+        <div class="bd">
+          <div class="pill" style="margin-bottom:10px">Allowed columns only</div>
+          <div class="muted small" style="line-height:1.45">
+            Required: <b>stem</b>, <b>option_a</b>, <b>option_b</b>, <b>correct</b> (A–F)<br/>
+            Correct must point to a non-empty option.<br/>
+            Difficulty allowed: Easy / Moderate / Hard (blank ok).<br/>
+            Marks: optional; blank defaults to 1.
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="row" style="gap:10px;align-items:flex-end">
+            <div class="grow">
+              <label>Import summary</label>
+              <textarea id="summary" readonly placeholder="No import yet…"></textarea>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="pill" style="margin-bottom:10px">Errors (after import)</div>
+          <div class="tableWrap" style="max-height:38vh">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:74px">Line</th>
+                  <th style="width:90px">Index</th>
+                  <th>Error</th>
+                </tr>
+              </thead>
+              <tbody id="errorRows">
+                <tr><td colspan="3" class="empty">No errors yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="muted small" style="margin-top:10px">
+            Back button uses <span class="mono">return_to</span> safely (same-origin only). If missing/unsafe, it goes back to the Bank page.
+          </div>
+        </div>
+
+        <div class="statusBar">
+          <div class="statusMsg" id="rightMsg">Ready.</div>
+          <div class="muted small" id="rightHint"></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Gate screen -->
+  <div class="wrap" id="gate" style="display:block">
+    <div class="center">
+      <div class="card gate">
+        <div class="hd">
+          <div>
+            <h2>Teacher access</h2>
+            <p id="gateMsg">Checking your token…</p>
+          </div>
+        </div>
+        <div class="bd">
+          <p class="muted" style="margin:0 0 12px">
+            Sign in first so <span class="mono">qa_token</span> exists in this browser (localStorage).
+          </p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
+            <button class="btn" id="btnRetry">Retry</button>
+            <button class="btn danger" id="btnClearToken">Clear token</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">
+    <div class="t" id="toastTitle">Notice</div>
+    <div class="m" id="toastMsg">—</div>
+  </div>
+
+</div>
+
+<script>
+/** ================================
+ * CONFIG (match your Bank page)
+ * ================================ */
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbz54M_jWoRq4cOC2gUQeRhd55AeEJ5vnELJ0gkBSodO58fr7WGa9jwk6JNwPptf8p8X/exec";
+const TOKEN_KEY = "qa_token";
+const MAX_ROWS = 300;
+
+/** ================================
+ * Tiny helpers
+ * ================================ */
+const $ = (id) => document.getElementById(id);
+
+function esc(s){
+  return String(s == null ? "" : s)
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+
+function toast(title, msg){
+  const box = $("toast");
+  $("toastTitle").textContent = title || "Notice";
+  $("toastMsg").textContent = msg || "";
+  box.classList.add("show");
+  clearTimeout(box.__t);
+  box.__t = setTimeout(()=> box.classList.remove("show"), 4200);
+}
+
+function setMsg(el, msg, tone){
+  el.textContent = msg || "";
+  el.classList.remove("ok","bad","warn");
+  if (tone) el.classList.add(tone);
+}
+
+function nowIsoLocal(){
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function getToken(){
+  const t = localStorage.getItem(TOKEN_KEY);
+  return (t && String(t).trim()) ? String(t).trim() : "";
+}
+function clearToken(){ localStorage.removeItem(TOKEN_KEY); }
+
+function safeReturnTo(){
+  const qs = new URLSearchParams(location.search);
+  const raw = String(qs.get("return_to") || "").trim();
+  if (!raw) return "/p/teacher-bank.html";
+
+  try{
+    if (raw.startsWith("/")) return raw;
+    const u = new URL(raw);
+    if (u.origin === location.origin) return u.href;
+    return "/p/teacher-bank.html";
+  }catch(_){
+    return "/p/teacher-bank.html";
+  }
+}
+
+async function postForm(action, params){
+  const token = getToken();
+  const body = new URLSearchParams();
+  body.set("action", action);
+  if (token) body.set("token", token);
+  Object.keys(params || {}).forEach(k => {
+    const v = params[k];
+    if (v === undefined || v === null) return;
+    body.set(k, String(v));
+  });
+
+  let res, text, data;
+  res = await fetch(WEBAPP_URL, { method:"POST", body, cache:"no-store" });
+  text = await res.text();
+  try{ data = JSON.parse(text); } catch(_){ throw new Error("bad_json_response"); }
+  return data;
+}
+
+async function postJSON(action, payload){
+  const token = getToken();
+  const bodyObj = Object.assign({}, payload || {}, { action, token });
+
+  let res, text, data;
+  res = await fetch(WEBAPP_URL, {
+    method:"POST",
+    mode:"cors",
+    body: JSON.stringify(bodyObj)
+  });
+  text = await res.text();
+  try{ data = JSON.parse(text); } catch(_){ throw new Error("bad_json_response"); }
+  return data;
+}
+
+/** ================================
+ * CSV parsing (robust enough for quoted commas/newlines)
+ * ================================ */
+function parseCSV(text){
+  text = String(text || "");
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+  const rows = [];
+  let row = [];
+  let cur = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+
+    if (inQuotes){
+      if (c === '"'){
+        if (text[i+1] === '"'){
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cur += c;
+      }
+      continue;
+    }
+
+    if (c === '"'){ inQuotes = true; continue; }
+
+    if (c === ","){ row.push(cur); cur = ""; continue; }
+
+    if (c === "\n"){
+      row.push(cur);
+      rows.push(row);
+      row = [];
+      cur = "";
+      continue;
+    }
+
+    if (c === "\r"){
+      if (text[i+1] === "\n") i++;
+      row.push(cur);
+      rows.push(row);
+      row = [];
+      cur = "";
+      continue;
+    }
+
+    cur += c;
+  }
+
+  row.push(cur);
+  rows.push(row);
+
+  while (rows.length && rows[rows.length-1].every(x => String(x||"").trim() === "")) rows.pop();
+  return rows;
+}
+
+function csvEscape(v){
+  const s = String(v == null ? "" : v);
+  if (s.includes('"') || s.includes(",") || s.includes("\n") || s.includes("\r")){
+    return `"${s.replaceAll('"','""')}"`;
+  }
+  return s;
+}
+
+/** ================================
+ * Mapping + validation
+ * ================================ */
+const ALLOWED_COLS = [
+  "stem",
+  "option_a","fb_a",
+  "option_b","fb_b",
+  "option_c","fb_c",
+  "option_d","fb_d",
+  "option_e","fb_e",
+  "option_f","fb_f",
+  "correct",
+  "rationale",
+  "rationale_img",
+  "subject",
+  "topic",
+  "difficulty",
+  "marks"
+];
+
+function canonHeader(h){
+  return String(h||"")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g,"_");
+}
+
+function normalizeDifficulty(v){
+  const s = String(v == null ? "" : v).trim();
+  if (!s) return "";
+  const t = s.toLowerCase();
+  if (t === "easy") return "Easy";
+  if (t === "moderate" || t === "medium") return "Moderate";
+  if (t === "hard" || t === "difficult") return "Hard";
+  return null;
+}
+
+function validateRow(obj){
+  const stem = String(obj.stem || "").trim();
+  const a = String(obj.option_a || "").trim();
+  const b = String(obj.option_b || "").trim();
+
+  if (!stem) return "missing_stem";
+  if (!a) return "missing_option_a";
+  if (!b) return "missing_option_b";
+
+  const correct = String(obj.correct || "").trim().toUpperCase();
+  if (!["A","B","C","D","E","F"].includes(correct)) return "invalid_correct_must_be_A_to_F";
+
+  const optMap = {
+    A: a,
+    B: b,
+    C: String(obj.option_c || "").trim(),
+    D: String(obj.option_d || "").trim(),
+    E: String(obj.option_e || "").trim(),
+    F: String(obj.option_f || "").trim()
+  };
+
+  const nonEmpty = Object.keys(optMap).filter(k => !!optMap[k]);
+  if (nonEmpty.length < 2) return "need_at_least_two_options";
+  if (!optMap[correct]) return "correct_option_is_empty";
+
+  const d = normalizeDifficulty(obj.difficulty);
+  if (d === null) return "invalid_difficulty";
+
+  const marksRaw = String(obj.marks || "").trim();
+  if (marksRaw){
+    const n = parseInt(marksRaw, 10);
+    if (isNaN(n) || n <= 0) return "invalid_marks";
+  }
+
+  return "";
+}
+
+function shortStem(s){
+  const t = String(s||"").trim().replace(/\s+/g," ");
+  if (t.length <= 110) return t;
+  return t.slice(0,110) + "…";
+}
+function stemSnippet(s){
+  const t = String(s||"").trim().replace(/\s+/g," ");
+  if (t.length <= 80) return t;
+  return t.slice(0,80) + "…";
+}
+
+/** ================================
+ * State
+ * ================================ */
+let teacher = null;
+let parsed = [];              // [{ line, item, err }]
+let createdIds = [];
+let lastImportErrors = [];
+let expandedLines = new Set(); // keeps details open by CSV line number
+let lastSentByLine = {};       // line -> stem snippet (for errors CSV)
+
+/** ================================
+ * Gate
+ * ================================ */
+async function verifyGate(){
+  const token = getToken();
+  if (!token){
+    $("subline").textContent = "No token found";
+    $("teacherChip").style.display = "none";
+    $("app").style.display = "none";
+    $("gate").style.display = "block";
+    $("gateMsg").textContent = "No token found in this browser (localStorage.qa_token). Sign in first.";
+    return false;
+  }
+
+  $("gateMsg").textContent = "Verifying teacher access…";
+
+  let data;
+  try{
+    data = await postForm("teacher.verify", {});
+  }catch(err){
+    $("gateMsg").textContent = "Couldn’t reach the service. " + String(err.message || err);
+    return false;
+  }
+
+  if (!data || !data.ok){
+    const reason = data && data.error ? data.error : "verify_failed";
+    $("gateMsg").textContent = "Access denied: " + reason;
+    $("subline").textContent = "Access denied";
+    return false;
+  }
+
+  teacher = {
+    user_id: data.user && data.user.user_id ? data.user.user_id : "",
+    name: data.user && data.user.name ? data.user.name : "Teacher",
+    email: data.user && data.user.email ? data.user.email : "",
+    plan_type: data.teacher && data.teacher.plan_type ? data.teacher.plan_type : "FREE",
+    role: data.user && data.user.role ? data.user.role : ""
+  };
+
+  $("teacherName").textContent = teacher.name || "Teacher";
+  $("teacherPlan").textContent = teacher.plan_type || "FREE";
+  $("teacherChip").style.display = "inline-flex";
+  $("subline").textContent = teacher.email ? teacher.email : ("Role: " + (teacher.role || "—"));
+
+  $("gate").style.display = "none";
+  $("app").style.display = "block";
+
+  $("btnBack").disabled = false;
+  $("btnDownloadTemplate").disabled = false;
+  $("btnParse").disabled = false;
+  $("btnClear").disabled = false;
+
+  $("btnBack").addEventListener("click", () => { location.href = safeReturnTo(); });
+  return true;
+}
+
+/** ================================
+ * Template download
+ * ================================ */
+function downloadTemplate(){
+  const headers = ALLOWED_COLS.join(",");
+  const example = [
+    "What is the first action for an unconscious adult with no breathing?",
+    "Start CPR immediately","Correct: no breathing",
+    "Check pulse for 10 seconds","Pulse check delays CPR",
+    "Call for help","",
+    "Open airway","",
+    "","",
+    "","",
+    "A",
+    "Immediate CPR improves survival in cardiac arrest.",
+    "",
+    "Nursing",
+    "Emergency Care",
+    "Moderate",
+    "1"
+  ].map(csvEscape).join(",");
+
+  const csv = headers + "\n" + example + "\n";
+  const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "qacademy_teacher_bank_template.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  setTimeout(()=>URL.revokeObjectURL(url), 1500);
+}
+
+/** ================================
+ * Parse flow
+ * ================================ */
+async function parseFile(){
+  const f = $("file").files && $("file").files[0];
+  if (!f){
+    toast("No file", "Choose a CSV file first.");
+    return;
+  }
+
+  setMsg($("leftMsg"), "Reading file…", "warn");
+  $("leftHint").textContent = "";
+
+  const text = await f.text();
+  const grid = parseCSV(text);
+
+  if (!grid.length){
+    setMsg($("leftMsg"), "CSV appears empty.", "bad");
+    return;
+  }
+
+  const headerRow = grid[0].map(canonHeader);
+  const map = {};
+  for (let i = 0; i < headerRow.length; i++){
+    const h = headerRow[i];
+    if (!h) continue;
+    if (ALLOWED_COLS.includes(h) && !(h in map)) map[h] = i;
+  }
+
+  const requiredHeaders = ["stem","option_a","option_b","correct"];
+  const missingHeaders = requiredHeaders.filter(h => !(h in map));
+  if (missingHeaders.length){
+    setMsg($("leftMsg"), "Missing required headers: " + missingHeaders.join(", "), "bad");
+    $("parseNote").textContent = "Fix CSV headers then try again.";
+    return;
+  }
+
+  parsed = [];
+  expandedLines.clear();
+  createdIds = [];
+  lastImportErrors = [];
+  lastSentByLine = {};
+
+  const dataRows = grid.slice(1);
+  const totalRows = dataRows.length;
+  if (totalRows > MAX_ROWS){
+    toast("Too many rows", `This import supports up to ${MAX_ROWS} rows per upload. Your file has ${totalRows}.`);
+  }
+
+  const rowLimit = Math.min(totalRows, MAX_ROWS);
+
+  for (let i = 0; i < rowLimit; i++){
+    const r = dataRows[i] || [];
+    const line = i + 2;
+
+    const item = {};
+    ALLOWED_COLS.forEach(k => {
+      const ci = map[k];
+      item[k] = (ci !== undefined) ? String(r[ci] == null ? "" : r[ci]).trim() : "";
+    });
+
+    item.correct = String(item.correct || "").trim().toUpperCase();
+    const dn = normalizeDifficulty(item.difficulty);
+    if (dn !== null) item.difficulty = dn;
+
+    const any = Object.keys(item).some(k => String(item[k]||"").trim() !== "");
+    if (!any) continue;
+
+    const err = validateRow(item);
+    parsed.push({ line, item, err });
+  }
+
+  renderPreview();
+  updatePills();
+
+  setMsg($("leftMsg"), `Parsed ${parsed.length} row(s).`, "ok");
+  $("leftHint").textContent = "Parsed: " + nowIsoLocal();
+
+  $("btnImport").disabled = true;
+  updateImportButtonState();
+}
+
+function updatePills(){
+  const n = parsed.length;
+  const valid = parsed.filter(x => !x.err).length;
+  const invalid = n - valid;
+
+  $("pillParsed").textContent = `${n} parsed`;
+  $("pillValid").style.display = n ? "" : "none";
+  $("pillInvalid").style.display = n ? "" : "none";
+  $("pillValid").textContent = `${valid} valid`;
+  $("pillInvalid").textContent = `${invalid} invalid`;
+
+  $("parseNote").textContent =
+    n ? `Parsed ${n} row(s). Fix errors then import.` : "No file loaded.";
+}
+
+function updateImportButtonState(){
+  const n = parsed.length;
+  const valid = parsed.filter(x => !x.err).length;
+  const sendOnlyValid = $("toggleSendOnlyValid").checked;
+
+  if (!n){
+    $("btnImport").disabled = true;
+    return;
+  }
+  if (sendOnlyValid){
+    $("btnImport").disabled = !(valid > 0);
+  } else {
+    $("btnImport").disabled = false;
+  }
+}
+
+function toggleDetails(line){
+  const key = String(line || "").trim();
+  if (!key) return;
+  if (expandedLines.has(key)) expandedLines.delete(key);
+  else expandedLines.add(key);
+  renderPreview();
+}
+
+function buildOptionsHtml(item){
+  const correct = String(item.correct || "").trim().toUpperCase();
+  const letters = ["A","B","C","D","E","F"];
+
+  const opt = (L) => String(item["option_"+L.toLowerCase()] || "").trim();
+  const fb  = (L) => String(item["fb_"+L.toLowerCase()] || "").trim();
+
+  const blocks = [];
+  for (let i=0;i<letters.length;i++){
+    const L = letters[i];
+    const t = opt(L);
+    if (!t) continue;
+
+    const isCorrect = (L === correct);
+    const fbText = fb(L);
+
+    blocks.push(`
+      <div class="optItem ${isCorrect ? "correct" : ""}">
+        <div class="optHead">
+          <div style="display:flex;gap:10px;align-items:center;min-width:0">
+            <div class="optLabel">${esc(L)}</div>
+            <div class="optText" style="min-width:0">${esc(t)}</div>
+          </div>
+          ${isCorrect ? `<span class="pill ok">CORRECT</span>` : ``}
+        </div>
+        ${fbText ? `<div class="optFb"><b>Feedback:</b> ${esc(fbText)}</div>` : ``}
+      </div>
+    `);
+  }
+
+  if (!blocks.length){
+    return `<div class="muted small">No options found.</div>`;
+  }
+
+  return `<div class="optList">${blocks.join("")}</div>`;
+}
+
+function buildRationaleHtml(item){
+  const r = String(item.rationale || "").trim();
+  const img = String(item.rationale_img || "").trim();
+
+  const imgPart = img
+    ? `<div class="muted small" style="margin-top:8px"><b>Image:</b> <a class="linkish" href="${esc(img)}" target="_blank" rel="noopener">Open rationale image</a></div>`
+    : `<div class="muted small" style="margin-top:8px">No rationale image.</div>`;
+
+  const rPart = r
+    ? `<div class="small" style="white-space:pre-wrap;line-height:1.4">${esc(r)}</div>`
+    : `<div class="muted small">No rationale provided.</div>`;
+
+  return `
+    <div class="rationaleBox">
+      <div class="detailsTitle">Rationale</div>
+      ${rPart}
+      ${imgPart}
+    </div>
+  `;
+}
+
+function renderPreview(){
+  const tbody = $("previewRows");
+
+  if (!parsed.length){
+    tbody.innerHTML = `<tr><td colspan="6" class="empty">Upload a CSV and click “Parse”.</td></tr>`;
+    return;
+  }
+
+  const onlyErrors = $("toggleOnlyErrors").checked;
+  const rows = onlyErrors ? parsed.filter(x => !!x.err) : parsed;
+
+  if (!rows.length){
+    tbody.innerHTML = `<tr><td colspan="6" class="empty">No rows to show.</td></tr>`;
+    return;
+  }
+
+  const maxPreview = 120;
+  const slice = rows.slice(0, maxPreview);
+
+  const out = [];
+  for (const x of slice){
+    const st = x.err ? `<span class="pill bad">ERROR</span>` : `<span class="pill ok">OK</span>`;
+    const errText = x.err ? `<div class="muted small" style="margin-top:6px">${esc(x.err)}</div>` : "";
+    const marks = String(x.item.marks || "").trim();
+    const lineKey = String(x.line);
+
+    const isOpen = expandedLines.has(lineKey);
+    const btnLabel = isOpen ? "Hide details" : "Details";
+
+    out.push(`
+      <tr>
+        <td class="mono">${esc(x.line)}</td>
+        <td>
+          <div class="stemLine">
+            <div class="stemMain">
+              <div style="font-weight:800">${esc(shortStem(x.item.stem)) || "<span class='muted'>—</span>"}</div>
+              <div class="muted small">
+                ${(x.item.subject||"").trim() ? esc(x.item.subject)+" · " : ""}${(x.item.topic||"").trim() ? esc(x.item.topic) : ""}
+              </div>
+              ${errText}
+              <div style="margin-top:6px">
+                <button class="detailsBtn" type="button" data-toggle="${esc(lineKey)}">${btnLabel}</button>
+              </div>
+            </div>
+          </div>
+        </td>
+        <td class="mono">${esc((x.item.correct||"").trim() || "—")}</td>
+        <td>${esc((x.item.difficulty||"").trim()) || "<span class='muted'>—</span>"}</td>
+        <td class="right mono">${marks ? esc(marks) : "<span class='muted'>—</span>"}</td>
+        <td>${st}</td>
+      </tr>
+    `);
+
+    if (isOpen){
+      const optionsHtml = buildOptionsHtml(x.item);
+      const rationaleHtml = buildRationaleHtml(x.item);
+
+      out.push(`
+        <tr class="detailsRow">
+          <td colspan="6">
+            <div class="detailsBox">
+              <div class="detailsGrid">
+                <div>
+                  <div class="detailsTitle">Options</div>
+                  ${optionsHtml}
+                </div>
+                <div>
+                  ${rationaleHtml}
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `);
+    }
+  }
+
+  tbody.innerHTML = out.join("");
+
+  // wire toggle events (delegation-safe; re-renders)
+  tbody.querySelectorAll("[data-toggle]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const line = btn.getAttribute("data-toggle");
+      toggleDetails(line);
+    });
+  });
+
+  if (rows.length > maxPreview){
+    tbody.innerHTML += `<tr><td colspan="6" class="empty">Preview limited to ${maxPreview} rows (${rows.length} available).</td></tr>`;
+  }
+}
+
+function clearAll(){
+  parsed = [];
+  createdIds = [];
+  lastImportErrors = [];
+  expandedLines.clear();
+  lastSentByLine = {};
+
+  $("file").value = "";
+  $("summary").value = "";
+  $("previewRows").innerHTML = `<tr><td colspan="6" class="empty">Upload a CSV and click “Parse”.</td></tr>`;
+  $("errorRows").innerHTML = `<tr><td colspan="3" class="empty">No errors yet.</td></tr>`;
+
+  $("pillParsed").textContent = `0 parsed`;
+  $("pillValid").style.display = "none";
+  $("pillInvalid").style.display = "none";
+  $("parseNote").textContent = "No file loaded.";
+
+  $("btnImport").disabled = true;
+  $("btnDownloadErrors").disabled = true;
+  $("btnCopyIds").disabled = true;
+
+  setMsg($("leftMsg"), "Cleared.", "ok");
+  $("leftHint").textContent = nowIsoLocal();
+  setMsg($("rightMsg"), "Ready.", "");
+  $("rightHint").textContent = "";
+}
+
+/** ================================
+ * Import flow
+ * ================================ */
+function buildPayloadItems(){
+  const sendOnlyValid = $("toggleSendOnlyValid").checked;
+  const rows = sendOnlyValid ? parsed.filter(x => !x.err) : parsed;
+
+  lastSentByLine = {};
+  return rows.map((x) => {
+    const it = Object.assign({}, x.item);
+    it.line = x.line;
+    lastSentByLine[String(x.line)] = stemSnippet(x.item.stem || "");
+    return it;
+  });
+}
+
+async function runImport(){
+  if (!parsed.length){
+    toast("Nothing to import", "Parse a CSV first.");
+    return;
+  }
+
+  const items = buildPayloadItems();
+  if (!items.length){
+    toast("No valid rows", "Fix errors (or disable “Import only valid rows”).");
+    return;
+  }
+
+  if (items.length > MAX_ROWS){
+    toast("Too many rows", `This import supports up to ${MAX_ROWS} rows per request.`);
+    return;
+  }
+
+  $("btnImport").disabled = true;
+  setMsg($("rightMsg"), "Importing…", "warn");
+  $("rightHint").textContent = "";
+  $("summary").value = "";
+
+  try{
+    const res = await postJSON("bank.items.bulkCreate", { items });
+
+    if (!res || !res.ok){
+      const e = (res && res.error) ? String(res.error) : "unknown_error";
+      setMsg($("rightMsg"), "Import failed: " + e, "bad");
+      $("rightHint").textContent = nowIsoLocal();
+      $("btnImport").disabled = false;
+      return;
+    }
+
+    const created = Number(res.created_count || 0);
+    createdIds = Array.isArray(res.created_ids) ? res.created_ids : [];
+    lastImportErrors = Array.isArray(res.errors) ? res.errors : [];
+
+    const linesTotal = items.length;
+
+    $("summary").value =
+      `Import complete\n` +
+      `- Sent: ${linesTotal}\n` +
+      `- Created: ${created}\n` +
+      `- Errors: ${lastImportErrors.length}\n` +
+      `- Time: ${nowIsoLocal()}\n`;
+
+    renderErrorsTable(lastImportErrors);
+
+    $("btnDownloadErrors").disabled = !(lastImportErrors.length > 0);
+    $("btnCopyIds").disabled = !(createdIds.length > 0);
+
+    setMsg($("rightMsg"), `Created ${created}. Errors: ${lastImportErrors.length}.`, lastImportErrors.length ? "warn" : "ok");
+    $("rightHint").textContent = nowIsoLocal();
+
+    updateImportButtonState();
+
+  }catch(err){
+    setMsg($("rightMsg"), "Import error: " + String(err.message || err), "bad");
+    $("rightHint").textContent = nowIsoLocal();
+    updateImportButtonState();
+  }
+}
+
+function renderErrorsTable(errs){
+  const tbody = $("errorRows");
+
+  if (!errs || !errs.length){
+    tbody.innerHTML = `<tr><td colspan="3" class="empty">No errors.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = errs.map(e => {
+    const idx = (e && e.index != null) ? String(e.index) : "—";
+    const line = (e && e.line != null) ? String(e.line) : "—";
+    const msg = (e && e.error) ? String(e.error) : "error";
+    return `
+      <tr>
+        <td class="mono">${esc(line)}</td>
+        <td class="mono">${esc(idx)}</td>
+        <td>${esc(msg)}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function downloadErrorsCSV(){
+  if (!lastImportErrors.length){
+    toast("No errors", "There are no import errors to download.");
+    return;
+  }
+
+  // NEW: include stem snippet so fixing is faster in spreadsheets
+  const header = ["line","index","error","stem_snippet"].join(",");
+  const rows = lastImportErrors.map(e => {
+    const line = (e && e.line != null) ? String(e.line) : "";
+    const idx = (e && e.index != null) ? String(e.index) : "";
+    const msg = (e && e.error) ? String(e.error) : "";
+    const snip = lastSentByLine[line] || "";
+    return [line, idx, msg, snip].map(csvEscape).join(",");
+  });
+
+  const csv = header + "\n" + rows.join("\n") + "\n";
+  const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "qacademy_import_errors.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  setTimeout(()=>URL.revokeObjectURL(url), 1500);
+}
+
+async function copyCreatedIds(){
+  if (!createdIds.length){
+    toast("No IDs", "No created IDs available.");
+    return;
+  }
+  const text = createdIds.join("\n");
+  try{
+    await navigator.clipboard.writeText(text);
+    toast("Copied", `Copied ${createdIds.length} ID(s).`);
+  }catch(_){
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+    toast("Copied", `Copied ${createdIds.length} ID(s).`);
+  }
+}
+
+/** ================================
+ * Events
+ * ================================ */
+$("btnRetry").addEventListener("click", verifyGate);
+$("btnClearToken").addEventListener("click", () => {
+  clearToken();
+  $("gateMsg").textContent = "Token cleared. Sign in again to create a new token.";
+});
+
+$("btnSignOut").addEventListener("click", () => {
+  clearToken();
+  location.reload();
+});
+
+$("btnDownloadTemplate").addEventListener("click", downloadTemplate);
+$("btnParse").addEventListener("click", parseFile);
+$("btnClear").addEventListener("click", clearAll);
+$("btnImport").addEventListener("click", runImport);
+
+$("toggleOnlyErrors").addEventListener("change", renderPreview);
+$("toggleSendOnlyValid").addEventListener("change", updateImportButtonState);
+
+$("btnDownloadErrors").addEventListener("click", downloadErrorsCSV);
+$("btnCopyIds").addEventListener("click", copyCreatedIds);
+
+$("file").addEventListener("change", () => {
+  const has = !!($("file").files && $("file").files[0]);
+  $("btnParse").disabled = !has;
+  if (has) $("parseNote").textContent = `Selected: ${$("file").files[0].name}`;
+});
+
+/** Boot */
+$("btnBack").addEventListener("click", () => { location.href = safeReturnTo(); });
+verifyGate();
+</script>
+
+</body>
+</html>
