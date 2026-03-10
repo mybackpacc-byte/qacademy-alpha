@@ -1,0 +1,330 @@
+/**
+ * QAcademy – Trial Quiz Data API (Legacy + Status)
+ * ------------------------------------------------
+ * PURPOSE:
+ *  - Frontend calls:  GET ?quiz_id=XYZ
+ *  - Backend looks up quiz row in Portal DB "quizzes" tab.
+ *  - Determines:
+ *      • publish status: open / scheduled / closed / unpublished
+ *      • which course sheet to use
+ *      • which items belong to this quiz (via instant_id / timed_id)
+ *  - For OPEN quizzes: returns metadata + full questions.
+ *  - For NON-OPEN quizzes: returns metadata + status only (no questions).
+ *
+ * EXPECTED HEADERS IN `quizzes` TAB:
+ *   quiz_id | course_id | type | title | n | time_limit_sec
+ *   | version | published | visibility | publish_at | unpublish_at | notes
+ *
+ * DATE FORMAT:
+ *   publish_at / unpublish_at can be:
+ *    - real date/time cells
+ *    - or ISO-like strings, e.g. "2024-01-01T23:59:59Z"
+ */
+
+function doGet(e) {
+  try {
+    // ========= 1. READ quiz_id FROM QUERY STRING =========
+    const quizId = e.parameter.quiz_id;
+    if (!quizId) {
+      return jsonResponse({ error: "Missing quiz_id parameter." }, 400);
+    }
+
+    // ========= 2. LOOKUP QUIZ ROW IN Portal DB (quizzes tab) =========
+    const DB_ID    = "1Aq0IaPOjC1Vo4bQb8aP0S0bO5EaeUx_4oYUlnJ2g2vc";  // QAcademy_Portal_DB
+    const QUIZ_TAB = "quizzes";
+
+    const quizData = getQuizMetadata(DB_ID, QUIZ_TAB, quizId);
+    if (!quizData) {
+      return jsonResponse({ error: "Quiz ID not found." }, 404);
+    }
+
+    // ========= 3. COMPUTE STATUS (open / scheduled / closed / unpublished) =========
+    //
+    // Uses:
+    //   published   (TRUE/FALSE, yes/no, 1/0)
+    //   publish_at  (start of window)
+    //   unpublish_at (end of window)
+    //
+    const status = computeQuizStatus(quizData);
+
+    // ========= 4. DETERMINE COURSE SHEET ID =========
+    //
+    // course_id → sheet_id via:
+    //    1) courses.sheet_id in Portal DB (preferred)
+    //    2) static fallback map (for safety)
+    //
+    const sheetMap = {
+      "GP":                   "16sR5IOS7a1U1rYq5NGxp1fdZ7TcDd-202y6gEFtf9zg", // General Paper
+      "RN_MED":               "1XWl_9bFVbkdPjSRYRTrvYz8rLcG7BhsSrLMCISV-aFc", // Medicine & Medical Nursing
+      "RN_SURG":              "1QXyT5pFVlLETDUWAEouqvol1AKNoAsmGcP4l5yHyhRk", // Surgical & Surgical Nursing
+      "RM_MID":               "1rZduglmQu-spqU76M0NeLtyvxE6SpOfJjjgLTQN8BF8", // Midwifery
+      "RM_PED_OBS_HRN":       "1a-nSY4j4RAvkbBNibeDcHt6dolwc-GHP6Bm9Jsq9Z-c", // Paeds, Obstetric Anatomy & HRN
+      "RPHN_PPHN":            "1fMg9r6FLS-K9zH9msXyA20oRGgPCzSBnr3SOIAepm4Q", // Principles of PHN
+      "RPHN_DISEASE_CTRL":    "1kTeCCS9GqkgulEczLftsvIwZINtPktup-umT96ckWkA", // Disease Management & Control
+      "RMHN_PSYCH_NURS":      "1sJ1fkfJ2xLC-49UknLI0kgwrWk7IutSH6CK6Uh-tm2I", // Psychiatric Nursing (Theory)
+      "RMHN_PSYCH_PPHARM":    "1MF1vjEDikhaIgfD3roNat_Fa-jSE08rd6FRcEq0hYdQ", // Psychopathology & Psychopharm
+      "NAC_BASIC_CLIN":       "1ScLxD9ohOyfq0XRfxYRq4ZcH2DmoMcmGif_Luw0GOmo", // Basic Clinical Nursing
+      "NAC_BASIC_PREV":       "1o7spF3dr2Tc3GdLngUvdXzxOVVJrZ3De30f0mUN72b4"  // Basic Preventive Nursing
+    };
+
+    const courseIdRaw = String(quizData.course_id || "").trim();
+    const courseId    = courseIdRaw.toUpperCase();
+
+    const sheetIdFromCourses = getSheetIdFromCourses(DB_ID, courseId);
+    const courseSheetId      = sheetIdFromCourses || sheetMap[courseId];
+
+    if (!courseSheetId) {
+      return jsonResponse({ error: "Unknown course_id: " + courseIdRaw }, 400);
+    }
+
+    // ========= 5. IF QUIZ IS NOT "OPEN", RETURN STATUS ONLY =========
+    //
+    // Legacy quiz page will:
+    //   - call this endpoint
+    //   - see status !== "open"
+    //   - show a friendly card (upcoming / closed / unpublished)
+    //   - NOT try to render questions
+    //
+    if (status !== "open") {
+      const publishRaw   = pickFirst(quizData, ["publish_at"]);
+      const unpublishRaw = pickFirst(quizData, ["unpublish_at"]);
+
+      const resultStatusOnly = {
+        quiz_id: quizData.quiz_id,
+        title: quizData.title,
+        course_id: quizData.course_id,
+        type: quizData.type,
+        status: status,
+        published: quizData.published,
+        publish_at: publishRaw || "",
+        unpublish_at: unpublishRaw || ""
+      };
+      return jsonResponse(resultStatusOnly, 200);
+    }
+
+    // ========= 6. QUIZ IS OPEN → LOAD ITEMS FROM COURSE SHEET =========
+    //
+    // type = "INSTANT" | "TIMED"
+    // INSTANT → match items where instant_id == quiz_id
+    // TIMED   → match items where timed_id   == quiz_id
+    //
+    const type      = String(quizData.type || "").trim().toUpperCase();
+    const tagColumn = (type === "INSTANT") ? "instant_id" : "timed_id";
+
+    const items = getItemsForQuiz(courseSheetId, "items", tagColumn, quizId);
+
+    // ========= 7. VALIDATE ITEM COUNT (n) =========
+    //
+    // You store the expected number of items in column: n
+    //
+    const expectedCount = Number(quizData.n) || 0;
+    if (expectedCount && items.length !== expectedCount) {
+      quizData.warning = "Item count mismatch: expected " + expectedCount +
+                         ", found " + items.length;
+    }
+
+    // ========= 8. BUILD RESPONSE PAYLOAD =========
+    //
+    const result = {
+      quiz_id: quizData.quiz_id,
+      title: quizData.title,
+      course_id: quizData.course_id,
+      type: quizData.type,
+      time_limit_sec: Number(quizData.time_limit_sec) || 0,
+      items_count: items.length,
+      status: status,             // "open" (for this branch)
+      warning: quizData.warning || "",
+      questions: items
+    };
+
+    return jsonResponse(result, 200);
+
+  } catch (err) {
+    return jsonResponse({ error: err.message }, 500);
+  }
+}
+
+/**
+ * computeQuizStatus
+ * -----------------
+ * Given a row from the `quizzes` tab, decide:
+ *   - "unpublished" – if published is FALSE/0/no
+ *   - "scheduled"   – if published TRUE but now < publish_at
+ *   - "closed"      – if published TRUE and now >= unpublish_at
+ *   - "open"        – otherwise
+ *
+ * Uses columns:
+ *   published, publish_at, unpublish_at
+ */
+function computeQuizStatus(quizRow) {
+  var now = new Date();
+
+  // 1) Read and normalise "published"
+  var publishedVal = pickFirst(quizRow, ["published", "is_published"]);
+  var published = normalizeBoolean(publishedVal);
+  if (!published) {
+    return "unpublished";
+  }
+
+  // 2) Read publish/unpublish windows (your actual headings)
+  var publishRaw   = pickFirst(quizRow, ["publish_at"]);
+  var unpublishRaw = pickFirst(quizRow, ["unpublish_at"]);
+
+  var publishAt   = publishRaw   ? new Date(publishRaw)   : null;
+  var unpublishAt = unpublishRaw ? new Date(unpublishRaw) : null;
+
+  // Handle bad date parsing (Invalid Date)
+  if (publishAt && isNaN(publishAt.getTime()))   publishAt = null;
+  if (unpublishAt && isNaN(unpublishAt.getTime())) unpublishAt = null;
+
+  // 3) Derive status
+  if (publishAt && now < publishAt) {
+    return "scheduled";
+  }
+  if (unpublishAt && now >= unpublishAt) {
+    return "closed";
+  }
+
+  return "open";
+}
+
+/**
+ * pickFirst
+ * ---------
+ * Utility to return the first non-empty value for given keys from an object.
+ * Example:
+ *   pickFirst(row, ["publish_at","published_at"]) → whichever exists first.
+ */
+function pickFirst(obj, keys) {
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    if (Object.prototype.hasOwnProperty.call(obj, k)) {
+      var v = obj[k];
+      if (v !== null && v !== "") return v;
+    }
+  }
+  return "";
+}
+
+/**
+ * normalizeBoolean
+ * ----------------
+ * Converts various forms into a real boolean:
+ *   true / "true" / "TRUE" / "1" / "yes" / "y" → true
+ *   anything else                            → false
+ */
+function normalizeBoolean(val) {
+  if (typeof val === "boolean") return val;
+  if (val === null || val === undefined) return false;
+
+  var s = String(val).trim().toLowerCase();
+  if (!s) return false;
+
+  return (s === "true" || s === "1" || s === "yes" || s === "y");
+}
+
+/**
+ * getQuizMetadata
+ * ---------------
+ * Open Portal DB sheet and return the row matching quiz_id
+ * as an object:
+ *   { quiz_id: ..., course_id: ..., type: ..., title: ..., n: ..., ... }
+ */
+function getQuizMetadata(sheetId, tabName, quizId) {
+  const ss    = SpreadsheetApp.openById(sheetId);
+  const sheet = ss.getSheetByName(tabName);
+  const data  = sheet.getDataRange().getValues();
+
+  const headers = data.shift(); // first row = headers
+  const idx     = headers.indexOf("quiz_id");
+  if (idx < 0) return null;
+
+  for (let row of data) {
+    if (String(row[idx]).trim() === quizId.trim()) {
+      const obj = {};
+      headers.forEach((h, i) => obj[h] = row[i]);
+      return obj;
+    }
+  }
+  return null;
+}
+
+/**
+ * getItemsForQuiz
+ * ---------------
+ * For a given course sheet:
+ *   - Open the `items` tab
+ *   - Find the column matching `columnName` (instant_id or timed_id)
+ *   - Return all rows where that column == quizId as objects.
+ */
+function getItemsForQuiz(sheetId, tabName, columnName, quizId) {
+  const ss    = SpreadsheetApp.openById(sheetId);
+  const sheet = ss.getSheetByName(tabName);
+  const data  = sheet.getDataRange().getValues();
+
+  const headers   = data.shift();
+  const colIndex  = headers.indexOf(columnName);
+
+  // If column doesn't exist, return empty (so frontend will show "not available")
+  if (colIndex < 0) {
+    return [];
+  }
+
+  const items = data
+    .filter(r => String(r[colIndex]).trim() === quizId.trim())
+    .map(r => {
+      const obj = {};
+      headers.forEach((h, i) => obj[h] = r[i]);
+      return obj;
+    });
+
+  return items;
+}
+
+/**
+ * getSheetIdFromCourses
+ * ---------------------
+ * Look into Portal DB "courses" tab to find sheet_id for a given course_id.
+ * Returns '' if not found.
+ */
+function getSheetIdFromCourses(dbSheetId, courseIdUpper) {
+  try {
+    const ss  = SpreadsheetApp.openById(dbSheetId);
+    const sh  = ss.getSheetByName("courses");
+    if (!sh) return '';
+
+    const values  = sh.getDataRange().getValues();
+    if (!values.length) return '';
+
+    const headers = values[0].map(h => String(h).trim().toLowerCase());
+    const iCourse = headers.indexOf("course_id");
+    const iSheet  = headers.indexOf("sheet_id");
+
+    if (iCourse < 0 || iSheet < 0) return '';
+
+    for (let r = 1; r < values.length; r++) {
+      const row       = values[r];
+      const courseVal = String(row[iCourse] || '').trim().toUpperCase();
+      if (courseVal === courseIdUpper) {
+        const sid = String(row[iSheet] || '').trim();
+        if (sid) return sid;
+      }
+    }
+    return '';
+  } catch (err) {
+    return '';
+  }
+}
+
+/**
+ * jsonResponse
+ * ------------
+ * Wrap object into JSON ContentService response.
+ * (The `code` argument is for semantics; Apps Script ContentService
+ *  itself does not set HTTP response code.)
+ */
+function jsonResponse(obj, code) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj, null, 2))
+    .setMimeType(ContentService.MimeType.JSON);
+}
