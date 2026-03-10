@@ -1,0 +1,2516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QAcademy — Timed Runner</title>
+<style>
+  :root{
+    --brand:#0b7a75; --muted:#859998; --ink:#1f2a28; --bg:#f6f8f7; --card:#ffffff; --soft:rgba(0,0,0,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,Segoe UI,Roboto,sans-serif}
+  .wrap{max-width:920px;margin:24px auto;padding:0 14px}
+  .card{background:var(--card);border:1px solid var(--soft);border-radius:16px;box-shadow:0 10px 24px rgba(0,0,0,.06);padding:16px;margin-bottom:14px}
+  h1{margin:0 0 6px;font-size:22px;color:#0b7a75;font-weight:800;letter-spacing:.2px}
+  .sub{color:#576663;font-size:13px;margin-bottom:10px}
+  .bar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:6px 0 8px;flex-wrap:wrap}
+  .pill{padding:6px 10px;border-radius:999px;background:#eef3f2;color:#25413d;border:1px solid #dbe4e2;font-size:12px}
+  .pill.timer{background:#fff7e6;border-color:#f3d9a5;color:#6a4a0a}
+
+  /* Slim sticky header bar (timer + progress + view/flag controls) */
+  #headerCard{
+    position:sticky;
+    top:0;
+    z-index:30;
+    background:rgba(255,255,255,.97);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid #dbe4e2;
+    border-radius:0 0 16px 16px;
+    box-shadow:0 6px 18px rgba(0,0,0,.08);
+    padding:8px 12px;
+    margin-bottom:10px;
+  }
+
+  .headerRow{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .headerRow-top{
+    margin-bottom:4px;
+  }
+  .headerRow-bottom{
+    margin-top:2px;
+  }
+  .header-progress{
+    flex:1;
+    min-width:140px;
+  }
+
+  .progress{
+    position:relative;
+    height:10px;
+    background:#e6eceb;
+    border-radius:999px;
+    overflow:hidden;
+    border:1px solid #cfe0dd;
+    margin-top:4px;
+  }
+  .progress > div{
+    position:absolute;
+    left:0;top:0;height:100%;width:0%;
+    background:repeating-linear-gradient(45deg, #0b7a75, #0b7a75 10px, #0a6a66 10px, #0a6a66 20px);
+    box-shadow:inset 0 0 6px rgba(0,0,0,.15);
+    background-size:40px 40px;
+    animation:qaStripes 1.2s linear infinite;
+  }
+  .progLabel{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:10px;
+    font-weight:700;
+    color:#0b7a75;
+    mix-blend-mode:multiply;
+    pointer-events:none;
+  }
+  @keyframes qaStripes{from{background-position:0 0;}to{background-position:40px 0;}}
+
+  .view-toggle{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .flag-nav{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:flex-end;
+  }
+  .view-label,
+  .flag-label{
+    font-size:11px;
+    color:#4b5a58;
+  }
+
+  /* NEW: feedback toggle group */
+  .feedback-toggle{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .fb-btn.active{
+    background:#0b7a75;
+    color:#ffffff;
+  }
+
+  .btn{background:#0b7a75;color:#fff;border:none;border-radius:12px;padding:10px 14px;font-weight:700;cursor:pointer}
+  .btn.ghost{background:#e6f2f0;color:#0a6c67}
+  .btn.softer{background:#eef3f2;color:#25413d}
+  .btn.small{padding:6px 10px;font-size:12px;border-radius:10px}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
+
+  .qstem{font-weight:700;margin:4px 0 0}
+  .q-topic{
+    font-size:11px;
+    color:#6b7b78;
+    margin-top:2px;
+  }
+  .opts{display:grid;gap:10px;margin-top:8px}
+  .opt{border:1px solid #d8dfdd;border-radius:12px;background:#fff;padding:10px;display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:flex-start;cursor:pointer}
+  .opt input{margin-top:3px}
+  .opt-title{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .chip{display:inline-block;border-radius:999px;padding:4px 8px;font-size:12px;border:1px solid #dbe4e2;background:#eef3f2;color:#25413d}
+  .chip.correct{background:#e6f7f3;color:#0a6c67;border-color:#bfe7dd}
+  .chip.your{background:#fff8e6;color:#6a4a0a;border-color:#f3d9a5}
+  .opt-fb{grid-column:1 / -1;margin:4px 0 0 26px;padding:8px 10px;border-left:3px solid #e6efed;background:#f8fbfa;border-radius:8px;color:#3b4a47;font-size:13px;white-space:pre-wrap;display:none}
+
+  /* Rationale box + image thumbnail */
+  .rationale{
+    margin-top:12px;
+    padding:10px;
+    border:1px dashed #d8dfdd;
+    border-radius:10px;
+    background:#fcfefd;
+    color:#31403d;
+    font-size:13px;
+    white-space:pre-wrap;
+    display:none;
+  }
+  .rationale-text{
+    margin-bottom:6px;
+  }
+  .rationale-img-wrap{
+    margin-top:4px;
+    text-align:left;
+  }
+  .rationale-img-thumb{
+    max-width:100%;
+    max-height:180px;
+    border-radius:10px;
+    border:1px solid #d8dfdd;
+    display:block;
+    cursor:pointer;
+  }
+  .rationale-img-caption{
+    font-size:11px;
+    color:#4b5a58;
+    margin-top:4px;
+  }
+
+  .nav{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+
+  .status{font-family:ui-monospace,Consolas,monospace;background:#0a302e;color:#dbfff8;border-radius:12px;padding:12px;white-space:pre-wrap}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:8px}
+  .cell{border:1px solid #d8dfdd;border-radius:10px;background:#fff;text-align:center;padding:8px 0;font-weight:700;cursor:pointer}
+  .cell.active{border-color:#0b7a75;box-shadow:0 0 0 2px rgba(11,122,117,.15) inset}
+  .cell.done{background:#f0f9f8}
+  .score{font-size:18px;font-weight:900;color:#0b7a75}
+
+  .q-block{
+    padding:6px 0 30px 0;
+    border-bottom:1px dashed #e0e6e5;
+    margin-bottom:8px;
+    position:relative;
+  }
+  .q-head{
+    margin-bottom:4px;
+  }
+  .q-index{
+    display:inline-block;
+    margin-bottom:4px;
+  }
+
+  .q-footer{
+    margin-top:6px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .flag-btn{padding:6px 10px;font-size:12px;border-radius:10px}
+  /* Report button (safe add-on) */
+.report-btn{padding:6px 10px;font-size:12px;border-radius:10px}
+.report-btn::after{content:"";} /* keeps layout stable */
+
+
+  .watermark{
+    font-size:11px;
+    font-weight:700;
+    color:#0b7a75;
+    opacity:.75;
+    border-radius:999px;
+    border:1px solid #e6eceb;
+    padding:4px 8px;
+    background:rgba(255,255,255,.9);
+  }
+
+  .pagebar{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:8px;flex-wrap:wrap}
+
+  .fab-grid{
+    position:fixed;
+    right:16px;
+    bottom:16px;
+    z-index:40;
+    box-shadow:0 10px 24px rgba(0,0,0,.18);
+    border-radius:999px;
+  }
+
+  /* Floating overlays (grid, exit, summary, image) */
+  .grid-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.35);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:60;
+  }
+  .grid-panel{
+    width:100%;
+    max-width:360px;
+    max-height:70vh;
+    background:#fff;
+    border-radius:14px;
+    box-shadow:0 12px 28px rgba(0,0,0,.28);
+    padding:10px 12px;
+    overflow-y:auto;
+  }
+  .grid-header{
+    position:sticky;
+    top:0;
+    background:#fff;
+    padding-bottom:6px;
+    margin-bottom:6px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    font-size:14px;
+    font-weight:700;
+    color:#1f2a28;
+    border-bottom:1px solid #e2e8f0;
+  }
+  .grid-body{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(36px,1fr));
+    gap:6px;
+  }
+  .grid-btn{
+    min-width:36px;
+    height:36px;
+    border-radius:8px;
+    border:1px solid #e2e8f0;
+    background:#fff;
+    cursor:pointer;
+    font-weight:700;
+    font-size:13px;
+  }
+  .grid-btn.answered{background:#eef2ff;border-color:#c7d2fe;}
+  .grid-btn.flagged{background:#fff7ed;border-color:#fdba74;}
+
+  /* Image rationale overlay panel */
+  .img-panel{
+    width:100%;
+    max-width:520px;
+    max-height:80vh;
+    background:#fff;
+    border-radius:14px;
+    box-shadow:0 12px 28px rgba(0,0,0,.28);
+    padding:10px 12px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  #imgOverlayImg{
+    max-width:100%;
+    max-height:70vh;
+    border-radius:10px;
+    object-fit:contain;
+  }
+/* Report overlay tweaks (uses existing overlay + panel styles) */
+#reportOverlay .grid-panel{ max-width:420px; }
+
+  /* === Loader overlay (Timed Runner) === */
+  .qa-loader{
+    position:fixed;
+    inset:0;
+    z-index:80;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    pointer-events:auto;
+  }
+.qa-loader-backdrop{
+  position:absolute;
+  inset:0;
+  background:rgba(15,23,42,0.35); /* matches Instant loader feel */
+  backdrop-filter:blur(1px);
+}
+
+  .qa-loader-card{
+    position:relative;
+    z-index:1;
+    min-width:220px;
+    max-width:280px;
+    padding:14px 16px;
+    border-radius:14px;
+    background:#ffffff;
+    box-shadow:0 16px 40px rgba(0,0,0,0.28);
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .qa-loader-spinner{
+    width:26px;
+    height:26px;
+    border-radius:999px;
+    border:3px solid #e5f3f1;
+    border-top-color:#0b7a75;
+    animation:qa-spin 0.7s linear infinite;
+  }
+  .qa-loader-text{
+    font-size:13px;
+    color:#1f2a28;
+  }
+  @keyframes qa-spin{
+    from{transform:rotate(0deg);}
+    to{transform:rotate(360deg);}
+  }
+
+  @media (max-width:720px){
+    .bar{flex-direction:column;align-items:flex-start}
+    .headerRow{
+      flex-direction:column;
+      align-items:flex-start;
+    }
+  }
+
+  @media (max-width:480px){
+    #headerCard{
+      padding:6px 10px;
+      border-radius:0 0 12px 12px;
+    }
+    .headerRow{
+      gap:6px;
+    }
+    .view-label,
+    .flag-label{
+      display:none;
+    }
+    .btn.small{
+      padding:4px 8px;
+      font-size:11px;
+      border-radius:9px;
+    }
+    .view-toggle,
+    .flag-nav,
+    .feedback-toggle{
+      gap:6px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- NON-STICKY INFO CARD (heading + meta) -->
+  <div class="card" id="infoCard">
+    <h1>Timed Quiz</h1>
+    <div class="sub" id="userLine">Signed in as: —</div>
+    <div class="sub">No feedback until submit • Auto-submit at 0</div>
+    <div class="bar">
+      <div class="pill" id="metaPill">Attempt: —</div>
+      <div class="pill" id="countPill">0 / 0 answered</div>
+    </div>
+  </div>
+
+  <!-- SLIM STICKY HEADER BAR (timer + progress + view/flag toggles) -->
+  <div class="card" id="headerCard">
+    <!-- Row 1: Timer + Progress -->
+    <div class="headerRow headerRow-top">
+      <div class="pill timer" id="timerPill">⏳ —:—</div>
+      <div class="header-progress">
+        <div class="progress">
+          <div id="progFill"></div>
+          <div id="progLabel" class="progLabel">0%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: View + Feedback mode + Flag navigation -->
+    <div class="headerRow headerRow-bottom">
+      <div class="view-toggle">
+        <span class="view-label">View:</span>
+        <button class="btn softer small" id="viewAllBtn">All</button>
+        <button class="btn softer small" id="viewFlaggedBtn">Flagged</button>
+      </div>
+
+      <!-- NEW: Feedback mode buttons (Inline / Standalone / Hide) -->
+      <div class="feedback-toggle">
+        <span class="view-label">Feedback:</span>
+        <button class="btn softer small fb-btn" data-mode="inline">Inline</button>
+        <button class="btn softer small fb-btn" data-mode="standalone">Standalone</button>
+        <button class="btn softer small fb-btn" data-mode="hide">Hide</button>
+      </div>
+
+      <div class="flag-nav">
+        <span class="flag-label">Flags:</span>
+        <button class="btn softer small" id="prevFlagBtn" style="display:none;">Prev</button>
+        <button class="btn softer small" id="nextFlagBtn" style="display:none;">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PREFLIGHT CARD -->
+  <div id="preCard" class="card" style="display:none;">
+    <h2 style="margin:0 0 4px;font-size:18px;">Ready to start your timed quiz?</h2>
+    <p class="sub" id="preSummary">Loading quiz details…</p>
+    <div class="pill" id="preMetaPill">Mode: Timed • Questions: — • Time: —</div>
+
+    <div style="margin-top:10px;font-size:13px;color:#3b4a47;">
+      <p style="margin:0 0 4px;">How this quiz works:</p>
+      <ul style="margin:4px 0 0 18px;padding:0;">
+        <li>The timer starts when you click <strong>Start quiz</strong>.</li>
+        <li>Questions are shown in pages. Use <strong>Prev</strong> and <strong>Next</strong> to move.</li>
+        <li>You can change your answers any time before you submit or time runs out.</li>
+        <li>When time reaches 0, the quiz is <strong>auto-submitted</strong>.</li>
+        <li>Feedback and explanations appear only after submission, with a question grid for review.</li>
+      </ul>
+    </div>
+
+    <p style="margin:8px 0 0;font-size:12px;color:#8f2727;">
+      ⚠️ Closing or refreshing this page during the quiz may cause you to lose your answers.
+    </p>
+
+    <label style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:#3b4a47;">
+      <input type="checkbox" id="preSkip" />
+      <span>Don’t show this again on this device</span>
+    </label>
+
+    <div class="nav" style="margin-top:10px;">
+      <button class="btn ghost" id="preCancelBtn">Cancel</button>
+      <button class="btn" id="preStartBtn">Start quiz</button>
+    </div>
+  </div>
+
+  <!-- QUIZ CARD -->
+  <div id="qCard" class="card" style="display:none;">
+    <!-- Top pager -->
+    <div class="pagebar" id="pagebarTop">
+      <div class="pill" id="pagePill">Page 1 / 1</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn softer prevPage" id="prevPageBtn">◀ Prev Page</button>
+        <button class="btn softer nextPage" id="nextPageBtn">Next Page ▶</button>
+      </div>
+    </div>
+
+    <div id="qList"></div>
+
+    <!-- Bottom pager -->
+    <div class="pagebar" id="pagebarBottom">
+      <div class="pill" id="pagePillBottom">Page 1 / 1</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn softer prevPage">◀ Prev Page</button>
+        <button class="btn softer nextPage">Next Page ▶</button>
+      </div>
+    </div>
+
+    <div class="nav">
+      <button class="btn ghost" id="reviewBtn">Review</button>
+      <button class="btn" id="submitBtn">Submit</button>
+      <button class="btn ghost" id="exitBtn">Exit</button>
+      <button class="btn ghost" id="restartBtn" style="display:none;">Restart</button>
+    </div>
+  </div>
+
+  <!-- REVIEW CARD (stays at bottom as secondary access) -->
+  <div id="reviewCard" class="card" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div class="score" id="scoreText">Score: —</div>
+      <button class="btn softer" id="backToQuizBtn">Back to quiz</button>
+    </div>
+
+    <!-- Summary block -->
+    <div id="summaryMeta" style="margin-top:8px;font-size:13px;color:#3b4a47;">
+      <div id="summaryLine1">Course — • Timed exam mode</div>
+      <div id="summaryLine2">Questions: — • Time allowed: — • Time used: —</div>
+      <div id="summaryLine3" style="margin-top:4px;font-size:12px;opacity:.85;">Status: —</div>
+    </div>
+
+    <!-- Grading block -->
+    <div id="gradeBlock" style="margin-top:10px;font-size:13px;color:#1f2a28;">
+      <div id="gradeHeading" style="font-weight:700;"></div>
+      <div id="gradeMessage" style="margin-top:2px;font-size:12px;color:#4b5a58;"></div>
+    </div>
+
+    <div class="grid" id="grid" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- LOG CARD -->
+  <div id="logCard" class="card">
+    <div class="status" id="log">Loading attempt…</div>
+  </div>
+</div>
+
+<!-- Floating grid button -->
+<button id="fabGrid" class="btn softer fab-grid" style="display:none;">Questions ▢</button>
+
+<!-- Floating grid overlay -->
+<div id="gridOverlay" class="grid-overlay">
+  <div class="grid-panel">
+    <div class="grid-header">
+      <span>Question grid</span>
+      <button id="gridOverlayClose" class="btn softer small" type="button">Close</button>
+    </div>
+    <div id="gridOverlayBody" class="grid-body"></div>
+  </div>
+</div>
+
+<!-- Exit confirmation overlay -->
+<div id="exitOverlay" class="grid-overlay">
+  <div class="grid-panel">
+    <div class="grid-header">
+      <span>Leave this quiz?</span>
+    </div>
+    <div style="font-size:13px;color:#3b4a47;margin-bottom:10px;">
+      <p style="margin:0 0 6px;">
+        If you leave now:
+      </p>
+      <ul style="margin:0 0 8px 18px;padding:0;">
+        <li><strong>Save &amp; resume later</strong> will store your current answers as an in-progress attempt.</li>
+        <li><strong>Submit &amp; exit</strong> will mark this attempt as completed and show your results.</li>
+        <li><strong>Cancel</strong> will return you to the quiz and keep the timer running.</li>
+      </ul>
+    </div>
+    <div class="nav" style="margin-top:4px;">
+      <button class="btn ghost" id="exitCancelBtn" type="button">Cancel</button>
+      <button class="btn softer" id="exitSaveBtn" type="button">Save &amp; resume later</button>
+      <button class="btn" id="exitSubmitBtn" type="button">Submit &amp; exit</button>
+    </div>
+  </div>
+</div>
+<!-- Report confirmation overlay (opens Messages in a new tab) -->
+<div id="reportOverlay" class="grid-overlay">
+  <div class="grid-panel">
+    <div class="grid-header">
+      <span>Send Feedback On This Question?</span>
+    </div>
+
+    <div style="font-size:13px;color:#3b4a47;margin-bottom:10px;">
+      <p style="margin:0 0 6px;">
+        This will open Messages in a new tab. <strong>Your quiz stays open here and the timer continues.</strong>
+      </p>
+      <p style="margin:0;font-size:12px;opacity:.9;">
+        Tip: After sending your message, switch back to this tab to continue.
+      </p>
+    </div>
+
+    <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;color:#3b4a47;">
+      <input type="checkbox" id="reportSkip" />
+      <span>Don’t show this again on this device</span>
+    </label>
+
+    <div class="nav" style="margin-top:10px;">
+      <button class="btn ghost" id="reportCancelBtn" type="button">Cancel</button>
+      <button class="btn" id="reportOpenBtn" type="button">Open Messages</button>
+    </div>
+  </div>
+</div>
+
+  
+<!-- Summary overlay shown immediately after submit/auto-submit -->
+<div id="summaryOverlay" class="grid-overlay">
+  <div class="grid-panel">
+    <div class="grid-header">
+      <span>Quiz result</span>
+    </div>
+    <div style="font-size:13px;color:#3b4a47;margin-bottom:10px;">
+      <div id="summaryOverlayScore" style="font-size:18px;font-weight:900;color:#0b7a75;margin-bottom:4px;">
+        Score: —
+      </div>
+      <div id="summaryOverlayLine1">Course — • Timed exam mode</div>
+      <div id="summaryOverlayLine2">Questions: — • Time allowed: — • Time used: —</div>
+      <div id="summaryOverlayLine3" style="margin-top:4px;font-size:12px;opacity:.85;">Status: —</div>
+      <div id="summaryOverlayGradeHeading" style="margin-top:6px;font-weight:700;"></div>
+      <div id="summaryOverlayGradeMessage" style="margin-top:2px;font-size:12px;color:#4b5a58;"></div>
+    </div>
+    <div class="nav" style="margin-top:4px;">
+      <button class="btn" id="summaryReviewBtn" type="button">Review questions</button>
+    </div>
+  </div>
+</div>
+
+<!-- Image rationale overlay -->
+<div id="imgOverlay" class="grid-overlay">
+  <div class="img-panel">
+    <div class="grid-header" style="margin-bottom:4px;">
+      <span>Rationale image</span>
+      <button class="btn softer small" id="imgOverlayClose" type="button">Close</button>
+    </div>
+    <img id="imgOverlayImg" alt="Rationale illustration" />
+  </div>
+</div>
+
+<!-- Loader overlay -->
+<div id="qaLoader" class="qa-loader">
+  <div class="qa-loader-backdrop"></div>
+  <div class="qa-loader-card">
+    <div class="qa-loader-spinner"></div>
+    <div class="qa-loader-text" id="qaLoaderText">Loading…</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // === CONFIG (AUTH + BUILDER) ===
+  const AUTH_WEB_APP_URL       = "https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec"; // verify
+  const BUILDER_WEB_APP_URL    = "https://script.google.com/macros/s/AKfycbx_CDJU5juEDxybplqBlYjJP0tAS52-HIOWE6is19Ub7NqhaV_16MnFmstJpWcdorHT/exec";  // attempt / attempts APIs
+
+  const TOKEN_KEY              = "qa_token";
+  const USER_ID_KEY            = "qa_user_id";   // must match guard
+  const LOGIN_SLUG             = "login_23";
+  const DASHBOARD_SLUG         = "dashboard_23";
+  const MESSAGES_PAGE_URL       = "/p/messages.html"; // <-- change if your messages page slug differs
+
+
+  const SHUFFLE_OPTIONS        = true;
+  const WARN_LAST_SECONDS      = 60;
+  const QUESTIONS_PER_PAGE     = 1;
+  const PREF_KEY_HIDE_PREFLIGHT= "qa_preflight_hide_timed_v1";
+  const REPORT_PREF_KEY        = "qa_report_confirm_dismissed_v1";
+
+
+  // feedback mode key (inline / standalone / hide)
+  const FEEDBACK_KEY           = "qa_feedback_mode_v1";
+
+  const COURSE_LABELS = {
+    "GP":"General Paper",
+    "RN_MED":"Medicine & Medical Nursing(RN)",
+    "RN_SURG":"Surgery & Surgical Nursing(RN)",
+    "RM_PED_OBS_HRN":"Paediatric, Obstetric Anatomy, & High-Risk Neonates(RM)",
+    "RM_MID":"Midwifery(RM)",
+    "RPHN_PPHN":"Principles of Public Health Nursing(RPHN)",
+    "RPHN_DISEASE_CTRL":"Principles of Disease Management & Control(RPHN)",
+    "RMHN_PSYCH_NURS":"Principles & Practice of Psychiatric Nursing(RMHN)",
+    "RMHN_PSYCH_PPHARM":"Psychiatry, Psychopathology & Psychopharmacology(RMHN)",
+    "NAC_BASIC_CLIN":"Basic Clinical Nursing(NACNAP)",
+    "NAC_BASIC_PREV":"Basic Preventive Nursing(NACNAP)"
+  };
+
+  // === STATE ===
+  let ATT   = null;
+  let ITEMS = [];
+  let ANSW  = {};
+  let FLAGS = {};
+  let LOCKED= false;
+  let SCORE = 0;
+  let FINISH_SENT = false;   // ensure attempt.finish is only sent once
+
+  // Paging
+  let PAGE = 0;
+  let TOTAL_PAGES = 1;
+  let viewMode = 'ALL'; // 'ALL' or 'FLAGGED'
+
+  // feedback mode (inline / standalone / hide)
+  let feedbackMode = 'inline';
+
+  // Timer
+  let totalSec = 0;
+  let leftSec  = 0;
+  let tHandle  = null;
+
+  // Cache
+  const SHUF = new Map();
+
+  // Auth payload
+  let AUTH = null;
+  let ALLOWED_COURSE_IDS = [];
+  
+  // For body scroll locking during overlays
+  let prevBodyOverflow = '';
+  let prevBodyOverflowExit = '';
+  let prevBodyOverflowImg = '';
+  let prevBodyOverflowSummary = '';
+
+  // attempt.update throttling
+  let LAST_SAVE_AT = 0;
+  const MIN_SAVE_INTERVAL_MS = 5000;
+
+  // Autosave interval (ms), recomputed once ITEMS are known
+  let AUTOSAVE_INTERVAL_MS = 180000; // default 3 min, will be recalculated
+  let autoSaveHandle = null;
+
+  // Pending navigation target when user clicks a link while quiz is active
+  let PENDING_NAV_HREF = null;
+  // Pending report URL for "Report this question" confirmation
+  let PENDING_REPORT_URL = null;
+
+
+  // === EL ===
+  const el = {
+    metaPill:  document.getElementById('metaPill'),
+    countPill: document.getElementById('countPill'),
+    timerPill: document.getElementById('timerPill'),
+    progFill:  document.getElementById('progFill'),
+    progLabel: document.getElementById('progLabel'),
+
+    preCard:   document.getElementById('preCard'),
+    preSummary:document.getElementById('preSummary'),
+    preMetaPill:document.getElementById('preMetaPill'),
+    preSkip:   document.getElementById('preSkip'),
+    preStartBtn:document.getElementById('preStartBtn'),
+    preCancelBtn:document.getElementById('preCancelBtn'),
+
+    qCard:     document.getElementById('qCard'),
+    qList:     document.getElementById('qList'),
+    pagePill:  document.getElementById('pagePill'),
+    pagePillBottom: document.getElementById('pagePillBottom'),
+
+    reviewBtn: document.getElementById('reviewBtn'),
+    submitBtn: document.getElementById('submitBtn'),
+    restartBtn:document.getElementById('restartBtn'),
+    exitBtn:   document.getElementById('exitBtn'),
+
+    reviewCard:document.getElementById('reviewCard'),
+    grid:      document.getElementById('grid'),
+    scoreText: document.getElementById('scoreText'),
+    backToQuizBtn: document.getElementById('backToQuizBtn'),
+
+    // Summary lines
+    summaryLine1: document.getElementById('summaryLine1'),
+    summaryLine2: document.getElementById('summaryLine2'),
+    summaryLine3: document.getElementById('summaryLine3'),
+
+    // Grading block
+    gradeHeading: document.getElementById('gradeHeading'),
+    gradeMessage: document.getElementById('gradeMessage'),
+
+    // View / flag nav
+    viewAllBtn:      document.getElementById('viewAllBtn'),
+    viewFlaggedBtn:  document.getElementById('viewFlaggedBtn'),
+    prevFlagBtn:     document.getElementById('prevFlagBtn'),
+    nextFlagBtn:     document.getElementById('nextFlagBtn'),
+
+    // NEW: feedback buttons (Inline / Standalone / Hide)
+    fbButtons: Array.from(document.querySelectorAll('.fb-btn')),
+
+    // Floating grid overlay
+    fabGrid:         document.getElementById('fabGrid'),
+    gridOverlay:     document.getElementById('gridOverlay'),
+    gridOverlayBody: document.getElementById('gridOverlayBody'),
+    gridOverlayClose:document.getElementById('gridOverlayClose'),
+
+    // Exit overlay
+    exitOverlay:     document.getElementById('exitOverlay'),
+    exitSaveBtn:     document.getElementById('exitSaveBtn'),
+    exitSubmitBtn:   document.getElementById('exitSubmitBtn'),
+    exitCancelBtn:   document.getElementById('exitCancelBtn'),
+    
+        // Report overlay
+    reportOverlay:    document.getElementById('reportOverlay'),
+    reportSkip:       document.getElementById('reportSkip'),
+    reportCancelBtn:  document.getElementById('reportCancelBtn'),
+    reportOpenBtn:    document.getElementById('reportOpenBtn'),
+
+
+    // Summary overlay
+    summaryOverlay:       document.getElementById('summaryOverlay'),
+    summaryOverlayScore:  document.getElementById('summaryOverlayScore'),
+    summaryOverlayLine1:  document.getElementById('summaryOverlayLine1'),
+    summaryOverlayLine2:  document.getElementById('summaryOverlayLine2'),
+    summaryOverlayLine3:  document.getElementById('summaryOverlayLine3'),
+    summaryReviewBtn:     document.getElementById('summaryReviewBtn'),
+    summaryOverlayGradeHeading: document.getElementById('summaryOverlayGradeHeading'),
+    summaryOverlayGradeMessage: document.getElementById('summaryOverlayGradeMessage'),
+
+    // Image overlay
+    imgOverlay:      document.getElementById('imgOverlay'),
+    imgOverlayImg:   document.getElementById('imgOverlayImg'),
+    imgOverlayClose: document.getElementById('imgOverlayClose'),
+
+    // User info line
+    userLine: document.getElementById('userLine'),
+
+    log:       document.getElementById('log')
+  };
+
+  // === UTIL ===
+  function qs(k){ return new URLSearchParams(location.search).get(k) || ''; }
+  function log(msg){ el.log.textContent = typeof msg==='string'? msg : JSON.stringify(msg,null,2); }
+  function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
+  function pct(a,b){ return b? Math.round((a/b)*100) : 0; }
+  function mmss(sec){ const m=Math.floor(sec/60), s=sec%60; return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+  function go(path){ location.replace(path); }
+
+  // Loader helpers
+  function qaShowLoader(message){
+    const overlay = document.getElementById('qaLoader');
+    const textEl  = document.getElementById('qaLoaderText');
+    if (!overlay) return;
+    if (textEl){
+      if (typeof message === 'string' && message.trim()){
+        textEl.textContent = message;
+      } else if (!textEl.textContent){
+        textEl.textContent = 'Loading…';
+      }
+    }
+    overlay.style.display = 'flex';
+  }
+  function qaHideLoader(){
+    const overlay = document.getElementById('qaLoader');
+    if (!overlay) return;
+    overlay.style.display = 'none';
+  }
+
+  function getLocalUserId(){
+    try{
+      return localStorage.getItem(USER_ID_KEY) || "";
+    }catch(_){
+      return "";
+    }
+  }
+
+  // Mirror of the guard's extractUserId (fallback if needed)
+  function extractUserId(payload){
+    if (!payload || typeof payload !== "object") return "";
+
+    var rawUser = payload.user || payload.account || payload.profile || null;
+
+    var candidates = [
+      payload.user_id,
+      payload.username,
+      payload.email,
+      payload.id,
+      rawUser && rawUser.user_id,
+      rawUser && rawUser.id,
+      rawUser && rawUser.username,
+      rawUser && rawUser.email
+    ];
+
+    for (var i = 0; i < candidates.length; i++){
+      var v = candidates[i];
+      if (v !== undefined && v !== null){
+        var s = String(v).trim();
+        if (s) return s;
+      }
+    }
+    return "";
+  }
+
+  // NEW: extract a friendly display name
+  function extractUserName(payload){
+    if (!payload || typeof payload !== "object") return "";
+
+    var rawUser = payload.user || payload.account || payload.profile || null;
+
+    var candidates = [
+      payload.name,
+      payload.full_name,
+      payload.display_name,
+      rawUser && (rawUser.name || rawUser.full_name || rawUser.display_name),
+      payload.email,
+      rawUser && rawUser.email
+    ];
+
+    for (var i = 0; i < candidates.length; i++){
+      var v = candidates[i];
+      if (v !== undefined && v !== null){
+        var s = String(v).trim();
+        if (s) return s;
+      }
+    }
+    return "";
+  }
+
+  async function verifyToken(){
+    const token = localStorage.getItem(TOKEN_KEY);
+    if(!token){
+      go("/p/" + LOGIN_SLUG + ".html");
+      return null;
+    }
+    try{
+      const body = new URLSearchParams({ action:"verify", token });
+      const res  = await fetch(AUTH_WEB_APP_URL, {
+        method:"POST",
+        headers:{ "Content-Type":"application/x-www-form-urlencoded" },
+        body
+      });
+      if(!res.ok) throw new Error("Verify HTTP " + res.status);
+      const payload = await res.json();
+      if(!payload || !payload.ok){
+        localStorage.removeItem(TOKEN_KEY);
+        AUTH = null;
+        ALLOWED_COURSE_IDS = [];
+        go("/p/" + LOGIN_SLUG + ".html");
+        return null;
+      }
+
+      // Save auth payload
+      AUTH = payload;
+
+      // Guard v3-style: derive active course_ids
+      const courses = Array.isArray(payload.courses) ? payload.courses : [];
+      const active  = courses.filter(c => String(c.status || '').toLowerCase() === 'active');
+      ALLOWED_COURSE_IDS = active
+        .map(c => (c.course_id || '').trim())
+        .filter(Boolean);
+
+      // Store user_id locally for later cross-checks
+      const uid = extractUserId(payload);
+      if (uid){
+        try{ localStorage.setItem(USER_ID_KEY, uid); }catch(_){}
+      }
+
+      // Show "Signed in as" on top card
+      if (el.userLine){
+        const niceName = extractUserName(payload);
+        if (niceName){
+          el.userLine.textContent = "Signed in as: " + niceName;
+        } else if (uid){
+          el.userLine.textContent = "Signed in as: " + uid;
+        }
+      }
+
+      return payload;
+    }catch(err){
+      console.error("Timed runner guard verify failed:", err);
+      localStorage.removeItem(TOKEN_KEY);
+      AUTH = null;
+      ALLOWED_COURSE_IDS = [];
+      go("/p/" + LOGIN_SLUG + ".html");
+      return null;
+    }
+  }
+
+
+  function shouldSkipPreflight(){
+    try{ return localStorage.getItem(PREF_KEY_HIDE_PREFLIGHT) === "1"; }
+    catch(_){ return false; }
+  }
+  function setSkipPreflight(on){
+    try{
+      if(on) localStorage.setItem(PREF_KEY_HIDE_PREFLIGHT, "1");
+      else localStorage.removeItem(PREF_KEY_HIDE_PREFLIGHT);
+    }catch(_){}
+  }
+
+  function seedFrom(str){ let s=0; for(let i=0;i<str.length;i++) s = (s*31 + str.charCodeAt(i)) >>> 0; return s>>>0; }
+  function rand(so){ so.seed ^= so.seed << 13; so.seed >>>= 0; so.seed ^= so.seed >> 17; so.seed >>>= 0; so.seed ^= so.seed << 5; so.seed >>>= 0; return (so.seed>>>0)/0xFFFFFFFF; }
+  function shuffleDet(arr, key){
+    const a = arr.slice(); const so = { seed: seedFrom(key) };
+    for (let i=a.length-1;i>0;i--){ const j = Math.floor(rand(so)*(i+1)); [a[i],a[j]] = [a[j],a[i]]; }
+    return a;
+  }
+  function displayLabel(i){ return ['A','B','C','D'][i] || '?'; }
+
+  function getShuffledOptionsFor(r){
+    const cached = SHUF.get(r.item_id);
+    if (cached) return cached;
+
+    const raw = [
+      { id:'A', text:r.option_a, fb:r.fb_a, isCorrect: (String(r.correct||'').trim().toUpperCase()==='A') },
+      { id:'B', text:r.option_b, fb:r.fb_b, isCorrect: (String(r.correct||'').trim().toUpperCase()==='B') },
+      { id:'C', text:r.option_c, fb:r.fb_c, isCorrect: (String(r.correct||'').trim().toUpperCase()==='C') },
+      { id:'D', text:r.option_d, fb:r.fb_d, isCorrect: (String(r.correct||'').trim().toUpperCase()==='D') }
+    ].filter(o => (String(o.text||'').trim().length>0));
+
+    const correctCount = raw.reduce((acc,o)=> acc + (o.isCorrect?1:0), 0);
+    let arr = raw;
+    if (SHUFFLE_OPTIONS && correctCount===1 && raw.length>1){
+      arr = shuffleDet(raw, String(ATT.attempt_id||'') + '|' + String(r.item_id||''));
+    }
+
+    SHUF.set(r.item_id, arr);
+    return arr;
+  }
+
+  // === FEEDBACK MODE HELPERS (inline / standalone / hide) ===
+  function normaliseFeedbackMode(m){
+    const s = String(m || '').toLowerCase();
+    if (s === 'inline' || s === 'standalone' || s === 'hide') return s;
+    return 'inline';
+  }
+
+  function loadFeedbackMode(){
+    const urlVal = (qs('feedback') || '').toLowerCase();
+    let localVal = '';
+    try{
+      localVal = (localStorage.getItem(FEEDBACK_KEY) || '').toLowerCase();
+    }catch(_){}
+
+    const chosen = normaliseFeedbackMode(urlVal || localVal || 'inline');
+    // Persist normalised value back
+    try{ localStorage.setItem(FEEDBACK_KEY, chosen); }catch(_){}
+    return chosen;
+  }
+
+  function saveFeedbackMode(mode){
+    const m = normaliseFeedbackMode(mode);
+    feedbackMode = m;
+    try{ localStorage.setItem(FEEDBACK_KEY, m); }catch(_){}
+    updateFeedbackUI();
+    // After submit / in review, re-render to apply new mode immediately
+    if (LOCKED){
+      renderPage();
+    }
+  }
+
+  function updateFeedbackUI(){
+    const m = normaliseFeedbackMode(feedbackMode);
+
+    // Highlight active feedback button
+    if (el.fbButtons && el.fbButtons.length){
+      el.fbButtons.forEach(btn => {
+        const mode = (btn.dataset.mode || '').toLowerCase();
+        if (mode === m){
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
+  }
+
+  // === AUTOSAVE HELPERS (10% of total time, clamped 1–10 min) ===
+  function recomputeAutosaveInterval(){
+    if (!ITEMS || !ITEMS.length) return;
+    // System is 1 min per question ⇒ totalMs = n * 60,000
+    const totalMs = ITEMS.length * 60000;
+    const raw = Math.floor(totalMs * 0.10);     // 10% of total quiz time
+    AUTOSAVE_INTERVAL_MS = clamp(raw, 60000, 600000); // clamp between 1 and 10 minutes
+  }
+
+  function stopAutosaveLoop(){
+    if (autoSaveHandle){
+      clearTimeout(autoSaveHandle);
+      autoSaveHandle = null;
+    }
+  }
+
+  function startAutosaveLoop(){
+    stopAutosaveLoop();
+    function tick(){
+      // Only autosave while quiz is active, timed, and not locked
+      if (!ATT || !ATT.attempt_id || LOCKED || !ITEMS.length || leftSec <= 0 || !el.qCard || el.qCard.style.display === 'none'){
+        autoSaveHandle = setTimeout(tick, AUTOSAVE_INTERVAL_MS);
+        return;
+      }
+      saveInProgress(false);
+      autoSaveHandle = setTimeout(tick, AUTOSAVE_INTERVAL_MS);
+    }
+    autoSaveHandle = setTimeout(tick, AUTOSAVE_INTERVAL_MS);
+  }
+
+  // === TIMER ===
+  function startTimer(initial){
+    stopTimer();
+    if (typeof initial === 'number' && initial >= 0){
+      leftSec = initial;
+    }else if (!leftSec || leftSec <= 0){
+      leftSec = totalSec;
+    }
+    tick();
+    tHandle = setInterval(tick, 1000);
+  }
+  function stopTimer(){
+    if (tHandle){ clearInterval(tHandle); tHandle = null; }
+    stopAutosaveLoop();
+  }
+  function tick(){
+    if (leftSec < 0) leftSec = 0;
+    el.timerPill.textContent = `🕒 ${mmss(leftSec)} / ${mmss(totalSec)}`;
+    if (leftSec <= WARN_LAST_SECONDS){
+      el.timerPill.style.background = '#fff0f0';
+      el.timerPill.style.borderColor = '#f1c4c4';
+      el.timerPill.style.color = '#8f2727';
+    }
+    if (leftSec === 0){
+      stopTimer();
+      if (!LOCKED){
+        submitQuiz(true); // auto-submit
+      }
+      return;
+    }
+    leftSec--;
+  }
+
+  // === VIEW + FLAG NAV HELPERS ===
+  function flaggedPageIndexes(){
+    const pages = new Set();
+    ITEMS.forEach((r, idx)=>{
+      if (FLAGS[r.item_id]) pages.add(Math.floor(idx / QUESTIONS_PER_PAGE));
+    });
+    return Array.from(pages).sort((a,b)=> a-b);
+  }
+
+  function jumpToNextFlagged(){
+    const pages = flaggedPageIndexes();
+    if (!pages.length){ alert('No flagged questions.'); return; }
+    const cur = PAGE;
+    const next = pages.find(p => p > cur);
+    PAGE = (next !== undefined) ? next : pages[0];
+    viewMode = 'ALL';
+    renderPage();
+  }
+
+  function jumpToPrevFlagged(){
+    const pages = flaggedPageIndexes();
+    if (!pages.length){ alert('No flagged questions.'); return; }
+    const cur = PAGE;
+    let target = null;
+    for (let i=pages.length-1;i>=0;i--){
+      if (pages[i] < cur){ target = pages[i]; break; }
+    }
+    PAGE = (target !== null && target !== undefined) ? target : pages[pages.length-1];
+    viewMode = 'ALL';
+    renderPage();
+  }
+
+  function updateFlagNavVisibility(){
+    const anyFlagged = Object.values(FLAGS).some(Boolean);
+    if (!anyFlagged){
+      if (el.prevFlagBtn) el.prevFlagBtn.style.display = 'none';
+      if (el.nextFlagBtn) el.nextFlagBtn.style.display = 'none';
+      return;
+    }
+    const showNav = (viewMode === 'FLAGGED');
+    if (el.prevFlagBtn) el.prevFlagBtn.style.display = showNav ? '' : 'none';
+    if (el.nextFlagBtn) el.nextFlagBtn.style.display = showNav ? '' : 'none';
+  }
+
+  // === PREFLIGHT ===
+  function preparePreflight(mins){
+    if (!ATT || !ITEMS.length || !el.preCard) return;
+    const courseLabel = COURSE_LABELS[ATT.course_id] || ATT.course_id || '—';
+    const total = ITEMS.length;
+
+    el.preSummary.textContent = `${courseLabel} | ${total} question${total===1?'':'s'} | Timed exam mode`;
+    el.preMetaPill.textContent = `Mode: Timed | Questions: ${total} | Time: ${mins} min`;
+    if (el.preSkip) el.preSkip.checked = false;
+
+    el.preCard.style.display = 'block';
+    el.qCard.style.display = 'none';
+    if (el.fabGrid) el.fabGrid.style.display = 'none';
+    log("Review the quiz rules, then click Start quiz when you're ready. The timer has not started yet.");
+  }
+
+  function startQuiz(){
+    if (!ITEMS.length) return;
+    if (el.preCard) el.preCard.style.display = 'none';
+    el.qCard.style.display = 'block';
+    if (el.fabGrid) el.fabGrid.style.display = 'inline-flex';
+
+    PAGE = 0;
+    viewMode = 'ALL';
+    renderPage();
+    renderProgress();
+    recomputeAutosaveInterval();
+    startTimer(totalSec);
+    startAutosaveLoop();
+    log("Timer started. Work through the questions and submit before time runs out.");
+  }
+
+  // === HELPER: UPDATE GRADE TEXT (review card + overlay) ===
+  function updateGradeText(scoreRaw, total){
+    if (!total || total <= 0){
+      if (el.gradeHeading) el.gradeHeading.textContent = "";
+      if (el.gradeMessage) el.gradeMessage.textContent = "";
+      if (el.summaryOverlayGradeHeading) el.summaryOverlayGradeHeading.textContent = "";
+      if (el.summaryOverlayGradeMessage) el.summaryOverlayGradeMessage.textContent = "";
+      return;
+    }
+    const percent = Math.round((scoreRaw / total) * 100);
+    let heading = "";
+    let msg = "";
+
+    if (percent >= 80){
+      heading = "Excellent performance";
+      msg = "You're well above the 50% pass mark. Keep polishing and practising more exam-style questions.";
+    } else if (percent >= 50){
+      heading = "Pass – keep revising";
+      msg = "You met the 50% pass mark. Keep revising to strengthen weaker areas and aim for an even higher score.";
+    } else {
+      heading = "Below pass mark (50%)";
+      msg = "You're below the 50% pass mark. Don't worry - review this topic carefully and try again to build confidence.";
+    }
+
+    if (el.gradeHeading) el.gradeHeading.textContent = heading;
+    if (el.gradeMessage) el.gradeMessage.textContent = msg;
+    if (el.summaryOverlayGradeHeading) el.summaryOverlayGradeHeading.textContent = heading;
+    if (el.summaryOverlayGradeMessage) el.summaryOverlayGradeMessage.textContent = msg;
+  }
+
+  // === LOAD ATTEMPT (GUARDED) ===
+  async function loadAttempt(){
+    const quiz_id    = qs('quiz_id') || '';
+    const attempt_id = qs('attempt_id') || quiz_id;
+
+    if (!attempt_id){
+      log("Missing attempt_id (or quiz_id) in URL.");
+      return;
+    }
+
+    // Include token + mode so backend can enforce ownership + mode
+    const token = (function(){
+      try {
+        return localStorage.getItem(TOKEN_KEY) || "";
+      } catch(_){
+        return "";
+      }
+    })();
+
+    const params = new URLSearchParams();
+    params.set("action", "attempt");
+    params.set("attempt_id", attempt_id);
+    if (token){
+      params.set("token", token);
+    }
+    // Timed Runner always expects timed attempts
+    params.set("mode", "timed");
+
+    const url = `${BUILDER_WEB_APP_URL}?${params.toString()}`;
+
+    try{
+      const res = await fetch(url);
+      let data;
+      try {
+        data = await res.json();
+      } catch(err) {
+        log("Server returned invalid response.");
+        return;
+      }
+
+      // Backend explicit error (e.g. wrong user, wrong mode, not found)
+      if (data && data.ok === false){
+        const msg = data.error || "Backend rejected this attempt.";
+        log(msg);
+        return;
+      }
+
+      // Missing or malformed items array
+      if (!data || !Array.isArray(data.items)){
+        const msg = data && data.error ? data.error : "Attempt could not be loaded.";
+        log(msg);
+        return;
+      }
+
+      // Empty after hydration / security block
+      if (!data.items.length){
+        const msg = data && data.error ? data.error : "No items returned for this attempt.";
+        log(msg);
+        return;
+      }
+
+      ATT   = data.meta || {};
+      ITEMS = data.items;
+      ANSW  = {};
+      FLAGS = {};
+      FINISH_SENT = false;
+
+      // Compute autosave interval now that ITEMS are known
+      recomputeAutosaveInterval();
+
+      // Course-level access check (Guard v3 style)
+      const cid = String(ATT.course_id || "").toUpperCase();
+      if (cid){
+        let allowedSet = null;
+
+        if (ALLOWED_COURSE_IDS && ALLOWED_COURSE_IDS.length){
+          allowedSet = new Set(ALLOWED_COURSE_IDS.map(id => String(id).toUpperCase()));
+        } else if (AUTH && Array.isArray(AUTH.course_ids)){
+          // Fallback for older payloads that return course_ids only
+          allowedSet = new Set(AUTH.course_ids.map(id => String(id).toUpperCase()));
+        }
+
+        if (allowedSet && !allowedSet.has(cid)){
+          log("You are not enrolled for this course. Redirecting to dashboard…");
+          setTimeout(()=>{ go("/p/" + DASHBOARD_SLUG + ".html"); }, 1200);
+          return;
+        }
+      }
+
+      // Attempt-level security (user_id match)
+      const attUserIdRaw = (ATT.user_id || "").toString().trim();
+      const localUidRaw  = getLocalUserId().trim();
+      const authUidRaw   = AUTH ? extractUserId(AUTH).trim() : "";
+      const currentUid   = localUidRaw || authUidRaw || "";
+
+      if (attUserIdRaw && currentUid && attUserIdRaw !== currentUid){
+        log("This quiz attempt is not linked to your account. Please start a new quiz from the course page.");
+        setTimeout(()=>{ go("/p/" + DASHBOARD_SLUG + ".html"); }, 1800);
+        return;
+      }
+
+      // Mode must be 'timed' for the timed runner
+      const attMode = String(ATT.mode || "").toLowerCase();
+      if (attMode && attMode !== "timed"){
+        log("This attempt was created for a different mode (instant). Please open it with the Instant Runner.");
+        return;
+      }
+
+      // ---- Timer + meta setup ----
+      const urlMins   = parseInt(qs('mins') || '', 10);
+      const metaMins  = parseInt(ATT.duration_min || ATT.duration || '', 10);
+      const nFallback = parseInt(ATT.n || ITEMS.length || 0, 10);
+      const mins = (Number.isFinite(urlMins) && urlMins>0) ? urlMins
+                 : (Number.isFinite(metaMins) && metaMins>0) ? metaMins
+                 : (Number.isFinite(nFallback) && nFallback>0) ? nFallback
+                 : 30;
+
+      totalSec   = mins * 60;
+      PAGE       = 0;
+      viewMode   = 'ALL';
+
+      const total = ITEMS.length;
+      const courseLabel = COURSE_LABELS[ATT.course_id] || ATT.course_id || '—';
+      el.metaPill.textContent = `${courseLabel} | Attempt: ${ATT.attempt_id || attempt_id} | ${total} item${total===1?'':''} | ${mins} min`;
+
+      const metaStatus   = String(ATT.status || "").toLowerCase();
+      const savedAnswers = Array.isArray(ATT.answers) ? ATT.answers : [];
+      const isCompleted  = (metaStatus === "completed");
+      const isResume     = (metaStatus === "in_progress" && savedAnswers.length > 0);
+
+      // --- REVIEW MODE (completed attempt, read-only, full feedback) ---
+      if (isCompleted){
+        hydrateFromMetaAnswers(savedAnswers);
+
+        LOCKED = true;
+        stopTimer();
+
+        // Timer pill as review indicator
+        el.timerPill.textContent = "Review mode (completed)";
+        el.timerPill.style.background = "#eef3f2";
+        el.timerPill.style.borderColor = "#dbe4e2";
+        el.timerPill.style.color = "#25413d";
+
+        // Summary lines based on meta
+        const usedSecMeta = (ATT.time_taken_s != null && ATT.time_taken_s !== "")
+          ? Math.max(0, parseInt(ATT.time_taken_s, 10) || 0)
+          : 0;
+        const usedStr = usedSecMeta ? mmss(usedSecMeta) : "—:—";
+        const compReason = String(ATT.completion_reason || "").toLowerCase();
+        const statusText = (compReason === "timeout")
+          ? "Completed : Auto-submitted when time reached 0"
+          : "Completed : Submitted before time expired";
+
+        if (el.summaryLine1){
+          el.summaryLine1.textContent = `${courseLabel} | Timed exam mode`;
+        }
+        if (el.summaryLine2){
+          const allowedPart = mins ? `Time allowed: ${mins} min` : "Time allowed: —";
+          el.summaryLine2.textContent = `Questions: ${total} | ${allowedPart} | Time used: ${usedStr}`;
+        }
+        if (el.summaryLine3){
+          el.summaryLine3.textContent = `Status: ${statusText}`;
+        }
+
+        // Compute score from saved answers
+        let okScore = 0;
+        ITEMS.forEach(r => {
+          const opts = getShuffledOptionsFor(r);
+          const chosen = ANSW[r.item_id] || "";
+          if (!chosen) return;
+          const idx = ['A','B','C','D'].indexOf(chosen);
+          const chosenObj = idx >= 0 ? opts[idx] : null;
+          if (chosenObj && chosenObj.isCorrect) okScore++;
+        });
+        SCORE = okScore;
+        if (el.scoreText){
+          el.scoreText.textContent = `Score: ${okScore} / ${total} (${pct(okScore,total)}%)`;
+        }
+        updateGradeText(okScore, total);
+
+        // Show quiz and feedback in locked mode
+        el.qCard.style.display = 'block';
+        if (el.fabGrid) el.fabGrid.style.display = 'inline-flex';
+        renderPage();
+        revealPageFeedback();
+        openReviewGrid();
+        log("Review mode: completed timed attempt. Timer is off; answers and feedback are visible.");
+        return;
+      }
+
+      // --- RESUME MODE (in_progress with saved answers) ---
+      if (isResume){
+        hydrateFromMetaAnswers(savedAnswers);
+
+        el.preCard.style.display = 'none';
+        el.qCard.style.display = 'block';
+        if (el.fabGrid) el.fabGrid.style.display = 'inline-flex';
+
+        PAGE = 0;
+        viewMode = 'ALL';
+        renderPage();
+        renderProgress();
+
+        const initialLeft = (leftSec && leftSec > 0) ? leftSec : totalSec;
+        startTimer(initialLeft);
+        startAutosaveLoop();
+        log("Resuming your in-progress timed attempt. Timer continues from where you left off.");
+        return;
+      }
+
+      // --- FRESH ATTEMPT ---
+      if (shouldSkipPreflight()){
+        el.qCard.style.display = 'block';
+        if (el.fabGrid) el.fabGrid.style.display = 'inline-flex';
+        renderPage();
+        renderProgress();
+        startTimer(totalSec);
+        startAutosaveLoop();
+        log("Timer started. Work through the questions and submit before time runs out.");
+      } else {
+        preparePreflight(mins);
+      }
+    }catch(err){
+      log("Failed to load attempt: " + (err.message||String(err)));
+    }
+  }
+
+
+  // === VIEW-SLICE HELPERS ===
+  function getCurrentSource(){
+    const list = [];
+    ITEMS.forEach((it, idx)=>{
+      if (viewMode === 'FLAGGED'){
+        if (FLAGS[it.item_id]) list.push({it, idx});
+      } else {
+        list.push({it, idx});
+      }
+    });
+    if (viewMode === 'FLAGGED' && !list.length){
+      ITEMS.forEach((it, idx)=> list.push({it, idx}));
+    }
+    return list;
+  }
+
+function safeTrim(s, max){
+  const t = String(s || "").replace(/\s+/g,' ').trim();
+  if(!max) return t;
+  return t.length > max ? (t.slice(0, max-1) + "…") : t;
+}
+
+function buildFriendlyRefText(r, globalIdx){
+  const courseId = String((ATT && ATT.course_id) || "").trim();
+  const courseLabel = COURSE_LABELS[courseId] || courseId || "Your course";
+  const topic = safeTrim(r && r.topic, 240);
+  const stem  = safeTrim(r && r.stem, 900);
+
+  const opts = getShuffledOptionsFor(r);
+  const lines = [];
+  for (let j = 0; j < Math.min(4, opts.length); j++){
+    const label = ['A','B','C','D'][j] || '?';
+    const txt = safeTrim(opts[j] && opts[j].text, 360);
+    lines.push(`${label}. ${txt || '(blank)'}`);
+  }
+
+  const chosenLabel = String(ANSW && ANSW[r.item_id] ? ANSW[r.item_id] : "").trim().toUpperCase();
+  let chosenText = "";
+  if (chosenLabel){
+    const idx = ['A','B','C','D'].indexOf(chosenLabel);
+    if (idx >= 0 && opts[idx]) chosenText = safeTrim(opts[idx].text, 360);
+  }
+
+  const ref = [];
+  ref.push(`QAcademy - Question feedback (Timed quiz)`);
+  ref.push(`Course: ${courseLabel}`);
+  ref.push(`Question: ${globalIdx + 1} of ${ITEMS.length || "?"}`);
+  if (topic) ref.push(`Topic: ${topic}`);
+  ref.push("");
+  ref.push("Question:");
+  ref.push(stem || "(no question text)");
+  ref.push("");
+  ref.push("Options (as shown):");
+  ref.push(...lines);
+  ref.push("");
+  if (chosenLabel){
+    ref.push(`My answer: ${chosenLabel}${chosenText ? " - " + chosenText : ""}`);
+  } else {
+    ref.push(`My answer: (not answered yet)`);
+  }
+  return ref.join("\n");
+}
+
+function buildMessagesUrlForQuestion(r, globalIdx){
+  const courseId  = String((ATT && ATT.course_id) || "").trim();
+  const attemptId = String((ATT && ATT.attempt_id) || "").trim();
+  const quizId    = String((ATT && (ATT.quiz_id || ATT.base_quiz_id || ATT.fixed_quiz_id)) || "").trim();
+  const qid       = String((r && r.item_id) || "").trim();
+
+  // Friendly ref_text (no technical IDs inside)
+  const refText = buildFriendlyRefText(r, globalIdx);
+
+  const p = new URLSearchParams();
+  p.set("context_type", "question");
+  if (courseId)  p.set("course_id", courseId);
+  if (attemptId) p.set("attempt_id", attemptId); // kept for backend linkage (not shown in ref_text)
+  if (quizId)    p.set("quiz_id", quizId);       // kept for backend linkage (not shown in ref_text)
+  if (qid)       p.set("question_id", qid);      // kept for backend linkage (not shown in ref_text)
+  p.set("ref_text", refText);
+
+  return MESSAGES_PAGE_URL + "?" + p.toString();
+}
+
+function openReportQuestion(r, globalIdx){
+  try{
+    const url = buildMessagesUrlForQuestion(r, globalIdx);
+    window.open(url, "_blank", "noopener,noreferrer");
+  }catch(err){
+    alert("Could not open Messages. " + (err && err.message ? err.message : ""));
+  }
+}
+
+
+
+
+  // === RENDER PAGE ===
+  function renderPage(){
+    const src = getCurrentSource();
+    const totalVisible = src.length;
+    const totalAll     = ITEMS.length;
+    TOTAL_PAGES = Math.max(1, Math.ceil(totalVisible / QUESTIONS_PER_PAGE));
+    PAGE = clamp(PAGE, 0, TOTAL_PAGES-1);
+
+    const start = PAGE * QUESTIONS_PER_PAGE;
+    const end   = Math.min(start + QUESTIONS_PER_PAGE, totalVisible);
+
+    const pageText = `Page ${PAGE+1} / ${TOTAL_PAGES}`;
+    el.pagePill.textContent       = pageText;
+    el.pagePillBottom.textContent = pageText;
+
+    const prevDisabled = (PAGE === 0);
+    const nextDisabled = (PAGE >= TOTAL_PAGES-1);
+    document.querySelectorAll('.prevPage').forEach(b=> b.disabled = prevDisabled);
+    document.querySelectorAll('.nextPage').forEach(b=> b.disabled = nextDisabled);
+
+    el.qList.innerHTML = '';
+    for (let k=start; k<end; k++){
+      const { it: r, idx: globalIdx } = src[k];
+
+      const qWrap = document.createElement('div');
+      qWrap.className = 'q-block';
+      qWrap.id = `q_${globalIdx}`;
+
+      const qHead = document.createElement('div');
+      qHead.className = 'q-head';
+
+      const idxPill = document.createElement('div');
+      idxPill.className = 'pill q-index';
+      idxPill.textContent = `Q${globalIdx+1} / ${totalAll}`;
+
+      const stem = document.createElement('div');
+      stem.className = 'qstem';
+      stem.textContent = r.stem || '(no stem)';
+
+      qHead.appendChild(idxPill);
+
+      const topicText = (r.topic || '').trim();
+      if (topicText){
+        const topicEl = document.createElement('div');
+        topicEl.className = 'q-topic';
+        topicEl.textContent = topicText;
+        qHead.appendChild(topicEl);
+      }
+
+      qHead.appendChild(stem);
+      qWrap.appendChild(qHead);
+
+      const optsWrap = document.createElement('div');
+      optsWrap.className = 'opts';
+
+      const opts = getShuffledOptionsFor(r);
+      const chosen = ANSW[r.item_id];
+
+      opts.forEach((o, j)=>{
+        const label = displayLabel(j);
+
+        const row = document.createElement('label');
+        row.className = 'opt';
+
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = `opt_${r.item_id}`;
+        input.value = label;
+        input.disabled = LOCKED;
+        input.checked = (chosen === label);
+
+        const body = document.createElement('div');
+        const head = document.createElement('div');
+        head.className = 'opt-title';
+
+        const title = document.createElement('div');
+        title.innerHTML = `<strong>${label}.</strong> ${o.text || ''}`;
+        head.appendChild(title);
+
+        const fb = document.createElement('div');
+        fb.className = 'opt-fb';
+        fb.dataset.label = label;
+
+        input.addEventListener('change', ()=>{
+          if (LOCKED) return;
+          ANSW[r.item_id] = label;
+          renderProgress();
+        });
+
+        body.appendChild(head);
+        body.appendChild(fb);
+        row.appendChild(input);
+        row.appendChild(body);
+        optsWrap.appendChild(row);
+      });
+
+      const ratEl = document.createElement('div');
+      ratEl.className = 'rationale';
+      ratEl.id = `rat_${r.item_id}`;
+      ratEl.style.display = 'none';
+
+      qWrap.appendChild(optsWrap);
+      qWrap.appendChild(ratEl);
+
+      // Footer: flag button + report button + watermark
+      const footer = document.createElement('div');
+      footer.className = 'q-footer';
+
+      const leftBtns = document.createElement('div');
+      leftBtns.style.display = 'flex';
+      leftBtns.style.gap = '8px';
+      leftBtns.style.alignItems = 'center';
+
+      const flagBtn = document.createElement('button');
+      flagBtn.type = 'button';
+      flagBtn.className = 'btn ghost small flag-btn';
+      flagBtn.textContent = FLAGS[r.item_id] ? 'Unflag' : 'Flag';
+      flagBtn.addEventListener('click', ()=>{
+        FLAGS[r.item_id] = !FLAGS[r.item_id];
+        flagBtn.textContent = FLAGS[r.item_id] ? 'Unflag' : 'Flag';
+        updateFlagNavVisibility();
+      });
+
+      const reportBtn = document.createElement('button');
+      reportBtn.type = 'button';
+      reportBtn.className = 'btn softer small report-btn';
+      reportBtn.textContent = 'Send feedback';
+      reportBtn.title = "Opens Messages in a new tab. Your quiz stays open here.";
+reportBtn.addEventListener('click', ()=>{
+  // Build URL once (no auto open unless user confirmed / skipped)
+  let url = "";
+  try{
+    url = buildMessagesUrlForQuestion(r, globalIdx);
+  }catch(_){
+    url = "";
+  }
+  if (!url){
+    alert("Could not open Messages.");
+    return;
+  }
+
+  // If user chose "don't show again", open immediately
+  if (shouldSkipReportConfirm()){
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
+
+  // Otherwise show confirm overlay
+  openReportOverlay(url);
+});
+
+
+      leftBtns.appendChild(flagBtn);
+      leftBtns.appendChild(reportBtn);
+
+      const wm = document.createElement('div');
+      wm.className = 'watermark';
+      wm.textContent = 'QAcademy';
+
+      footer.appendChild(leftBtns);
+      footer.appendChild(wm);
+      qWrap.appendChild(footer);
+
+
+      el.qList.appendChild(qWrap);
+    }
+
+    if (LOCKED) revealPageFeedback();
+
+    // Scroll so first question is just under header
+    const header = document.getElementById('headerCard');
+    const headerH = header ? (header.offsetHeight || 0) : 0;
+    const top = el.qCard.getBoundingClientRect().top + window.scrollY - headerH - 8;
+    window.scrollTo({ top, behavior: 'smooth' });
+
+    updateFlagNavVisibility();
+  }
+
+  // === IMAGE OVERLAY HELPERS (Timed) ===
+  function openImgOverlay(url){
+    if (!el.imgOverlay || !el.imgOverlayImg) return;
+    prevBodyOverflowImg = document.body.style.overflow || '';
+    el.imgOverlayImg.src = url;
+    el.imgOverlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeImgOverlay(){
+    if (!el.imgOverlay || !el.imgOverlayImg) return;
+    el.imgOverlay.style.display = 'none';
+    el.imgOverlayImg.src = '';
+    document.body.style.overflow = prevBodyOverflowImg;
+  }
+
+  // === SUMMARY OVERLAY HELPERS (after submit) ===
+  function openSummaryOverlay(){
+    if (!el.summaryOverlay) return;
+
+    // Sync content from review summary + score
+    if (el.summaryOverlayScore && el.scoreText){
+      el.summaryOverlayScore.textContent = el.scoreText.textContent;
+    }
+    if (el.summaryOverlayLine1 && el.summaryLine1){
+      el.summaryOverlayLine1.textContent = el.summaryLine1.textContent;
+    }
+    if (el.summaryOverlayLine2 && el.summaryLine2){
+      el.summaryOverlayLine2.textContent = el.summaryLine2.textContent;
+    }
+    if (el.summaryOverlayLine3 && el.summaryLine3){
+      el.summaryOverlayLine3.textContent = el.summaryLine3.textContent;
+    }
+
+    prevBodyOverflowSummary = document.body.style.overflow || '';
+    el.summaryOverlay.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeSummaryOverlay(){
+    if (!el.summaryOverlay) return;
+    el.summaryOverlay.style.display = 'none';
+    document.body.style.overflow = prevBodyOverflowSummary;
+  }
+
+  // === REVEAL FEEDBACK (AFTER SUBMIT) ===
+  function revealPageFeedback(){
+    const src = getCurrentSource();
+    const totalVisible = src.length;
+    const start = PAGE * QUESTIONS_PER_PAGE;
+    const end   = Math.min(start + QUESTIONS_PER_PAGE, totalVisible);
+    const mode  = normaliseFeedbackMode(feedbackMode);
+
+    for (let k=start; k<end; k++){
+      const { it: r, idx: globalIdx } = src[k];
+      const opts = getShuffledOptionsFor(r);
+
+      const rat   = String(r.rationale || '').trim();
+      const imgUrl = String(r.rationale_img || '').trim();
+      const ratEl = document.getElementById(`rat_${r.item_id}`);
+
+      // RATIONALE BLOCK (depends on feedbackMode)
+      if (ratEl){
+        ratEl.innerHTML = '';
+        let hasContent = false;
+
+        if (mode === 'hide'){
+          ratEl.style.display = 'none';
+        } else if (mode === 'inline'){
+          // Simple rationale text + optional picture
+          if (rat){
+            const t = document.createElement('div');
+            t.className = 'rationale-text';
+            t.textContent = `Rationale: ${rat}`;
+            ratEl.appendChild(t);
+            hasContent = true;
+          }
+
+          if (imgUrl){
+            const wrap = document.createElement('div');
+            wrap.className = 'rationale-img-wrap';
+
+            const img = document.createElement('img');
+            img.className = 'rationale-img-thumb';
+            img.src = imgUrl;
+            img.alt = 'Rationale illustration';
+            img.loading = 'lazy';
+            img.decoding = 'async';
+            img.addEventListener('click', function(){
+              openImgOverlay(imgUrl);
+            });
+
+            const cap = document.createElement('div');
+            cap.className = 'rationale-img-caption';
+            cap.textContent = "Tap to enlarge";
+
+            wrap.appendChild(img);
+            wrap.appendChild(cap);
+            ratEl.appendChild(wrap);
+            hasContent = true;
+          }
+
+          ratEl.style.display = hasContent ? 'block' : 'none';
+        } else {
+          // STANDALONE: Rationale + "Why the options" (A/B/C/D with feedback), then picture
+          if (rat){
+            const t = document.createElement('div');
+            t.className = 'rationale-text';
+            t.textContent = `Rationale: ${rat}`;
+            ratEl.appendChild(t);
+            hasContent = true;
+          }
+
+          // "Why the options" block
+          const whyBlock = document.createElement('div');
+          whyBlock.className = 'rationale-text';
+
+          const heading = document.createElement('div');
+          heading.style.fontWeight = '600';
+          heading.style.marginBottom = '2px';
+          heading.textContent = 'Why the options:';
+          whyBlock.appendChild(heading);
+
+          opts.forEach((o, j) => {
+            const line = document.createElement('div');
+            line.style.marginTop = '2px';
+
+            const label = ['A','B','C','D'][j] || '?';
+            let fbText = String(o.fb || '').trim();
+            if (!fbText) fbText = '(No feedback provided)';
+
+            line.textContent = `${label}. ${o.text || ''} : ${fbText}`;
+            whyBlock.appendChild(line);
+          });
+
+          ratEl.appendChild(whyBlock);
+          hasContent = true;
+
+          if (imgUrl){
+            const wrap = document.createElement('div');
+            wrap.className = 'rationale-img-wrap';
+
+            const img = document.createElement('img');
+            img.className = 'rationale-img-thumb';
+            img.src = imgUrl;
+            img.alt = 'Rationale illustration';
+            img.loading = 'lazy';
+            img.decoding = 'async';
+            img.addEventListener('click', function(){
+              openImgOverlay(imgUrl);
+            });
+
+            const cap = document.createElement('div');
+            cap.className = 'rationale-img-caption';
+            cap.textContent = "Tap to enlarge";
+
+            wrap.appendChild(img);
+            wrap.appendChild(cap);
+            ratEl.appendChild(wrap);
+          }
+
+          ratEl.style.display = hasContent ? 'block' : 'none';
+        }
+      }
+
+      // OPTION CHIPS + PER-OPTION FEEDBACK
+      const rows = document.querySelectorAll(`#q_${globalIdx} .opt`);
+      const chosenLabel = ANSW[r.item_id] || '';
+
+      rows.forEach((row, j)=>{
+        const label = ['A','B','C','D'][j];
+        const o = opts[j];
+        const head = row.querySelector('.opt-title');
+
+        // clear old chips
+        head.querySelectorAll('.chip').forEach(ch => ch.remove());
+
+        // chips always visible (even in hide mode)
+        if (o && o.isCorrect){
+          const chipC = document.createElement('span');
+          chipC.className = 'chip correct';
+          chipC.textContent = 'Correct answer';
+          head.appendChild(chipC);
+        }
+        if (label === chosenLabel){
+          const chipY = document.createElement('span');
+          chipY.className = 'chip your';
+          chipY.textContent = 'Your choice';
+          head.appendChild(chipY);
+        }
+
+        const fb = row.querySelector('.opt-fb');
+        if (!fb) return;
+
+        if (mode === 'hide' || mode === 'standalone'){
+          // No per-option text in hide/standalone
+          fb.textContent = '';
+          fb.style.display = 'none';
+        } else {
+          // INLINE: show per-option feedback under each option
+          const fbText = o ? (String(o.fb || '').trim() || '(No feedback provided)') : '(No feedback provided)';
+          fb.textContent = fbText;
+          fb.style.display = 'block';
+        }
+      });
+    }
+  }
+
+  // === PROGRESS ===
+  function renderProgress(){
+    const total = ITEMS.length;
+    const answered = Object.keys(ANSW).length;
+    el.countPill.textContent = `${answered} / ${total} answered`;
+    const p = pct(answered,total);
+    el.progFill.style.width = p + '%';
+    if (el.progLabel) el.progLabel.textContent = p + '%';
+  }
+
+  // === REVIEW GRID (post-submit) ===
+  function buildGrid(){
+    if (!ITEMS.length) return;
+    el.grid.innerHTML = '';
+
+    ITEMS.forEach((r, i)=>{
+      const answered = !!ANSW[r.item_id];
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      if (answered) cell.classList.add('done');
+      cell.textContent = (i+1);
+
+      if (!LOCKED){
+        cell.style.borderColor = answered ? '#0b7a75' : '#d8dfdd';
+        cell.title = answered ? `Question ${i+1} • answered` : `Question ${i+1} • not answered`;
+      } else {
+        const opts = getShuffledOptionsFor(r);
+        const chosenLabel = ANSW[r.item_id] || '—';
+        let good = false;
+        if (chosenLabel !== '—'){
+          const idx = ['A','B','C','D'].indexOf(chosenLabel);
+          const chosenObj = opts[idx];
+          good = !!(chosenObj && chosenObj.isCorrect);
+        }
+        cell.title = `Your: ${chosenLabel}`;
+        cell.style.borderColor = answered ? (good ? '#bfe7dd' : '#f1c4c4') : '#d8dfdd';
+      }
+
+      cell.addEventListener('click', ()=>{
+        viewMode = 'ALL';
+        PAGE = Math.floor(i / QUESTIONS_PER_PAGE);
+        renderPage();
+        if (LOCKED) revealPageFeedback();
+        const target = document.getElementById(`q_${i}`);
+        if (target) target.scrollIntoView({behavior:'smooth', block:'start'});
+        el.reviewCard.style.display='none';
+      });
+
+      el.grid.appendChild(cell);
+    });
+  }
+
+  function openReviewGrid(){
+    buildGrid();
+    el.reviewCard.style.display = 'block';
+  }
+
+  // === FLOATING GRID OVERLAY (during quiz) ===
+  function openOverlay(){
+    if (!el.gridOverlay) return;
+    buildOverlayGrid();
+    prevBodyOverflow = document.body.style.overflow || '';
+    document.body.style.overflow = 'hidden';   // lock page scroll
+    el.gridOverlay.style.display = 'flex';
+  }
+  function closeOverlay(){
+    if (!el.gridOverlay) return;
+    el.gridOverlay.style.display = 'none';
+    document.body.style.overflow = prevBodyOverflow; // restore
+  }
+
+  function buildOverlayGrid(){
+    if (!ITEMS.length || !el.gridOverlayBody) return;
+    el.gridOverlayBody.innerHTML = '';
+
+    ITEMS.forEach((r, idx)=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'grid-btn';
+      btn.textContent = String(idx+1);
+
+      const answered = !!ANSW[r.item_id];
+      const flagged  = !!FLAGS[r.item_id];
+      if (answered) btn.classList.add('answered');
+      if (flagged)  btn.classList.add('flagged');
+
+      btn.addEventListener('click', ()=>{
+        viewMode = 'ALL';
+        PAGE = Math.floor(idx / QUESTIONS_PER_PAGE);
+        renderPage();
+        if (LOCKED) revealPageFeedback();
+        const target = document.getElementById(`q_${idx}`);
+        if (target) target.scrollIntoView({behavior:'smooth', block:'start'});
+        closeOverlay();
+      });
+
+      el.gridOverlayBody.appendChild(btn);
+    });
+  }
+
+  // === EXIT OVERLAY HELPERS ===
+  function openExitOverlay(){
+    if (!el.exitOverlay) return;
+    prevBodyOverflowExit = document.body.style.overflow || '';
+    document.body.style.overflow = 'hidden';
+    el.exitOverlay.style.display = 'flex';
+  }
+  function closeExitOverlay(){
+    if (!el.exitOverlay) return;
+    el.exitOverlay.style.display = 'none';
+    document.body.style.overflow = prevBodyOverflowExit;
+    PENDING_NAV_HREF = null;
+  }
+
+    // === REPORT OVERLAY HELPERS (per-device confirm) ===
+  function shouldSkipReportConfirm(){
+    try{ return localStorage.getItem(REPORT_PREF_KEY) === "1"; }
+    catch(_){ return false; }
+  }
+  function setSkipReportConfirm(on){
+    try{
+      if (on) localStorage.setItem(REPORT_PREF_KEY, "1");
+      else localStorage.removeItem(REPORT_PREF_KEY);
+    }catch(_){}
+  }
+
+  function openReportOverlay(url){
+    if (!el.reportOverlay) return;
+
+    PENDING_REPORT_URL = url || null;
+
+    // default unchecked every time
+    if (el.reportSkip) el.reportSkip.checked = false;
+
+    prevBodyOverflowExit = document.body.style.overflow || '';
+    document.body.style.overflow = 'hidden';
+    el.reportOverlay.style.display = 'flex';
+  }
+
+  function closeReportOverlay(){
+    if (!el.reportOverlay) return;
+    el.reportOverlay.style.display = 'none';
+    document.body.style.overflow = prevBodyOverflowExit;
+    PENDING_REPORT_URL = null;
+  }
+
+  // === ANSWER PAYLOAD BUILDER (for attempt.finish / attempt.update) ===
+  function buildAnswersPayload(){
+    const out = [];
+    ITEMS.forEach((r)=>{
+      const opts = getShuffledOptionsFor(r);
+      const chosenLabel = ANSW[r.item_id] || '';
+      const idx = ['A','B','C','D'].indexOf(chosenLabel);
+      const chosenObj = idx >= 0 ? opts[idx] : null;
+
+      const correctIdx = opts.findIndex(o => o.isCorrect);
+      const correctLabel = correctIdx >= 0 ? ['A','B','C','D'][correctIdx] : '';
+
+      out.push({
+        item_id: r.item_id,
+        chosen: chosenLabel,
+        correct: correctLabel,
+        is_correct: !!(chosenObj && chosenObj.isCorrect),
+        flagged: !!FLAGS[r.item_id],
+        time_spent_s: null
+      });
+    });
+    return out;
+  }
+
+  // === NEW: HYDRATE FROM META ANSWERS (for Resume + Review) ===
+  function hydrateFromMetaAnswers(metaAnswers){
+    if (!Array.isArray(metaAnswers) || !metaAnswers.length) return;
+
+    ANSW = {};
+    FLAGS = {};
+
+    metaAnswers.forEach(function(entry){
+      const itemId = String(entry.item_id || "").trim();
+      if (!itemId) return;
+
+      const chosen = String(entry.chosen || "").trim().toUpperCase();
+      if (['A','B','C','D'].indexOf(chosen) >= 0){
+        ANSW[itemId] = chosen;
+      }
+
+      if (entry.flagged){
+        FLAGS[itemId] = true;
+      }
+    });
+
+    // Timer restore for timed attempts
+    if (ATT && ATT.time_taken_s != null && ATT.time_taken_s !== ""){
+      const used = parseInt(ATT.time_taken_s, 10);
+      if (!isNaN(used) && used >= 0 && totalSec > 0){
+        const remaining = totalSec - used;
+        leftSec = remaining > 0 ? remaining : 1; // never less than 1s
+      }
+    }
+  }
+
+  // === attempt.update — partial save while in_progress ===
+  async function saveInProgress(force){
+    if (!ATT || !ATT.attempt_id) return;
+    if (LOCKED) return; // don't update once completed
+
+    const now = Date.now();
+    if (!force && (now - LAST_SAVE_AT < MIN_SAVE_INTERVAL_MS)) return;
+    LAST_SAVE_AT = now;
+
+    const attemptId = ATT.attempt_id;
+    const answersArray = buildAnswersPayload();
+    const usedSec = totalSec > 0 ? Math.max(0, totalSec - leftSec) : 0;
+
+    const payload = {
+      attempt_id: attemptId,
+      status: "in_progress",
+      time_taken_s: usedSec,
+      answers: answersArray
+    };
+
+    try{
+      const body = new URLSearchParams();
+      body.append("action", "attempt.update");
+      body.append("payload", JSON.stringify(payload));
+
+      const res = await fetch(BUILDER_WEB_APP_URL, {
+        method:"POST",
+        headers:{ "Content-Type":"application/x-www-form-urlencoded" },
+        body
+      });
+
+      let data = null;
+      try{ data = await res.json(); }catch(_){}
+      if (!data || data.ok === false){
+        console.warn("attempt.update error:", data);
+      } else {
+        console.log("attempt.update ok");
+      }
+    }catch(err){
+      console.error("attempt.update failed:", err);
+    }
+  }
+
+  // === SEND attempt.finish TO BACKEND ===
+  async function sendAttemptFinish(attemptId, scoreRaw, scoreTotal, timeTakenSec, answersArray, auto){
+    if (!attemptId) return;
+    if (FINISH_SENT) return;
+    FINISH_SENT = true;
+
+    const payload = {
+      attempt_id: attemptId,
+      status: "completed",
+      completion_reason: auto ? "timeout" : "user",
+      score_raw: scoreRaw,
+      score_total: scoreTotal,
+      time_taken_s: timeTakenSec,
+      answers: answersArray || []
+    };
+
+    try{
+      const body = new URLSearchParams();
+      body.append("action", "attempt.finish");
+      body.append("payload", JSON.stringify(payload));
+
+      const res = await fetch(BUILDER_WEB_APP_URL, {
+        method:"POST",
+        headers:{ "Content-Type":"application/x-www-form-urlencoded" },
+        body
+      });
+
+      let data = null;
+      try{ data = await res.json(); }catch(_){}
+
+      if (!data || data.ok === false){
+        console.warn("attempt.finish error:", data);
+      } else {
+        console.log("attempt.finish ok");
+      }
+    }catch(err){
+      console.error("attempt.finish failed:", err);
+    }
+  }
+
+  // === SUBMIT ===
+  function submitQuiz(auto=false){
+    if(LOCKED) return;
+
+    if (!auto){
+      const total = ITEMS.length;
+      const answered = Object.keys(ANSW).length;
+      if (answered < total){
+        const okConfirm = confirm(`You have ${total-answered} unanswered question(s). Submit now?`);
+        if (!okConfirm) return;
+      }
+    }
+
+    qaShowLoader(auto ? "Time is up — submitting your answers..." : "Submitting your answers...");
+
+    try{
+      LOCKED = true;
+      stopTimer();
+
+      document.querySelectorAll('input[type="radio"]').forEach(x => x.disabled = true);
+
+      let ok = 0;
+      ITEMS.forEach(r=>{
+        const opts = getShuffledOptionsFor(r);
+        const chosenLabel = ANSW[r.item_id];
+        if (!chosenLabel) return;
+        const idx = ['A','B','C','D'].indexOf(chosenLabel);
+        const chosenObj = opts[idx];
+        if (chosenObj && chosenObj.isCorrect) ok++;
+      });
+      SCORE = ok;
+      const total = ITEMS.length;
+
+      // Timing: total allowed vs time actually used
+      const allowedMin = totalSec > 0 ? Math.round(totalSec / 60) : (ATT && ATT.duration_min ? ATT.duration_min : '');
+      const usedSec   = totalSec > 0 ? Math.max(0, totalSec - leftSec) : 0;
+      const usedStr   = totalSec > 0 ? mmss(usedSec) : '—:—';
+      const courseLabel = COURSE_LABELS[ATT && ATT.course_id] || (ATT && ATT.course_id) || '—';
+      const statusText  = auto
+        ? 'Completed : Auto-submitted when time reached 0'
+        : 'Completed : Submitted before time expired';
+
+      if (el.summaryLine1){
+        el.summaryLine1.textContent = `${courseLabel} | Timed exam mode`;
+      }
+      if (el.summaryLine2){
+        const allowedPart = allowedMin ? `Time allowed: ${allowedMin} min` : 'Time allowed: —';
+        el.summaryLine2.textContent = `Questions: ${total} | ${allowedPart} | Time used: ${usedStr}`;
+      }
+      if (el.summaryLine3){
+        el.summaryLine3.textContent = `Status: ${statusText}`;
+      }
+
+      // Build analytics payload and send attempt.finish in the background
+      const attemptId = ATT && ATT.attempt_id ? ATT.attempt_id : (qs('attempt_id') || qs('quiz_id') || '');
+      const answersArray = buildAnswersPayload();
+      sendAttemptFinish(attemptId, ok, total, usedSec, answersArray, auto);
+
+      // Lock to first page for review
+      viewMode = 'ALL';
+      PAGE = 0;
+      renderPage();
+      revealPageFeedback();
+
+      el.scoreText.textContent = `Score: ${ok} / ${total} (${pct(ok,total)}%)`;
+      updateGradeText(ok, total);
+      openReviewGrid();
+      el.restartBtn.style.display = 'inline-block';
+
+      // Finally: show summary overlay so result is seen first
+      openSummaryOverlay();
+    } finally {
+      qaHideLoader();
+    }
+  }
+
+  // === RESTART ===
+  function restart(){
+    const ref = document.referrer || '';
+    if (ref) { location.href = ref; }
+    else { location.href = location.pathname; }
+  }
+
+  // === NAV + BUTTONS ===
+  document.querySelectorAll('.prevPage').forEach(b=> b.addEventListener('click', ()=>{
+    saveInProgress(false);
+    PAGE--;
+    renderPage();
+  }));
+  document.querySelectorAll('.nextPage').forEach(b=> b.addEventListener('click', ()=>{
+    saveInProgress(false);
+    PAGE++;
+    renderPage();
+  }));
+
+  el.reviewBtn.addEventListener('click', openReviewGrid);
+  el.backToQuizBtn.addEventListener('click', ()=>{ el.reviewCard.style.display='none'; });
+  el.submitBtn.addEventListener('click', ()=> submitQuiz(false));
+  el.restartBtn.addEventListener('click', restart);
+
+  if (el.fabGrid){
+    el.fabGrid.addEventListener('click', openOverlay);
+  }
+  if (el.gridOverlayClose){
+    el.gridOverlayClose.addEventListener('click', closeOverlay);
+  }
+
+  if (el.viewAllBtn){
+    el.viewAllBtn.addEventListener('click', ()=>{
+      viewMode = 'ALL';
+      PAGE = 0;
+      renderPage();
+      updateFlagNavVisibility();
+    });
+  }
+  if (el.viewFlaggedBtn){
+    el.viewFlaggedBtn.addEventListener('click', ()=>{
+      viewMode = 'FLAGGED';
+      PAGE = 0;
+      renderPage();
+      updateFlagNavVisibility();
+    });
+  }
+  if (el.prevFlagBtn){
+    el.prevFlagBtn.addEventListener('click', jumpToPrevFlagged);
+  }
+  if (el.nextFlagBtn){
+    el.nextFlagBtn.addEventListener('click', jumpToNextFlagged);
+  }
+
+  // NEW: feedback buttons click = set specific mode
+  if (el.fbButtons && el.fbButtons.length){
+    el.fbButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = (btn.dataset.mode || 'inline').toLowerCase();
+        saveFeedbackMode(mode);
+      });
+    });
+  }
+
+  // Exit button + overlay
+  if (el.exitBtn){
+    el.exitBtn.addEventListener('click', ()=>{
+      // If already completed, just return to previous page / dashboard
+      if (LOCKED){
+        const ref = document.referrer || '';
+        if (ref) location.href = ref;
+        else go("/p/" + DASHBOARD_SLUG + ".html");
+        return;
+      }
+      PENDING_NAV_HREF = null; // deliberate exit, not link navigation
+      openExitOverlay();
+    });
+  }
+  if (el.exitCancelBtn){
+    el.exitCancelBtn.addEventListener('click', ()=>{
+      closeExitOverlay();
+    });
+  }
+  if (el.exitSaveBtn){
+    el.exitSaveBtn.addEventListener('click', async ()=>{
+      qaShowLoader("Saving your progress...");
+      try{
+        await saveInProgress(true);
+      } finally {
+        qaHideLoader();
+      }
+      const target = PENDING_NAV_HREF;
+      closeExitOverlay();
+      stopTimer();
+      log("Progress saved as in-progress. You can resume this attempt from your history when available.");
+      if (target){
+        location.href = target;
+      } else {
+        const ref = document.referrer || '';
+        if (ref) location.href = ref;
+        else go("/p/" + DASHBOARD_SLUG + ".html");
+      }
+    });
+  }
+  if (el.exitSubmitBtn){
+    el.exitSubmitBtn.addEventListener('click', ()=>{
+      const target = PENDING_NAV_HREF;
+      closeExitOverlay();
+      submitQuiz(false);
+      if (target){
+        setTimeout(()=>{ location.href = target; }, 400);
+      }
+    });
+  }
+
+    // Report overlay events
+  if (el.reportCancelBtn){
+    el.reportCancelBtn.addEventListener('click', closeReportOverlay);
+  }
+  if (el.reportOpenBtn){
+    el.reportOpenBtn.addEventListener('click', ()=>{
+      const url = PENDING_REPORT_URL;
+      const skip = !!(el.reportSkip && el.reportSkip.checked);
+
+      if (skip) setSkipReportConfirm(true);
+
+      closeReportOverlay();
+
+      if (url){
+        window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        alert("Could not open Messages.");
+      }
+    });
+  }
+  if (el.reportOverlay){
+    el.reportOverlay.addEventListener('click', function(e){
+      if (e.target === el.reportOverlay) closeReportOverlay();
+    });
+  }
+
+  // Summary overlay events
+  if (el.summaryReviewBtn){
+    el.summaryReviewBtn.addEventListener('click', ()=>{
+      closeSummaryOverlay();
+    });
+  }
+  if (el.summaryOverlay){
+    el.summaryOverlay.addEventListener('click', function(e){
+      if (e.target === el.summaryOverlay) closeSummaryOverlay();
+    });
+  }
+
+  // Image overlay events
+  if (el.imgOverlayClose){
+    el.imgOverlayClose.addEventListener('click', closeImgOverlay);
+  }
+  if (el.imgOverlay){
+    el.imgOverlay.addEventListener('click', function(e){
+      if (e.target === el.imgOverlay) closeImgOverlay();
+    });
+  }
+
+  el.preStartBtn.addEventListener('click', ()=>{
+    if (el.preSkip && el.preSkip.checked) setSkipPreflight(true);
+    startQuiz();
+  });
+  el.preCancelBtn.addEventListener('click', ()=>{
+    const ref = document.referrer || '';
+    if (ref) { location.href = ref; }
+    else { location.href = location.pathname; }
+  });
+
+  // === LINK-GUARD: intercept in-site navigation while quiz is active ===
+  document.addEventListener('click', function(e){
+    if (!ATT || !ITEMS.length || LOCKED) return;
+    if (!el.qCard || el.qCard.style.display === 'none') return; // quiz not started yet
+
+    const target = e.target;
+    if (!target || typeof target.closest !== 'function') return;
+
+    // Ignore clicks inside overlays (they have their own handlers)
+    if (el.exitOverlay && el.exitOverlay.contains(target)) return;
+    if (el.gridOverlay && el.gridOverlay.contains(target)) return;
+    if (el.reviewCard && el.reviewCard.contains(target)) return;
+    if (el.imgOverlay && el.imgOverlay.contains(target)) return;
+    if (el.summaryOverlay && el.summaryOverlay.contains(target)) return;
+    if (el.reportOverlay && el.reportOverlay.contains(target)) return;
+
+
+    const link = target.closest('a');
+    if (!link) return;
+
+    const href = link.getAttribute('href') || '';
+    if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+
+    // Allow new-tab / background-tab behaviour
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+
+    e.preventDefault();
+    PENDING_NAV_HREF = link.href;
+    openExitOverlay();
+  });
+
+  // === beforeunload: browser back / close / full reload ===
+  window.addEventListener('beforeunload', function(e){
+    if (!ATT || !ITEMS.length || LOCKED) return;
+    if (leftSec <= 0) return;
+    e.preventDefault();
+    e.returnValue = '';
+  });
+
+  // === INIT: Guard first, then attempt ===
+  (async function initGuarded(){
+    // Load feedback mode (URL param > localStorage) and update UI
+    feedbackMode = loadFeedbackMode();
+    updateFeedbackUI();
+
+    qaShowLoader("Checking access...");
+    log("Checking access...");
+    AUTH = await verifyToken();
+    if (!AUTH){
+      qaHideLoader();
+      return;
+    }
+    qaShowLoader("Loading quiz...");
+    log("Access OK. Loading attempt...");
+    await loadAttempt();
+    qaHideLoader();
+  })();
+
+})();
+</script>
+
+</body>
+</html>
