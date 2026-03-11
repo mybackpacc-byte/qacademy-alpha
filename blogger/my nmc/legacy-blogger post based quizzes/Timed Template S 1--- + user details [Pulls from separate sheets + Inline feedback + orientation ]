@@ -1,0 +1,1033 @@
+<script>
+(function(){
+  var WEB_APP_URL_AUTH = "https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec";
+  var TOKEN_KEY        = "qa_token";
+  var LOGIN_SLUG       = "login_23";
+  var DASHBOARD_SLUG   = "dashboard_23";
+  var COURSE_ID        = "RN_MED"; // ← change per post
+
+  function go(path){ location.replace(path); }
+
+  // Helper to render "You are taking this quiz as..."
+  function applyUserLine(info){
+    var el = document.getElementById("qa-user");
+    if(!el) return;
+
+    if(!info || (!info.name && !info.email)){
+      el.style.display = "none";
+      el.textContent = "";
+      return;
+    }
+
+    var name  = info.name  ? String(info.name).trim()  : "";
+    var email = info.email ? String(info.email).trim() : "";
+    var text  = "";
+
+    if(name && email){
+      text = "You are taking this quiz as: " + name + " (" + email + ")";
+    }else if(name){
+      text = "You are taking this quiz as: " + name;
+    }else if(email){
+      text = "You are taking this quiz as: " + email;
+    }
+
+    el.textContent = text;
+    el.style.display = text ? "block" : "none";
+  }
+
+  async function verify(token){
+    var res = await fetch(WEB_APP_URL_AUTH, {
+      method:"POST",
+      headers:{ "Content-Type":"application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ action:"verify", token:token })
+    });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    var payload = await res.json();
+
+    // If backend signals invalid token
+    if(!payload || payload.ok === false){
+      throw new Error("Invalid token");
+    }
+    return payload;
+  }
+
+  (async function(){
+    var token = localStorage.getItem(TOKEN_KEY);
+    if(!token){
+      go("/p/" + LOGIN_SLUG + ".html");
+      return;
+    }
+
+    try{
+      var payload = await verify(token);
+
+      // Normalise course_ids (array OR comma-separated string)
+      var courseIds = payload.course_ids || payload.courses || [];
+      if(typeof courseIds === "string"){
+        courseIds = courseIds.split(",").map(function(s){ return s.trim(); });
+      }
+
+      var allowed = new Set(courseIds.map(function(x){
+        return String(x).toUpperCase();
+      }));
+
+      if(!allowed.has(String(COURSE_ID).toUpperCase())){
+        // Token is fine, just not enrolled for this course → send to dashboard, but DO NOT clear token
+        go("/p/" + DASHBOARD_SLUG + ".html");
+        return;
+      }
+
+      // Extract user name/email from payload and expose for this page
+      var name  =
+        (payload.name) ||
+        (payload.full_name) ||
+        (payload.display_name) ||
+        (payload.user && (payload.user.name || payload.user.full_name || payload.user.display_name)) ||
+        "";
+      var email =
+        (payload.email) ||
+        (payload.user && payload.user.email) ||
+        "";
+
+      window.qaUserSummary = {
+        name:  name,
+        email: email
+      };
+
+      // Render the "You are taking this quiz as..." line immediately
+      applyUserLine(window.qaUserSummary);
+
+      var app = document.getElementById("qa-app");
+      if(app) app.style.display = "block";
+
+    }catch(e){
+      // Only here for truly bad / expired token or network failure
+      console && console.warn && console.warn("Guard verify failed:", e);
+      // If you want to be less aggressive, you can comment out the next line:
+      localStorage.removeItem(TOKEN_KEY);
+      go("/p/" + LOGIN_SLUG + ".html");
+    }
+  })();
+})();
+</script>
+
+
+<div id="qa-app" style="display:none">
+  <div id="qa-root" style="max-width:980px;margin:24px auto;font-family:system-ui,Segoe UI,Roboto,sans-serif;padding:0 12px;">
+    <div style="background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:16px;padding:16px;box-shadow:0 8px 20px rgba(0,0,0,.06);margin-bottom:14px;">
+      <h1 id="qa-title" style="margin:0 0 4px;font-size:22px;color:#0b7a75;">Timed Quiz</h1>
+      <p id="qa-sub" style="margin:0;color:#5b6a68;font-size:14px;">Loading questions...</p>
+      <!-- New user line -->
+      <p id="qa-user" style="margin:4px 0 0;color:#64748b;font-size:13px;display:none;"></p>
+    </div>
+
+    <!-- STATUS / INFO CARD (for scheduled / closed / unpublished / loading / errors) -->
+    <div id="qa-status-card" style="display:none;margin-bottom:14px;"></div>
+
+    <!-- ===== PRE-FLIGHT ===== -->
+    <div id="qa-pref" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:16px;box-shadow:0 8px 20px rgba(0,0,0,.06);margin-bottom:14px;">
+      <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:240px">
+          <h2 id="qa-pref-title" style="margin:0 0 6px;font-size:18px;color:#0b3d3b;">—</h2>
+          <p id="qa-pref-meta" style="margin:0 0 12px;color:#64748b;font-size:13px;">—</p>
+          <ul style="margin:0 0 12px 18px;color:#1f2a28;font-size:14px;line-height:1.55">
+            <li>This is a timed attempt — timer starts when you press <em>Start</em>.</li>
+            <li>Use pager or grid to navigate. Flag questions to revisit quickly.</li>
+            <li>Feedback shows after you submit (inline under each option).</li>
+          </ul>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="qa-start" class="qa-btn" type="button">Start Attempt</button>
+            <button id="qa-resume" class="qa-btn-ghost" type="button" style="display:none;">Resume previous attempt</button>
+          </div>
+        </div>
+        <div style="flex:1;min-width:220px;border:1px dashed #cfe0dd;border-radius:12px;padding:10px;background:#f7faf9">
+          <strong style="color:#0b3d3b">Tips</strong>
+          <ul style="margin:8px 0 0 18px;color:#334155;font-size:13px;line-height:1.55">
+            <li>“Flagged only” helps last-minute checks.</li>
+            <li>Grid lets you jump directly to any question.</li>
+            <li>Progress bar updates as you answer.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <!-- ===== /PRE-FLIGHT ===== -->
+
+    <div id="qa-hud" style="display:none;position:sticky;top:0;z-index:50;background:rgba(247,250,249,.95);backdrop-filter:saturate(1.05) blur(5px);
+         border:1px solid #cfe0dd;border-radius:12px;box-shadow:0 8px 18px rgba(0,0,0,.06);padding:10px 12px;margin-bottom:12px;">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <span id="qa-timer" style="font:800 16px foguysystem-ui,Segoe UI,Roboto,sans-serif;color:#b42318;border:1px solid #e2e8f0;padding:6px 10px;border-radius:10px;min-width:90px;text-align:center;">--:--</span>
+          <span id="qa-progress-text" style="font:700 13px system-ui,Segoe UI,Roboto,sans-serif;color:#0b7a75;">Answered: 0 / 0</span>
+        </div>
+        <div class="qa-hud-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button id="qa-saveexit" class="qa-btn qa-btn-ghost" type="button" title="Save and exit">Save & Exit</button>
+          <button id="qa-submit" class="qa-btn" type="button" title="Submit">Submit</button>
+        </div>
+      </div>
+
+      <div class="qa-hud-filters" style="margin-top:8px;">
+        <div class="qa-filter-left" style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="qa-view-all"  class="qa-btn-ghost" type="button" style="padding:8px 12px;border-radius:10px">All</button>
+          <button id="qa-view-flag" class="qa-btn-ghost" type="button" style="padding:8px 12px;border-radius:10px">Flagged only</button>
+        </div>
+        <div class="qa-flag-nav" style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="qa-prev-flag" class="qa-btn-ghost" type="button" style="padding:8px 12px;border-radius:10px;display:none;">Prev flagged</button>
+          <button id="qa-next-flag" class="qa-btn-ghost" type="button" style="padding:8px 12px;border-radius:10px;display:none;">Next flagged</button>
+        </div>
+      </div>
+
+      <div class="qa-progress-wrap" style="margin-top:8px;background:#e6eceb;border-radius:999px;overflow:hidden;position:relative;height:14px;border:1px solid #cfe0dd;">
+        <div id="qa-progress-bar" class="qa-progress-bar" style="height:100%;width:0%;
+          background:repeating-linear-gradient(45deg, #0b7a75, #0b7a75 10px, #0a6a66 10px, #0a6a66 20px);
+          box-shadow:inset 0 0 6px rgba(0,0,0,.15);transition:width .25s ease;background-size:40px 40px;"></div>
+        <div id="qa-progress-label" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 11px system-ui,Segoe UI,Roboto,sans-serif;color:#0b7a75;mix-blend-mode:multiply;">
+          0%
+        </div>
+      </div>
+    </div>
+
+    <div id="qa-pager-top" style="display:none"></div>
+    <div id="qa-questions"  style="display:none"></div>
+    <div id="qa-pager-bottom" style="display:none"></div>
+
+    <div id="qa-actions" style="display:none;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap">
+      <button id="qa-reset" class="qa-btn-ghost" type="button" title="Reset attempt">Reset</button>
+      <button id="qa-submit-btm" class="qa-btn" type="button" title="Submit">Submit</button>
+    </div>
+  </div>
+</div>
+
+<button id="qa-grid-fab" type="button" title="Open grid"
+  style="position:fixed;right:14px;bottom:14px;padding:10px 12px;border-radius:999px;border:1px solid #0b7a75;background:#fff;color:#0b7a75;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:50;display:none;">
+  Grid
+</button>
+<div id="qa-grid-float" style="display:none;position:fixed;right:14px;bottom:60px;width:92vw;max-width:320px;max-height:55vh;overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,.18);padding:10px;z-index:50;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+    <strong>Question Grid</strong>
+    <button id="qa-grid-close" type="button" style="border:1px solid #e2e8f0;border-radius:8px;background:#fff;padding:6px 10px;">Close</button>
+  </div>
+  <div id="qa-grid-float-body" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(36px,1fr));gap:6px;"></div>
+</div>
+
+<!-- Image overlay for rationale pictures -->
+<div id="qa-img-overlay">
+  <div class="qa-img-overlay-inner">
+    <img id="qa-img-overlay-img" src="" alt="Rationale image" />
+  </div>
+</div>
+
+<style>
+  @keyframes qaStripes { from { background-position:0 0; } to { background-position:40px 0; } }
+  .qa-progress-bar{ animation: qaStripes 1.2s linear infinite; }
+
+  .qa-card{
+    background:#fff;border:1px solid rgba(0,0,0,.06);border-radius:16px;padding:16px;margin:14px 0;
+    box-shadow:0 8px 20px rgba(0,0,0,.06); position:relative;
+  }
+  .qa-badge{ position:absolute; right:10px; bottom:10px; font:700 11px system-ui,Segoe UI,Roboto,sans-serif;
+    color:#0b7a75; background:rgba(255,255,255,.85); border:1px solid #e6eceb; border-radius:999px; padding:4px 8px }
+  .qa-title{ margin:0 0 6px; font-size:18px; color:#0b3d3b }
+  .qa-meta{ margin:0 0 8px; color:#6b7a79; font-size:12px }
+  .qa-stem{ margin:0 0 12px; font-weight:700; font-size:16px; color:#1f2a28 }
+  .qa-opts{ display:grid; gap:10px }
+
+  /* Option layout: stack text then feedback underneath */
+  .qa-opt{
+    background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:12px 14px;
+    display:flex; flex-direction:column; align-items:flex-start; gap:6px;
+    transition:box-shadow .12s ease,border-color .12s ease
+  }
+  .qa-opt:hover{ box-shadow:0 6px 14px rgba(0,0,0,.06); border-color:#cfe0dd }
+  .qa-opt input{ accent-color:#0b7a75; width:18px; height:18px; margin-right:8px; }
+
+  .qa-opt-text{ display:flex; align-items:flex-start; gap:8px; }
+  .qa-opt-text strong{ min-width:20px; display:inline-block; }
+
+  .qa-fb{ margin-left:28px; font-size:13px; color:#334155; }
+
+  .qa-btn{ background:#0b7a75;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer }
+  .qa-btn-ghost{ background:#fff;color:#0b7a75;border:2px solid #0b7a75;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer }
+  .qa-btn:disabled{ opacity:.5; cursor:not-allowed }
+
+  .qa-summary{ margin:-4px 0 8px 0; font-size:13px; font-weight:700; color:#0b3d3b; }
+  .qa-opt.is-correct{ border-color:#16a34a; box-shadow:inset 0 0 0 2px rgba(22,163,74,.12); }
+  .qa-opt.is-selected.is-wrong{ border-color:#dc2626; box-shadow:inset 0 0 0 2px rgba(220,38,38,.12); }
+
+  .qa-rationale{
+    margin-top:10px; padding:10px 12px; border:1px dashed #cfe0dd; border-radius:10px; background:#f7faf9;
+    font-size:14px; color:#0b3d3b;
+  }
+  .qa-rationale-text{
+    display:inline;
+  }
+  .qa-rationale-img-wrap{
+    margin-top:8px;
+    display:block;
+  }
+  .qa-rationale-img{
+    max-width:140px;
+    max-height:140px;
+    border-radius:10px;
+    box-shadow:0 4px 12px rgba(0,0,0,.18);
+    cursor:pointer;
+    object-fit:cover;
+  }
+  .qa-rationale-hint{
+    margin-top:4px;
+    font-size:11px;
+    color:#64748b;
+  }
+
+  #qa-img-overlay{
+    position:fixed;
+    inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    background:rgba(0,0,0,.45);
+    z-index:9999;
+  }
+  #qa-img-overlay.qa-open{
+    display:flex;
+  }
+  #qa-img-overlay-img{
+    max-width:94vw;
+    max-height:94vh;
+    border-radius:12px;
+    box-shadow:0 18px 45px rgba(0,0,0,.5);
+    background:#000;
+  }
+
+  @media (max-width:520px){
+    #qa-root{ padding:0 10px; }
+    #qa-hud{ padding:10px 10px; }
+    .qa-hud-actions{
+      display:grid !important; grid-template-columns:1fr 1fr; gap:8px; width:100%;
+    }
+    .qa-hud-filters{
+      display:grid !important; grid-template-columns:1fr 1fr; gap:8px; width:100%;
+    }
+    .qa-hud-filters .qa-filter-left,
+    .qa-hud-filters .qa-flag-nav{
+      display:grid !important; grid-template-columns:1fr 1fr; gap:8px; width:100%;
+    }
+    .qa-hud-filters .qa-btn-ghost{ width:100%; }
+    #qa-pager{
+      display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:8px; margin:12px 0;
+    }
+    #qa-pager .qa-btn, #qa-pager .qa-btn-ghost{ width:auto; min-width:0; }
+    #qa-page-info{ font-size:12px; text-align:center; }
+    #qa-actions{
+      display:grid !important; grid-template-columns:1fr 1fr; gap:8px; justify-content:stretch;
+    }
+    #qa-actions .qa-btn, #qa-actions .qa-btn-ghost{ width:100%; }
+    .qa-stem{ font-size:15px; }
+    .qa-title{ font-size:16px; }
+    .qa-opt{ padding:14px 16px; }
+    .qa-opt input{ width:20px; height:20px; }
+    .qa-progress-wrap{ height:12px !important; }
+    #qa-grid-fab{ padding:12px 16px }
+  }
+</style>
+
+<script>
+(function(){
+  /* ================= CONFIG ================= */
+  var WEB_APP_URL_QUIZ = 'https://script.google.com/macros/s/AKfycbx_QHvNJqm65XavV8FBtPGhdveTFP_bMMYY2mtKfp6uErNjYL9A01zQs2S9uGjCbP58/exec';
+  var QUIZ_ID          = 'RN_MED-T1';   // ← set your quiz id
+  var PAGE_SIZE        = 10;            // questions per page
+  var ENABLE_GRID      = true;
+
+  /* =============== STATE =============== */
+  var data = null;
+  var pageIndex = 0;
+  var answers = {};
+  var flags   = {};
+  var viewMode = 'ALL';
+  var timer   = { total:0, remaining:0, tick:null, running:false };
+  var submitted = false;
+
+  var started = false;
+
+  /* =============== HELPERS =============== */
+  function $(id){ return document.getElementById(id); }
+  function show(el, yes){ if(!el) return; el.style.display = yes ? '' : 'none'; }
+
+  function pct(a,b){ return b ? Math.round((a/b)*100) : 0; }
+  function fmtTime(s){ if (s<0) s=0; var m=Math.floor(s/60), ss=s%60; return (m<10?'0':'')+m+':' + (ss<10?'0':'')+ss; }
+  function decodeHTML(s){ if(!s) return ''; var ta=document.createElement('textarea'); ta.innerHTML=s; return s ? ta.value.replace(/\u00A0/g,' ') : ''; }
+  function asciiClean(s){
+    return String(decodeHTML(s)||'')
+      .replace(/[\u2018\u2019]/g,"'")
+      .replace(/[\u201C\u201D]/g,'"')
+      .replace(/[\u2013\u2014]/g,"-")
+      .replace(/\u2022/g,"*");
+  }
+  function storageKey(k){ return 'qa_timed_' + QUIZ_ID + '_' + k; }
+
+  function saveDraft(){
+    try{
+      localStorage.setItem(storageKey('draft'), JSON.stringify({
+        pageIndex: pageIndex,
+        remaining_sec: timer.remaining,
+        answers: answers,
+        flags: flags,
+        viewMode: viewMode,
+        started: started
+      }));
+    }catch(e){}
+  }
+  function loadDraft(){
+    try{ return JSON.parse(localStorage.getItem(storageKey('draft')) || 'null'); }catch(e){ return null; }
+  }
+  function saveSummary(obj){
+    try{ localStorage.setItem(storageKey('summary'), JSON.stringify(obj||{})); }catch(e){}
+  }
+  function loadSummary(){
+    try{ return JSON.parse(localStorage.getItem(storageKey('summary')) || 'null'); }catch(e){ return null; }
+  }
+  function clearAllStorage(){
+    localStorage.removeItem(storageKey('draft'));
+    localStorage.removeItem(storageKey('summary'));
+    localStorage.removeItem(storageKey('attempts'));
+  }
+
+  function onceClick(btn, handler){
+    if(!btn) return;
+    btn.addEventListener('click', function(){
+      if(btn._busy) return;
+      btn._busy = true;
+      try{ handler(); } finally {
+        setTimeout(function(){ btn._busy = false; }, 500);
+      }
+    });
+  }
+
+  function answeredCount(){
+    var n=0; (data.items||[]).forEach(function(it){ if(answers[it.item_id]) n++; }); return n;
+  }
+
+  function renderHeadFromPayload(payload, statusText){
+    $('qa-title').textContent = asciiClean(payload.title || QUIZ_ID.replace(/_/g,' '));
+    $('qa-sub').textContent   = statusText || '';
+  }
+
+  function renderHead(){
+    $('qa-title').textContent = asciiClean((data.quiz && data.quiz.title) || 'Timed Quiz');
+    $('qa-sub').textContent   = 'Timed - ' + (data.items||[]).length + ' questions';
+  }
+
+  function updateHUD(){
+    var total = data ? (data.items||[]).length : 0;
+    var ans = answeredCount();
+    $('qa-progress-text').textContent = 'Answered: ' + ans + ' / ' + total;
+    var p = pct(ans, total);
+    $('qa-progress-bar').style.width = p + '%';
+    $('qa-progress-label').textContent = p + '%';
+  }
+
+  function stopTimer(){ if(timer.tick){ clearInterval(timer.tick); timer.tick=null; } timer.running=false; }
+
+  function startTimer(totalSec, resume){
+    timer.total = totalSec;
+
+    var sum = loadSummary();
+    if(sum && sum.completed){
+      timer.remaining = 0;
+      $('qa-timer').textContent = '00:00';
+      timer.running = false;
+      return;
+    }
+
+    var d = resume ? loadDraft() : null;
+    var draftRemaining = d && typeof d.remaining_sec === 'number' ? d.remaining_sec : null;
+
+    timer.remaining = (resume && Number.isFinite(draftRemaining) && draftRemaining > 0)
+      ? draftRemaining
+      : totalSec;
+
+    $('qa-timer').textContent = fmtTime(timer.remaining);
+
+    if(timer.tick) clearInterval(timer.tick);
+    var tickCount = 0;
+    timer.tick = setInterval(function(){
+      timer.remaining -= 1;
+      if (timer.remaining < 0) timer.remaining = 0;
+      $('qa-timer').textContent = fmtTime(timer.remaining);
+
+      tickCount++;
+      if (tickCount % 5 === 0){ saveDraft(); }
+
+      if (timer.remaining < 1){
+        clearInterval(timer.tick);
+        timer.running=false;
+        submitAttempt(true);
+      }
+    }, 1000);
+
+    timer.running = true;
+  }
+
+  function currentSource(){
+    if(viewMode==='FLAGGED'){
+      var f = (data.items||[]).filter(function(it){ return !!flags[it.item_id]; });
+      return (f.length? f : (data.items||[]));
+    }
+    return (data.items||[]);
+  }
+
+  function currentSlice(){
+    var src = currentSource();
+    var total = src.length;
+    var totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (pageIndex < 0) pageIndex = 0;
+    if (pageIndex >= totalPages) pageIndex = totalPages - 1;
+    var start = pageIndex * PAGE_SIZE;
+    var end   = Math.min(total, start + PAGE_SIZE);
+    return { src: src, total: total, totalPages: totalPages, start: start, end: end, pageFrom:start+1, pageTo:end };
+  }
+
+  /* ===== STATUS CARD RENDERING ===== */
+  function formatDateTime(raw){
+    if(!raw) return '';
+    var d = new Date(raw);
+    if(isNaN(d.getTime())) return String(raw);
+    return d.toLocaleString('en-GB', {
+      year:'numeric', month:'short', day:'2-digit',
+      hour:'2-digit', minute:'2-digit'
+    });
+  }
+
+  function showStatusCard(status, payload){
+    var box = $('qa-status-card');
+    if(!box) return;
+
+    // Hide quiz UI
+    show($('qa-pref'), false);
+    show($('qa-hud'), false);
+    show($('qa-questions'), false);
+    show($('qa-actions'), false);
+    show($('qa-pager-top'), false);
+    show($('qa-pager-bottom'), false);
+    show($('qa-grid-fab'), false);
+    window.onbeforeunload = null;
+
+    var publishAt   = payload.publish_at   || payload.publishFrom   || payload.published_at || '';
+    var unpublishAt = payload.unpublish_at || payload.unpublishes_at || payload.close_at    || '';
+
+    var publishNice   = formatDateTime(publishAt);
+    var unpublishNice = formatDateTime(unpublishAt);
+
+    var title, body, bg, border, chip;
+
+    if(status === 'scheduled'){
+      bg     = '#fff7e6';
+      border = '#facc15';
+      chip   = '#92400e';
+      title  = 'Quiz opens soon';
+      body   = publishNice
+        ? 'This quiz is scheduled to open on ' + publishNice + '. Please check back then.'
+        : 'This quiz is scheduled but not yet open. Please check again later.';
+    }else if(status === 'closed'){
+      bg     = '#fee2e2';
+      border = '#ef4444';
+      chip   = '#991b1b';
+      title  = 'Quiz closed';
+      body   = unpublishNice
+        ? 'This quiz closed on ' + unpublishNice + '. It is no longer available to attempt.'
+        : 'This quiz is closed and no longer available to attempt.';
+    }else{ // unpublished or anything else
+      bg     = '#f3f4f6';
+      border = '#9ca3af';
+      chip   = '#111827';
+      title  = 'Quiz not available';
+      body   = 'This quiz is not currently published. Please check your course page or contact QAcademy if you think this is a mistake.';
+    }
+
+    box.innerHTML =
+      '<div style="padding:12px 14px;border-radius:12px;border:1px solid '+border+';background:'+bg+';box-shadow:0 6px 16px rgba(0,0,0,.04);font-size:13px;color:#111827;">' +
+        '<div style="font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px;">' +
+          '<span style="display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid '+border+';background:rgba(255,255,255,.7);font-size:11px;color:'+chip+';text-transform:uppercase;letter-spacing:.04em;">' +
+            status.toUpperCase() +
+          '</span>' +
+          '<span>'+ title +'</span>' +
+        '</div>' +
+        '<p style="margin:0;color:#374151;line-height:1.5;">'+ body +'</p>' +
+      '</div>';
+
+    box.style.display = 'block';
+
+    // Header text
+    renderHeadFromPayload(payload, status === 'open' ? '' : title);
+  }
+
+  /* ===== Build one card ===== */
+  function cardHTML(it){
+    var letters = ['A','B','C','D'];
+    var sel = (answers[it.item_id] || '').toUpperCase();
+    var correct = String(it.correct || '').toUpperCase();
+
+    var summary = '';
+    if (submitted){
+      if (sel === correct){
+        summary = '<div class="qa-summary" aria-live="polite">✅ You chose <strong>'+sel+'</strong> — Correct.</div>';
+      }else{
+        var your = sel ? ('You chose <strong>'+sel+'</strong> — ') : 'No choice — ';
+        summary = '<div class="qa-summary" aria-live="polite">❌ '+ your +'Correct is <strong>'+correct+'</strong>.</div>';
+      }
+    }
+
+    var opts = letters.map(function(L){
+      var optText = asciiClean(it.options && it.options[L] || '');
+      if (!optText) return '';
+      var fbText  = asciiClean(it.feedback && it.feedback[L] || '');
+      var classes = ['qa-opt'];
+      if (submitted){
+        if (L === correct) classes.push('is-correct');
+        if (L === sel && L !== correct) classes.push('is-selected','is-wrong');
+      }else if (L === sel){
+        classes.push('is-selected');
+      }
+
+      var disabledAttr = submitted ? ' disabled' : '';
+      var fbHTML = (submitted && fbText) ? ('<div class="qa-fb">'+ fbText +'</div>') : '';
+
+      return ''+
+        '<label class="'+classes.join(' ')+'">'+
+          '<div class="qa-opt-text">'+
+            '<input type="radio" name="q_'+it.item_id+'" value="'+L+'" '+(sel===L?'checked':'')+ disabledAttr+'>'+
+            '<span><strong>'+L+'.</strong> '+ optText +'</span>'+
+          '</div>'+
+          fbHTML+
+        '</label>';
+    }).join('');
+
+    var meta = it.topic ? '<p class="qa-meta">Topic: '+ asciiClean(it.topic) +'</p>' : '';
+
+    var rationaleHTML = '';
+    if (submitted){
+      var hasText = !!(it.rationale && String(it.rationale).trim());
+      var hasImg  = !!(it.rationale_img);
+      if (hasText || hasImg){
+        rationaleHTML =
+          '<div class="qa-rationale">' +
+            '<strong>Rationale: </strong>' +
+            (hasText ? '<span class="qa-rationale-text"> ' + asciiClean(it.rationale || '') + '</span>' : '') +
+            (hasImg ? (
+              '<div class="qa-rationale-img-wrap">' +
+                '<img src="'+ (it.rationale_img) +'" alt="Rationale image" ' +
+                'class="qa-rationale-img" data-full="'+ (it.rationale_img) +'" />' +
+              '</div>' +
+              '<div class="qa-rationale-hint">Tap picture to enlarge. Tap outside the picture to close.</div>'
+            ) : '') +
+          '</div>';
+      }
+    }
+
+    return (
+      '<section class="qa-card" data-id="'+it.item_id+'">'+
+        '<div class="qa-badge">QAcademy</div>'+
+        '<h2 class="qa-title">Question '+ it.number +'</h2>'+
+        meta+
+        '<p class="qa-stem">'+ asciiClean(it.stem||'') +'</p>'+
+        summary+
+        '<div class="qa-opts">'+ opts +'</div>'+
+        rationaleHTML+
+        '<div style="margin-top:8px">'+
+          '<button class="qa-flag qa-btn-ghost" type="button" style="padding:8px 12px;border-radius:10px">'+
+            (flags[it.item_id]?'Unflag':'Flag')+
+          '</button>'+
+        '</div>'+
+      '</section>'
+    );
+  }
+
+  function buildPager(host){
+    if(!host) return;
+    var c = currentSlice();
+    host.innerHTML = '';
+    var wrap = document.createElement('div'); wrap.id='qa-pager';
+
+    var prev = document.createElement('button');
+    prev.className='qa-btn qa-btn-ghost'; prev.type='button'; prev.textContent='Prev';
+    prev.disabled = (pageIndex===0);
+    prev.onclick = function(){ pageIndex--; renderPage(); saveDraft(); };
+    wrap.appendChild(prev);
+
+    var info = document.createElement('span');
+    info.id='qa-page-info';
+    info.textContent = 'Page ' + (pageIndex+1) + ' of ' + c.totalPages + ' - ' + PAGE_SIZE + '/page';
+    wrap.appendChild(info);
+
+    if(pageIndex < c.totalPages - 1){
+      var next = document.createElement('button');
+      next.className='qa-btn'; next.type='button'; next.textContent='Next';
+      next.onclick = function(){ pageIndex++; renderPage(); saveDraft(); };
+      wrap.appendChild(next);
+    }
+    host.appendChild(wrap);
+  }
+
+  function flaggedPageIndexes(){
+    var idxSet = new Set();
+    (data.items||[]).forEach(function(it, i){
+      if(flags[it.item_id]){
+        var p = Math.floor(i / PAGE_SIZE);
+        idxSet.add(p);
+      }
+    });
+    return Array.from(idxSet).sort(function(a,b){ return a-b; });
+  }
+  function jumpToNextFlagged(){
+    var pages = flaggedPageIndexes();
+    if(!pages.length){ alert('No flagged questions.'); return; }
+    var curAbs = pageIndex;
+    var target = pages.find(function(p){ return p > curAbs; });
+    pageIndex = (typeof target==='number') ? target : pages[0];
+    viewMode='ALL'; renderPage(); saveDraft();
+  }
+  function jumpToPrevFlagged(){
+    var pages = flaggedPageIndexes();
+    if(!pages.length){ alert('No flagged questions.'); return; }
+    var curAbs = pageIndex;
+    var target = null;
+    for(var i=pages.length-1;i>=0;i--){ if(pages[i] < curAbs){ target = pages[i]; break; } }
+    pageIndex = (target!==null) ? target : pages[pages.length-1];
+    viewMode='ALL'; renderPage(); saveDraft();
+  }
+
+  function renderPage(){
+    var c = currentSlice();
+
+    var html = '';
+    for(var i=c.start;i<c.end;i++) html += cardHTML(c.src[i]);
+    $('qa-questions').innerHTML = html;
+
+    document.querySelectorAll('.qa-card').forEach(function(sec){
+      var id = sec.getAttribute('data-id');
+      sec.querySelectorAll('input[type="radio"]').forEach(function(r){
+        r.addEventListener('change', function(){
+          if(submitted) return;
+          answers[id] = String(r.value || '').toUpperCase();
+          updateHUD(); saveDraft();
+        });
+      });
+      var flagBtn = sec.querySelector('.qa-flag');
+      if(flagBtn){
+        flagBtn.addEventListener('click', function(){
+          flags[id] = !flags[id];
+          flagBtn.textContent = flags[id] ? 'Unflag' : 'Flag';
+          saveDraft();
+        });
+      }
+    });
+
+    buildPager($('qa-pager-top'));
+    buildPager($('qa-pager-bottom'));
+
+    updateHUD();
+
+    var first = document.querySelector('.qa-card');
+    if(first){
+      var hudH = $('qa-hud').offsetHeight || 0;
+      var y = first.getBoundingClientRect().top + window.scrollY - hudH - 10;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    }
+
+    if(ENABLE_GRID){ $('qa-grid-fab').style.display = 'inline-block'; }
+    updateFlagNavVisibility();
+  }
+
+  function updateFlagNavVisibility(){
+    var onFlagged = (viewMode === 'FLAGGED');
+    show($('qa-prev-flag'), onFlagged);
+    show($('qa-next-flag'), onFlagged);
+  }
+
+  function submitAttempt(auto){
+    if(submitted) return;
+    var total = (data.items||[]).length;
+    var answered = answeredCount();
+    if (!auto && answered < total){
+      if (!confirm('You answered '+answered+'/'+total+'. Submit?')) return;
+    }
+    submitted = true;
+    stopTimer();
+    window.onbeforeunload = null;
+
+    var rec = {
+      completed:true,
+      answers:answers,
+      flags:flags,
+      timestamp_iso:new Date().toISOString(),
+      duration_sec:(timer.total - Math.max(0,timer.remaining))
+    };
+    saveSummary(rec);
+
+    renderPage();
+
+    setTimeout(function(){
+      var hud = $('qa-hud');
+      var hudH = hud ? (hud.offsetHeight || 0) : 0;
+      var target = document.querySelector('.qa-card');
+      if(target){
+        var y = target.getBoundingClientRect().top + window.scrollY - hudH - 10;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+    }, 0);
+
+    $('qa-submit').disabled = true;
+    $('qa-submit-btm').disabled = true;
+  }
+
+  function resetAttempt(){
+    if(!confirm('Reset answers and start timer again?')) return;
+    submitted = false;
+    answers = {}; flags = {}; pageIndex = 0;
+    clearAllStorage();
+    renderPage();
+    updateHUD();
+    stopTimer();
+    startTimer((data.quiz && data.quiz.time_limit_sec) || 0, false);
+    $('qa-submit').disabled = false; $('qa-submit-btm').disabled = false;
+    started = true; saveDraft();
+  }
+
+  function startUI(isResume){
+    started = true;
+
+    show($('qa-pref'), false);
+    show($('qa-hud'), true);
+    show($('qa-questions'), true);
+    show($('qa-actions'), true);
+    show($('qa-pager-top'), true);
+    show($('qa-pager-bottom'), true);
+
+    renderPage();
+    updateHUD();
+
+    var limit = (data.quiz && data.quiz.time_limit_sec) || 0;
+    startTimer(limit, !!isResume);
+
+    saveDraft();
+  }
+
+  function buildPreflight(){
+    var t = asciiClean((data.quiz && data.quiz.title) || 'Timed Quiz');
+    var n = (data.items||[]).length || 0;
+    var mins = Math.round(((data.quiz && data.quiz.time_limit_sec) || 0)/60);
+    $('qa-pref-title').textContent = t;
+    $('qa-pref-meta').textContent  = 'Timed | ' + n + ' questions | Time: ' + mins + ' min | ' + PAGE_SIZE + '/page';
+
+    var d = loadDraft() || {};
+    var s = loadSummary() || {};
+    var canResume = !!(d && d.started && !(s && s.completed));
+    show($('qa-resume'), canResume);
+
+    $('qa-start').onclick = function(){
+      clearAllStorage();
+      pageIndex = 0; answers = {}; flags = {}; viewMode = 'ALL'; submitted = false;
+      startUI(false);
+    };
+
+    $('qa-resume').onclick = function(){
+      var d = loadDraft();
+      var s = loadSummary();
+      if(d){
+        started  = !!d.started;
+        pageIndex = d.pageIndex||0; answers = d.answers||{}; flags = d.flags||{}; viewMode = d.viewMode||'ALL';
+      }
+      if(s && s.completed){
+        submitted = true;
+        show($('qa-pref'), false);
+        show($('qa-hud'), false);
+        show($('qa-questions'), true);
+        show($('qa-actions'), true);
+        show($('qa-pager-top'), true);
+        show($('qa-pager-bottom'), true);
+        renderPage();
+        $('qa-submit').disabled = true; $('qa-submit-btm').disabled = true;
+      }else{
+        startUI(true);
+      }
+    };
+
+    show($('qa-pref'), true);
+    show($('qa-hud'), false);
+    show($('qa-questions'), false);
+    show($('qa-actions'), false);
+    show($('qa-pager-top'), false);
+    show($('qa-pager-bottom'), false);
+  }
+
+  async function boot(){
+    try{
+      // show simple “loading” info in status card
+      var statusBox = $('qa-status-card');
+      if(statusBox){
+        statusBox.style.display = 'block';
+        statusBox.innerHTML =
+          '<div style="padding:10px 12px;border-radius:10px;background:#eef2ff;border:1px solid #c7d2fe;font-size:13px;color:#111827;">' +
+            'Loading quiz…' +
+          '</div>';
+      }
+
+      var res = await fetch(WEB_APP_URL_QUIZ + '?quiz_id=' + QUIZ_ID);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var payload = await res.json();
+
+      if (!payload){
+        if(statusBox){
+          statusBox.innerHTML =
+            '<div style="padding:10px 12px;border-radius:10px;background:#fee2e2;border:1px solid #ef4444;font-size:13px;color:#111827;">' +
+              'Quiz not available.' +
+            '</div>';
+        }
+        return;
+      }
+
+      var status = payload.status || 'open';
+
+      // If quiz is not open, show friendly card and stop here
+      if(status !== 'open'){
+        showStatusCard(status, payload);
+        return;
+      }
+
+      // Quiz is open → clear status card
+      if(statusBox){
+        statusBox.style.display = 'none';
+        statusBox.innerHTML = '';
+      }
+
+      if(!payload.questions || !payload.questions.length){
+        if(statusBox){
+          statusBox.style.display = 'block';
+          statusBox.innerHTML =
+            '<div style="padding:10px 12px;border-radius:10px;background:#fee2e2;border:1px solid #ef4444;font-size:13px;color:#111827;">' +
+              'Quiz is open but no questions were found for this quiz_id.' +
+            '</div>';
+        }
+        return;
+      }
+
+      const apiTitle =
+        payload.title ||
+        payload.quiz_title ||
+        (payload.quiz && payload.quiz.title) ||
+        (payload.meta && payload.meta.title) ||
+        null;
+
+      data = {
+        quiz: {
+          title: (apiTitle ? String(apiTitle) : QUIZ_ID.replace(/_/g, ' ')),
+          time_limit_sec: Number(payload.time_limit_sec) || 1200
+        },
+        items: (payload.questions || []).map(function(q, i){
+          return Object.assign({}, q, {
+            number: i + 1,
+            options: { A: q.option_a || '', B: q.option_b || '', C: q.option_c || '', D: q.option_d || '' },
+            feedback:{ A: q.fb_a || '',     B: q.fb_b || '',     C: q.fb_c || '',     D: q.fb_d || '' },
+            rationale_img: q.rationale_img || q.rationaleImage || q.rationaleImg || ''
+          });
+        })
+      };
+
+      renderHead();
+
+      var d = loadDraft();
+      var s = loadSummary();
+      if(d){ pageIndex = d.pageIndex||0; answers = d.answers||{}; flags = d.flags||{}; viewMode = d.viewMode||'ALL'; started = !!d.started; }
+      if(s && s.completed){ submitted = true; }
+
+      buildPreflight();
+
+      onceClick($('qa-submit'),     function(){ submitAttempt(false); });
+      onceClick($('qa-submit-btm'), function(){ submitAttempt(false); });
+      onceClick($('qa-saveexit'),   function(){
+        saveDraft(); alert('Saved. You can return later.');
+        location.replace('/p/dashboard_23.html');
+      });
+
+      $('qa-reset').onclick = resetAttempt;
+
+      $('qa-view-all').onclick  = function(){ viewMode='ALL'; pageIndex=0; renderPage(); saveDraft(); updateFlagNavVisibility(); };
+      $('qa-view-flag').onclick = function(){ viewMode='FLAGGED'; pageIndex=0; renderPage(); saveDraft(); updateFlagNavVisibility(); };
+      $('qa-next-flag').onclick = jumpToNextFlagged;
+      $('qa-prev-flag').onclick = jumpToPrevFlagged;
+
+      if(ENABLE_GRID){
+        show($('qa-grid-fab'), true);
+        $('qa-grid-fab').onclick = function(){
+          var body = $('qa-grid-float-body'); body.innerHTML='';
+          (data.items||[]).forEach(function(it){
+            var b = document.createElement('button');
+            b.type='button';
+            b.textContent = String(it.number);
+            b.style.cssText='min-width:36px;height:36px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;';
+            function setState(){
+              var sel = answers[it.item_id];
+              var f   = !!flags[it.item_id];
+              b.style.background = '#fff'; b.style.borderColor = '#e2e8f0';
+              if (sel){ b.style.background = '#eef2ff'; b.style.borderColor='#c7d2fe'; }
+              if (f){ b.style.background = '#fff7ed'; b.style.borderColor='#fdba74'; }
+            }
+            b.onclick = function(){
+              var absPage = Math.floor((it.number-1)/PAGE_SIZE);
+              viewMode='ALL'; pageIndex=absPage; renderPage(); saveDraft(); show($('qa-grid-float'), false);
+            };
+            b._setState = setState; setState(); body.appendChild(b);
+          });
+          show($('qa-grid-float'), true);
+        };
+        $('qa-grid-close').onclick = function(){ show($('qa-grid-float'), false); };
+      }
+
+      window.onbeforeunload = function(){
+        if(timer.running && !submitted){ return 'You have an active timed quiz.'; }
+      };
+
+      updateFlagNavVisibility();
+
+    }catch(err){
+      var statusBox = $('qa-status-card');
+      if(statusBox){
+        statusBox.style.display = 'block';
+        statusBox.innerHTML =
+          '<div style="padding:10px 12px;border-radius:10px;background:#fee2e2;border:1px solid #ef4444;font-size:13px;color:#111827;">' +
+            'Failed to load quiz: '+ asciiClean(err.message || String(err)) +
+          '</div>';
+      }
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    var overlay    = document.getElementById('qa-img-overlay');
+    var overlayImg = document.getElementById('qa-img-overlay-img');
+
+    document.addEventListener('click', function(e){
+      var thumb = e.target.closest('.qa-rationale-img');
+      if (!thumb) return;
+      if (!overlay || !overlayImg) return;
+      overlayImg.src = thumb.getAttribute('data-full') || thumb.src || '';
+      overlay.classList.add('qa-open');
+    });
+
+    if (overlay){
+      overlay.addEventListener('click', function(e){
+        if (e.target === overlay){
+          overlay.classList.remove('qa-open');
+        }
+      });
+    }
+
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape' && overlay){
+        overlay.classList.remove('qa-open');
+      }
+    });
+
+    boot();
+  });
+})();
+</script>
