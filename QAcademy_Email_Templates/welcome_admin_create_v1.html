@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Welcome to QAcademy</title>
+<style>
+  /* Email clients strip most CSS; keep this minimal */
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f7f7;
+  }
+  .container {
+    max-width: 540px;
+    margin: 0 auto;
+    background: #ffffff;
+    padding: 24px;
+    border-radius: 10px;
+    border: 1px solid #e7ecec;
+  }
+  .title {
+    font-size: 22px;
+    color: #0b7a75;
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .subtitle {
+    font-size: 14px;
+    color: #859998;
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  .hi {
+    font-size: 16px;
+    color: #0f172a;
+    margin-bottom: 12px;
+  }
+  .panel {
+    background: #f0f7f7;
+    border-left: 4px solid #0b7a75;
+    padding: 14px 16px;
+    border-radius: 6px;
+    margin-bottom: 18px;
+  }
+  .panel p {
+    margin: 6px 0;
+    font-size: 14px;
+    color: #0f172a;
+  }
+  .btn {
+    display: inline-block;
+    background: #0b7a75;
+    color: #ffffff !important;
+    text-decoration: none;
+    padding: 12px 18px;
+    border-radius: 6px;
+    font-weight: bold;
+    margin: 18px 0;
+    text-align: center;
+  }
+  .steps {
+    font-size: 14px;
+    color: #0f172a;
+    margin-bottom: 18px;
+  }
+  .steps li {
+    margin: 6px 0;
+  }
+  .footer {
+    font-size: 12px;
+    color: #6b7b7a;
+    text-align: center;
+    margin-top: 24px;
+  }
+  .divider {
+    height: 1px;
+    background: #e5ebeb;
+    margin: 24px 0;
+  }
+</style>
+</head>
+
+<body>
+  <div class="container">
+
+    <div class="title">Welcome to QAcademy Nurses Hub</div>
+    <div class="subtitle">Your online prep for the NMC Ghana licensure exams</div>
+
+    <p class="hi">Hi {{name}},</p>
+
+    <p style="font-size:14px;color:#0f172a;margin-bottom:14px;">
+      Your QAcademy account has been created successfully. Below are your login details and first steps.
+    </p>
+
+    <div class="panel">
+      <p><strong>Email:</strong> {{email}}</p>
+      <p><strong>Temporary Password:</strong> {{tempPassword}}</p>
+      <p><strong>Plan / Access:</strong> {{productName}}</p>
+    </div>
+
+    <center>
+      <a class="btn" href="{{loginUrl}}" target="_blank">Go to Login</a>
+    </center>
+
+    <p style="font-size:14px;color:#0f172a;margin-bottom:12px;">
+      Once you log in, you’ll be able to start your courses immediately.
+    </p>
+
+    <ul class="steps">
+      <li>Sign in using your email and temporary password</li>
+      <li>Change your password after your first login</li>
+      <li>Open <strong>My Courses</strong> to explore your quizzes</li>
+    </ul>
+
+    <p style="font-size:14px;color:#0f172a;margin-bottom:20px;">
+      If you face any issues, simply reply to this email and we’ll help you quickly.
+    </p>
+
+    <div class="divider"></div>
+
+    <div class="footer">
+      QAcademy Nurses Hub • Empowering tomorrow's nurses  
+      <br/>
+      This is an automated message — please do not share your password with anyone.
+    </div>
+
+  </div>
+</body>
+</html>

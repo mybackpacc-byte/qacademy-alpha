@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Your QAcademy access is ending soon</title>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f7f7;
+  }
+  .outer {
+    padding: 20px 12px;
+  }
+  .container {
+    max-width: 560px;
+    margin: 0 auto;
+    background: #ffffff;
+    padding: 24px 24px 20px;
+    border-radius: 12px;
+    border: 1px solid #fee2e2;
+    box-shadow: 0 8px 18px rgba(15,23,42,0.04);
+  }
+  .badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: #fef3c7;
+    color: #92400e;
+    margin-bottom: 10px;
+  }
+  .title {
+    font-size: 20px;
+    color: #0f172a;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #4b5563;
+    margin-bottom: 18px;
+  }
+  .hi {
+    font-size: 15px;
+    color: #111827;
+    margin-bottom: 12px;
+  }
+  .warning-card {
+    border-radius: 10px;
+    background: #fffbeb;
+    border: 1px solid #facc15;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .warning-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #92400e;
+    margin-bottom: 4px;
+  }
+  .warning-meta {
+    font-size: 13px;
+    color: #92400e;
+  }
+  .product-card {
+    border-radius: 10px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+  }
+  .product-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 4px;
+  }
+  .product-meta {
+    font-size: 12px;
+    color: #4b5563;
+  }
+  .courses-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+    margin: 12px 0 6px;
+  }
+  .courses-list {
+    font-size: 13px;
+    color: #374151;
+    margin: 0;
+    padding-left: 18px;
+  }
+  .btn-wrap {
+    text-align: center;
+    margin: 18px 0 10px;
+  }
+  .btn-primary {
+    display: inline-block;
+    background: #0b7a75;
+    color: #ffffff !important;
+    text-decoration: none;
+    padding: 11px 22px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .btn-primary:hover {
+    opacity: 0.95;
+  }
+  .btn-ghost {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #0b7a75 !important;
+    text-decoration: none;
+  }
+  .btn-ghost:hover {
+    text-decoration: underline;
+  }
+  .small {
+    font-size: 12px;
+    color: #4b5563;
+    margin-bottom: 8px;
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 16px 0 6px;
+  }
+  .note-box {
+    font-size: 12px;
+    color: #43302b;
+    background: #fff7ed;
+    border-radius: 8px;
+    border: 1px solid #fed7aa;
+    padding: 11px 13px;
+    margin-bottom: 12px;
+  }
+  .links-list {
+    font-size: 12px;
+    color: #374151;
+    margin: 0;
+    padding-left: 18px;
+  }
+  .links-list a {
+    color: #0b7a75;
+    text-decoration: none;
+  }
+  .links-list a:hover {
+    text-decoration: underline;
+  }
+  .divider {
+    height: 1px;
+    background: #e5ebeb;
+    margin: 20px 0 14px;
+  }
+  .footer {
+    font-size: 11px;
+    color: #6b7280;
+    text-align: center;
+    margin-top: 4px;
+  }
+</style>
+</head>
+
+<body>
+  <div class="outer">
+    <div class="container">
+
+      <div class="badge">Expiring soon</div>
+      <div class="title">Your QAcademy access is ending soon</div>
+      <div class="subtitle">
+        One of your QAcademy subscriptions is close to its expiry date.
+      </div>
+
+      <p class="hi">Hi {{name}},</p>
+
+      <div class="warning-card">
+        <div class="warning-title">
+          {{daysLeft}} day(s) left on this subscription
+        </div>
+        <div class="warning-meta">
+          Your access will end on <strong>{{expiryDate}}</strong> unless it is renewed.
+        </div>
+      </div>
+
+      <div class="product-card">
+        <div class="product-name">{{productName}}</div>
+        <div class="product-meta">
+          {{productSummary}}
+          <br/>
+          <strong>Current access until:</strong> {{expiryDate}}
+        </div>
+
+        <div class="courses-title">Courses affected</div>
+        <!-- Backend injects a full <ul>...</ul> block into {{courseListHtml}} -->
+        <div class="courses-list">
+          {{courseListHtml}}
+        </div>
+      </div>
+
+      <p class="small">
+        If you are still preparing for your exams, we recommend renewing your access
+        before it expires so that you do not lose your saved progress and practice history.
+      </p>
+
+      <div class="btn-wrap">
+        <a class="btn-primary" href="{{renewUrl}}" target="_blank">Renew my access</a>
+        <br/>
+        <a class="btn-ghost" href="{{dashboardUrl}}" target="_blank">Open my dashboard instead</a>
+      </div>
+
+      <p class="small">
+        If you believe you received this email in error, please check your dashboard expiry date,
+        or contact support for clarification.
+      </p>
+
+      <!-- Licensure + socials -->
+      <div class="section-title">If you are on a Licensure Preparation plan</div>
+      <div class="note-box">
+        If this subscription is linked to your intensive Licensure Preparation package,
+        make sure you stay connected to the private discussion group for updates, tips,
+        and last-minute revision support:
+        <br/><br/>
+        <a href="{{licensureTelegramUrl}}" style="color:#0b7a75;text-decoration:underline;" target="_blank">
+          Join / check the Licensure Prep Telegram group
+        </a>
+      </div>
+
+      <div class="section-title">Stay connected with QAcademy</div>
+      <p class="small">
+        Even if you decide not to renew right now, you can follow our open channels
+        for free tips, sample questions, and announcements:
+      </p>
+      <ul class="links-list">
+        <li>Telegram: <a href="{{telegramUrl}}" target="_blank">{{telegramUrl}}</a></li>
+        <li>WhatsApp channel: <a href="{{whatsappUrl}}" target="_blank">{{whatsappUrl}}</a></li>
+        <li>TikTok: <a href="{{tiktokUrl}}" target="_blank">{{tiktokUrl}}</a></li>
+        <li>More links (Linktree): <a href="{{linktreeUrl}}" target="_blank">{{linktreeUrl}}</a></li>
+      </ul>
+
+      <div class="divider"></div>
+
+      <div class="footer">
+        {{brandName}}<br/>
+        This is an automatic reminder about your QAcademy subscription. 
+        If you have already renewed, you can ignore this email.
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>

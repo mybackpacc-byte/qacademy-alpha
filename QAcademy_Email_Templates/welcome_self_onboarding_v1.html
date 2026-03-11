@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Welcome to QAcademy</title>
+<style>
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background: #f5f7f7;
+  }
+  .container {
+    max-width: 540px;
+    margin: 0 auto;
+    background: #ffffff;
+    padding: 24px;
+    border-radius: 10px;
+    border: 1px solid #e7ecec;
+  }
+  .title {
+    font-size: 22px;
+    color: #0b7a75;
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .subtitle {
+    font-size: 14px;
+    color: #859998;
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  .hi {
+    font-size: 16px;
+    color: #0f172a;
+    margin-bottom: 12px;
+  }
+  .panel {
+    background: #f0f7f7;
+    border-left: 4px solid #0b7a75;
+    padding: 14px 16px;
+    border-radius: 6px;
+    margin-bottom: 18px;
+  }
+  .panel p {
+    margin: 6px 0;
+    font-size: 14px;
+    color: #0f172a;
+  }
+  .btn {
+    display: inline-block;
+    background: #0b7a75;
+    color: #ffffff !important;
+    text-decoration: none;
+    padding: 12px 18px;
+    border-radius: 6px;
+    font-weight: bold;
+    margin: 18px 0;
+    text-align: center;
+  }
+  .steps {
+    font-size: 14px;
+    color: #0f172a;
+    margin-bottom: 18px;
+  }
+  .steps li {
+    margin: 6px 0;
+  }
+  .footer {
+    font-size: 12px;
+    color: #6b7b7a;
+    text-align: center;
+    margin-top: 24px;
+  }
+  .divider {
+    height: 1px;
+    background: #e5ebeb;
+    margin: 24px 0;
+  }
+</style>
+</head>
+
+<body>
+  <div class="container">
+
+    <div class="title">Welcome to QAcademy Nurses Hub</div>
+    <div class="subtitle">Your online prep for the NMC Ghana licensure exams</div>
+
+    <p class="hi">Hi {{name}},</p>
+
+    <p style="font-size:14px;color:#0f172a;margin-bottom:14px;">
+      Thank you for creating your QAcademy account. You’re now set up and ready to start exploring your courses and quizzes.
+    </p>
+
+    <div class="panel">
+      <p><strong>Account email (username):</strong> {{email}}</p>
+      <p style="font-size:12px;color:#6b7b7a;margin-top:10px;">
+        For your security, we don’t send passwords by email. Use the password you chose during sign up. If you ever forget it, you can reset it from the login page.
+      </p>
+    </div>
+
+    <center>
+      <a class="btn" href="{{loginUrl}}" target="_blank">Go to Login</a>
+    </center>
+
+    <p style="font-size:14px;color:#0f172a;margin-bottom:12px;">
+      Here’s what to do next:
+    </p>
+
+    <ul class="steps">
+      <li>Sign in using your email and the password you chose during registration.</li>
+      <li>Check your profile details and update anything that’s missing.</li>
+      <li>Open <strong>My Courses</strong> to see the quizzes and practice sets available to you.</li>
+    </ul>
+
+    <p style="font-size:14px;color:#0f172a;margin-bottom:20px;">
+      If you run into any problem logging in or accessing your courses, just reply to this email and we’ll help you sort it out.
+    </p>
+
+    <div class="divider"></div>
+
+    <div class="footer">
+      QAcademy Nurses Hub • Empowering tomorrow's nurses
+      <br/>
+      Keep this email for your records. For your safety, never share your password with anyone.
+    </div>
+
+  </div>
+</body>
+</html>
