@@ -1,0 +1,346 @@
+export default {
+  async fetch(request, env, ctx) {
+    // Health check
+    if (request.method === "GET") {
+      return new Response("ok", { status: 200 });
+    }
+
+    if (request.method !== "POST") {
+      return new Response("Method Not Allowed", { status: 405 });
+    }
+
+    // Verify Telegram webhook secret header (recommended)
+    if (env.TG_WEBHOOK_SECRET) {
+      const got = request.headers.get("x-telegram-bot-api-secret-token") || "";
+      if (got !== env.TG_WEBHOOK_SECRET) {
+        console.log("[AUTH] Invalid secret header");
+        return new Response("Unauthorized", { status: 401 });
+      }
+    }
+
+    let update;
+    try {
+      update = await request.json();
+    } catch {
+      console.log("[BAD] Invalid JSON");
+      return new Response("Bad JSON", { status: 400 });
+    }
+
+    // ============================================================
+    // Phase 3 (UPGRADED): Handle bot messages for linking via one-time code
+    // - Handles update.message AND update.edited_message
+    // - Accepts:
+    //    /link  QK-123456
+    //    /start QK-123456   (deep-link payload)
+    // ============================================================
+    const msg = update?.message || update?.edited_message;
+    if (msg && msg.text) {
+      const text = String(msg.text || "").trim();
+
+      // where to reply (private chat typically)
+      const chatId = msg.chat?.id;
+
+      // telegram user fields
+      const fromId = msg.from?.id; // telegram_user_id
+
+      // username fields
+      const usernameRaw = msg.from?.username || ""; // no @
+      const usernameAt = usernameRaw ? `@${usernameRaw}` : ""; // with @
+
+      // names (optional but useful)
+      const firstName = String(msg.from?.first_name || "").trim();
+      const lastName  = String(msg.from?.last_name || "").trim();
+      const displayName = [firstName, lastName].filter(Boolean).join(" ").trim();
+
+      // Parse /link CODE or /start CODE
+      // - keep it strict: command then whitespace then payload
+      const m = text.match(/^\/(link|start)\s+([A-Za-z0-9\-_]{4,64})/i);
+
+      if (m && chatId && fromId) {
+        const cmd = m[1].toLowerCase();
+        const code = String(m[2] || "").trim();
+
+        console.log(
+          `[LINK] cmd=/${cmd} code=${code} from=${fromId} ${usernameAt} ${displayName}`.trim()
+        );
+
+        // Basic config checks
+        if (!env.GATE_URL || !env.GATE_SECRET) {
+          await tgCall(env, "sendMessage", {
+            chat_id: chatId,
+            text: "Linking is not configured yet. Please try again later.",
+          });
+          return new Response("link_not_configured", { status: 200 });
+        }
+
+        // Call TelegramGate to finalize link
+        // ✅ UPGRADE: send first/last + username (raw + @ form) for enrichment
+        const linked = await gateLinkByCode(env, {
+          code,
+          telegram_user_id: String(fromId),
+
+          // keep old fields (backwards-safe)
+          username: usernameAt || "",
+          display_name: displayName || "",
+
+          // new enrichment fields (Apps Script will accept)
+          telegram_username: usernameRaw || "", // WITHOUT @ (recommended to store)
+          first_name: firstName || "",
+          last_name: lastName || "",
+
+          // optional (leave blank unless you later fetch it)
+          photo_url: "",
+        });
+
+        if (linked.ok && linked.linked) {
+          await tgCall(env, "sendMessage", {
+            chat_id: chatId,
+            text:
+              "Linked ✅\n\nYou can now request to join your QAcademy Telegram groups. If you’re still blocked, wait 1–2 minutes and try again.",
+          });
+        } else {
+          const reason = linked.error || linked.reason || "unknown";
+
+          let friendly =
+            "Link failed ❌\n\n" +
+            "Possible reasons:\n" +
+            "• Code expired (codes usually last ~10 minutes)\n" +
+            "• Code already used\n" +
+            "• Code invalid / typo\n\n" +
+            "Go back to QAcademy → Connect Telegram → Generate a new code, then send:\n" +
+            `/link ${code}`;
+
+          if (reason === "code_expired")
+            friendly =
+              "Link failed ❌\n\nThat code has expired. Please generate a new code on QAcademy and try again.";
+          if (reason === "code_used")
+            friendly =
+              "Link failed ❌\n\nThat code was already used. Please generate a new code on QAcademy and try again.";
+          if (reason === "code_not_found")
+            friendly =
+              "Link failed ❌\n\nThat code is invalid. Please generate a new code on QAcademy and try again.";
+          if (reason === "unauthorized")
+            friendly =
+              "Link failed ❌\n\nSystem authorization error. Please try again later.";
+
+          await tgCall(env, "sendMessage", {
+            chat_id: chatId,
+            text: friendly,
+          });
+
+          console.log("[LINK] DENY", reason, linked.detail || "");
+        }
+
+        return new Response("link_handled", { status: 200 });
+      }
+
+      // Not a link command → ignore quietly
+      return new Response("ignored_message", { status: 200 });
+    }
+
+    // ============================================================
+    // Phase 1/2: Chat join requests (unchanged)
+    // ============================================================
+    const jr = update?.chat_join_request;
+    if (!jr) {
+      // We only care about join requests + link messages
+      return new Response("ignored", { status: 200 });
+    }
+
+    const chatId = jr.chat?.id;
+    const chatTitle = jr.chat?.title || "";
+    const userId = jr.from?.id;
+    const username = jr.from?.username ? `@${jr.from.username}` : "";
+    const name = [jr.from?.first_name, jr.from?.last_name].filter(Boolean).join(" ");
+
+    if (!chatId || !userId) {
+      console.log("[JR] Missing chatId/userId", { chatId, userId });
+      return new Response("missing fields", { status: 200 });
+    }
+
+    console.log(
+      `[JR] chat=${chatId} "${chatTitle}" user=${userId} ${username} ${name}`.trim()
+    );
+
+    // Allowlist check for chats (recommended for safety)
+    const allowListRaw = (env.ALLOW_CHAT_IDS || "").trim();
+    const allowList = allowListRaw
+      ? allowListRaw.split(",").map((s) => s.trim()).filter(Boolean)
+      : [];
+
+    const discoverMode = String(env.DISCOVER_MODE || "").toLowerCase() === "true";
+    const isAllowedChat = allowList.length === 0 ? true : allowList.includes(String(chatId));
+
+    if (!isAllowedChat) {
+      console.log(`[BLOCK] Join request for non-allowed chat: ${chatId}`);
+
+      // In discover mode, we just log and do nothing (no approve/decline)
+      if (discoverMode) {
+        return new Response("discover: blocked chat", { status: 200 });
+      }
+
+      // Not allowed chat: decline to avoid accidental approvals in unknown groups
+      const declined = await tgCall(env, "declineChatJoinRequest", {
+        chat_id: chatId,
+        user_id: userId,
+      });
+      console.log("[DECLINE]", declined.status, declined.data);
+      return new Response("blocked", { status: 200 });
+    }
+// Phase 4: refresh allowlist from active subscriptions (best-effort)
+const syncRes = await gateSyncAllowlist(env, { userId });
+console.log("[SYNC]", syncRes?.ok, syncRes?.synced, syncRes?.reason || syncRes?.error || "");
+
+    // Phase 2A: Ask Apps Script if this user is allowed for this chat
+    const gate = await gateCheck(env, { chatId, userId, username, chatTitle });
+
+    if (!gate.ok) {
+      console.log("[GATE] ERROR", gate.error || gate.reason || "unknown");
+
+      // Safe default: decline if gate system fails (prevents free entry)
+      const declined = await tgCall(env, "declineChatJoinRequest", {
+        chat_id: chatId,
+        user_id: userId,
+      });
+      console.log("[DECLINE]", declined.status, declined.data);
+      return new Response("gate_error_declined", { status: 200 });
+    }
+
+    if (!gate.allow) {
+      console.log("[GATE] DENY", gate.reason || "");
+      const declined = await tgCall(env, "declineChatJoinRequest", {
+        chat_id: chatId,
+        user_id: userId,
+      });
+      console.log("[DECLINE]", declined.status, declined.data);
+      return new Response("denied", { status: 200 });
+    }
+
+    console.log("[GATE] ALLOW", gate.group_key || "", gate.reason || "");
+
+    // Allowed: approve
+    const approved = await tgCall(env, "approveChatJoinRequest", {
+      chat_id: chatId,
+      user_id: userId,
+    });
+    console.log("[APPROVE]", approved.status, approved.data);
+
+    return new Response("ok", { status: 200 });
+  },
+};
+async function gateSyncAllowlist(env, { userId }) {
+  if (!env.GATE_URL || !env.GATE_SECRET) {
+    return { ok: true, synced: false, reason: "gate_not_configured" };
+  }
+
+  try {
+    const body = new URLSearchParams();
+    body.set("action", "tg.allowlist.sync_user");
+    body.set("secret", env.GATE_SECRET);
+    body.set("telegram_user_id", String(userId));
+
+    const resp = await fetch(env.GATE_URL, { method: "POST", body });
+    let data = {};
+    try { data = await resp.json(); } catch { data = { ok:false, synced:false, error:"gate_non_json" }; }
+
+    // Best-effort: don't break join flow if this fails
+    return data;
+  } catch (e) {
+    return { ok:false, synced:false, error:"sync_fetch_failed", detail: String(e?.message || e) };
+  }
+}
+
+
+async function gateCheck(env, { chatId, userId, username, chatTitle }) {
+  // If gate is not configured yet, default to deny (safe)
+  if (!env.GATE_URL || !env.GATE_SECRET) {
+    return { ok: true, allow: false, reason: "gate_not_configured_deny" };
+  }
+
+  try {
+    const body = new URLSearchParams();
+    body.set("action", "tg.allow");
+    body.set("secret", env.GATE_SECRET);
+    body.set("chat_id", String(chatId));
+    body.set("telegram_user_id", String(userId));
+    if (username) body.set("username", String(username));
+    if (chatTitle) body.set("chat_title", String(chatTitle));
+
+    const resp = await fetch(env.GATE_URL, { method: "POST", body });
+    let data = {};
+    try {
+      data = await resp.json();
+    } catch {
+      return { ok: false, allow: false, error: "gate_non_json" };
+    }
+
+    if (!data || data.ok !== true) {
+      return { ok: false, allow: false, error: "gate_bad_response" };
+    }
+    return data;
+  } catch (e) {
+    return { ok: false, allow: false, error: "gate_fetch_failed", detail: String(e?.message || e) };
+  }
+}
+
+// ============================================================
+// Phase 3: Worker -> TelegramGate link finalization
+// ============================================================
+async function gateLinkByCode(env, payload) {
+  if (!env.GATE_URL || !env.GATE_SECRET) {
+    return { ok: false, linked: false, error: "gate_not_configured" };
+  }
+
+  try {
+    const body = new URLSearchParams();
+    body.set("action", "tg.link.by_code");
+    body.set("secret", env.GATE_SECRET);
+
+    // Required
+    body.set("code", String(payload.code || ""));
+    body.set("telegram_user_id", String(payload.telegram_user_id || ""));
+
+    // Backwards-safe fields (your Apps Script already reads username)
+    if (payload.username) body.set("username", String(payload.username));
+    if (payload.display_name) body.set("name", String(payload.display_name));
+
+    // ✅ New enrichment fields (Apps Script upgrade reads these)
+    if (payload.telegram_username) body.set("telegram_username", String(payload.telegram_username)); // WITHOUT @
+    if (payload.first_name) body.set("first_name", String(payload.first_name));
+    if (payload.last_name) body.set("last_name", String(payload.last_name));
+    if (payload.photo_url) body.set("photo_url", String(payload.photo_url));
+
+    const resp = await fetch(env.GATE_URL, { method: "POST", body });
+    let data = {};
+    try {
+      data = await resp.json();
+    } catch {
+      return { ok: false, linked: false, error: "gate_non_json" };
+    }
+
+    if (!data || data.ok !== true) return { ok: false, linked: false, error: "gate_bad_response" };
+    return data;
+  } catch (e) {
+    return { ok: false, linked: false, error: "gate_fetch_failed", detail: String(e?.message || e) };
+  }
+}
+
+async function tgCall(env, method, payload) {
+  if (!env.BOT_TOKEN) {
+    return { status: 500, data: { ok: false, description: "Missing BOT_TOKEN" } };
+  }
+  const url = `https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`;
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  let data = {};
+  try {
+    data = await resp.json();
+  } catch {
+    data = { ok: false, description: "Non-JSON response from Telegram" };
+  }
+  return { status: resp.status, data };
+}
