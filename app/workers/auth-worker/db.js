@@ -297,3 +297,61 @@ async function hashStr(input) {
   const base64 = btoa(String.fromCharCode(...hashArray));
   return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
+// ============================================================
+// RESET PASSWORD HELPERS
+// Add these to the bottom of db.js
+// ============================================================
+
+/**
+ * Create a reset request row.
+ * Matches: _updateResetRow() / reset_requests sheet in AppScript
+ */
+export async function createResetRequest(db, req) {
+  await db.prepare(`
+    INSERT INTO reset_requests (
+      user_id, email, reset_token,
+      expires_utc, used, created_utc
+    ) VALUES (
+      ?1, ?2, ?3,
+      ?4, 0, ?5
+    )
+  `).bind(
+    req.user_id,
+    req.email,
+    req.reset_token,
+    req.expires_utc,
+    req.created_utc
+  ).run();
+}
+
+/**
+ * Get a reset request by token.
+ * Matches: _findRowIndexBy(sh, 'reset_token', token) in AppScript
+ */
+export async function getResetRequestByToken(db, token) {
+  const result = await db.prepare(
+    'SELECT * FROM reset_requests WHERE reset_token = ?1 LIMIT 1'
+  ).bind(token).first();
+  return result || null;
+}
+
+/**
+ * Mark a reset request as used.
+ * Matches: obj.status = 'USED' in AppScript
+ */
+export async function markResetUsed(db, token) {
+  await db.prepare(
+    'UPDATE reset_requests SET used = 1 WHERE reset_token = ?1'
+  ).bind(token).run();
+}
+
+/**
+ * Update a user's password.
+ * Matches: obj.salt = newSalt; obj.password_hash = newHash in AppScript
+ */
+export async function updatePassword(db, userId, newHash, newSalt) {
+  const now = new Date().toISOString();
+  await db.prepare(
+    'UPDATE users SET password_hash = ?1, salt = ?2, must_change_password = 0, updated_utc = ?3 WHERE user_id = ?4'
+  ).bind(newHash, newSalt, now, userId).run();
+}
