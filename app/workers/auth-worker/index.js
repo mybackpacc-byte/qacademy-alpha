@@ -1,20 +1,28 @@
 // ============================================================
 // index.js — Auth Worker main router
 // QAcademy Nurses Hub — Phase 1 Auth
-// Endpoints: POST /login | POST /verify | POST /register
+// Endpoints:
+//   POST /login
+//   POST /verify
+//   POST /register
+//   POST /reset/request
+//   POST /reset/apply
 // ============================================================
 
 import { verifyPassword, hashPassword, generateSalt, generateUserId, generateUsernameFromForename, isValidUsername } from './password.js';
 import { signJWT, verifyJWT, extractToken } from './jwt.js';
-import { getUserByEmail, getUserById, getAllUsernames, usernameExists, getActiveSubscriptions, getAccessFromSubscriptions, createUser, createSubscription, updateLastLogin, getProductById, logAuthEvent, checkLoginRateLimit } from './db.js';
+import { getUserByEmail, getUserById, getUserByUsername, getAllUsernames, usernameExists, getActiveSubscriptions, getAccessFromSubscriptions, createUser, createSubscription, updateLastLogin, getProductById, logAuthEvent, checkLoginRateLimit, createResetRequest, getResetRequestByToken, markResetUsed, updatePassword } from './db.js';
+import { sendResetEmail, sendWelcomeSelfEmail } from './email.js';
 
-// CORS headers — allows your Pages frontend to call this Worker
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   'Content-Type': 'application/json'
 };
+
+const LOGIN_URL = 'https://qacademy-alpha.pages.dev/login';
+const RESET_URL = 'https://qacademy-alpha.pages.dev/reset-password';
 
 function ok(data)    { return new Response(JSON.stringify({ ok: true,  ...data }), { headers: CORS }); }
 function fail(error) { return new Response(JSON.stringify({ ok: false, error }),   { headers: CORS }); }
@@ -23,7 +31,6 @@ function fail(error) { return new Response(JSON.stringify({ ok: false, error }),
 export default {
   async fetch(request, env) {
 
-    // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS });
     }
@@ -32,7 +39,6 @@ export default {
       return fail('method_not_allowed');
     }
 
-    // Parse body
     let body = {};
     try {
       body = await request.json();
@@ -41,13 +47,14 @@ export default {
     }
 
     const url      = new URL(request.url);
-    const pathname = url.pathname.replace(/\/$/, ''); // strip trailing slash
+    const pathname = url.pathname.replace(/\/$/, '');
     const db       = env.DB;
     const secret   = env.JWT_SECRET;
+    const resendKey = env.RESEND_API_KEY;
+
 
     // ============================================================
     // POST /login
-    // Body: { email, password, ua?, ip? }
     // ============================================================
     if (pathname === '/login') {
       const email    = (body.email    || '').trim().toLowerCase();
@@ -55,52 +62,43 @@ export default {
       const ua       = (body.ua       || '');
       const ip       = (body.ip       || request.headers.get('CF-Connecting-IP') || '');
 
-      // 1) Validate fields
       if (!email || !password) {
         await logAuthEvent(db, { kind: 'LOGIN_EMAIL', identifier: email, ok: false, error_code: 'missing_credentials' });
         return fail('missing_credentials');
       }
 
-      // 2) Look up user first (needed for rate limit)
       const user = await getUserByEmail(db, email);
 
-      // 3) Rate limit check
       const rl = await checkLoginRateLimit(db, email, user?.user_id || '', ip);
       if (rl.blocked) {
         await logAuthEvent(db, { kind: 'LOGIN_EMAIL', identifier: email, user_id: user?.user_id || '', ok: false, error_code: rl.reason });
         return fail(rl.reason);
       }
 
-      // 4) User must exist
       if (!user) {
         await logAuthEvent(db, { kind: 'LOGIN_EMAIL', identifier: email, ok: false, error_code: 'user_not_found' });
         return fail('user_not_found');
       }
 
-      // 5) User must be active
       if (!user.active) {
         await logAuthEvent(db, { kind: 'LOGIN_EMAIL', identifier: email, user_id: user.user_id, ok: false, error_code: 'user_inactive' });
         return fail('user_inactive');
       }
 
-      // 6) Check user-level expiry
       if (user.expires_utc && new Date() >= new Date(user.expires_utc)) {
         await logAuthEvent(db, { kind: 'LOGIN_EMAIL', identifier: email, user_id: user.user_id, ok: false, error_code: 'user_expired' });
         return fail('user_expired');
       }
 
-      // 7) Verify password
       const passwordOk = await verifyPassword(user, password);
       if (!passwordOk) {
         await logAuthEvent(db, { kind: 'LOGIN_EMAIL', identifier: email, user_id: user.user_id, ok: false, error_code: 'wrong_password' });
         return fail('wrong_password');
       }
 
-      // 8) Get subscriptions + access
       const subs   = await getActiveSubscriptions(db, user.user_id);
       const access = getAccessFromSubscriptions(subs);
 
-      // 9) Build profile — same shape as AppScript
       const profile = {
         user_id:              user.user_id,
         username:             user.username,
@@ -118,14 +116,10 @@ export default {
         expires_utc:          user.expires_utc   || ''
       };
 
-      // 10) Sign JWT
       const token = await signJWT({ ...profile, access }, secret);
       const token_expires_utc = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
 
-      // 11) Update last login
       await updateLastLogin(db, user.user_id);
-
-      // 12) Log success
       await logAuthEvent(db, { kind: 'LOGIN_EMAIL', identifier: email, user_id: user.user_id, ok: true, error_code: 'ok' });
 
       return ok({ token, token_expires_utc, profile, login_via: 'email' });
@@ -134,24 +128,19 @@ export default {
 
     // ============================================================
     // POST /verify
-    // Header: Authorization: Bearer <token>  OR  Body: { token }
     // ============================================================
     if (pathname === '/verify') {
       const token = extractToken(request, body);
-
       if (!token) return fail('missing_token');
 
-      // 1) Verify JWT signature + expiry
       const payload = await verifyJWT(token, secret);
       if (!payload) return fail('invalid_or_expired');
 
-      // 2) Fresh user lookup — same as AppScript verify
       const user = await getUserById(db, payload.user_id);
       if (!user)        return fail('user_missing');
       if (!user.active) return fail('user_inactive');
       if (user.expires_utc && new Date() >= new Date(user.expires_utc)) return fail('user_expired');
 
-      // 3) Fresh subscription + access
       const subs   = await getActiveSubscriptions(db, user.user_id);
       const access = getAccessFromSubscriptions(subs);
 
@@ -173,43 +162,33 @@ export default {
       };
 
       return ok({
-        user:   userOut,
+        user:    userOut,
         access,
         courses: access.courses,
-        flags: { is_admin: user.role?.toUpperCase() === 'ADMIN' }
+        flags:   { is_admin: user.role?.toUpperCase() === 'ADMIN' }
       });
     }
 
 
     // ============================================================
     // POST /register
-    // Body: { forename, surname, email, password, phone_number?, program_id?, cohort?, username? }
     // ============================================================
     if (pathname === '/register') {
-      const forename     = (body.forename     || '').trim();
-      const surname      = (body.surname      || '').trim();
-      const email        = (body.email        || '').trim().toLowerCase();
-      const password     = (body.password     || '');
-      const phone_number = (body.phone_number || '').trim();
-      const program_id   = (body.program_id   || '').trim();
-      const cohort       = (body.cohort       || '').trim();
-      const usernameInput = (body.username    || '').trim().toLowerCase();
+      const forename      = (body.forename     || '').trim();
+      const surname       = (body.surname      || '').trim();
+      const email         = (body.email        || '').trim().toLowerCase();
+      const password      = (body.password     || '');
+      const phone_number  = (body.phone_number || '').trim();
+      const program_id    = (body.program_id   || '').trim();
+      const cohort        = (body.cohort       || '').trim();
+      const usernameInput = (body.username     || '').trim().toLowerCase();
 
-      // 1) Required fields
-      if (!forename || !surname || !email || !password) {
-        return fail('missing_fields');
-      }
+      if (!forename || !surname || !email || !password) return fail('missing_fields');
+      if (password.length < 8) return fail('password_policy_failed');
 
-      // 2) Password policy
-      if (password.length < 8) {
-        return fail('password_policy_failed');
-      }
-
-      // 3) Duplicate email check
       const existing = await getUserByEmail(db, email);
       if (existing) return fail('email_exists');
 
-      // 4) Username — validate if provided, else generate from forename
       let finalUsername = '';
       if (usernameInput) {
         if (!isValidUsername(usernameInput)) return fail('invalid_username');
@@ -220,14 +199,12 @@ export default {
         finalUsername = generateUsernameFromForename(forename, existingUsernames);
       }
 
-      // 5) Generate credentials
       const user_id = generateUserId();
       const salt    = await generateSalt();
       const hash    = await hashPassword(salt, password);
       const now     = new Date().toISOString();
       const name    = [forename, surname].filter(Boolean).join(' ');
 
-      // 6) Create user row
       await createUser(db, {
         user_id,
         username:      finalUsername,
@@ -247,7 +224,7 @@ export default {
         created_utc:   now
       });
 
-      // 7) Assign WELCOME_TRIAL subscription — same as AppScript
+      // Assign WELCOME_TRIAL subscription
       try {
         const trialProduct = await getProductById(db, 'WELCOME_TRIAL');
         if (trialProduct) {
@@ -266,18 +243,122 @@ export default {
           });
         }
       } catch (e) {
-        // Fail silently — same as AppScript. User is created regardless.
+        // Fail silently
       }
 
-      // 8) Return — NO auto-login, same as AppScript Option A
-      return ok({
-        user_id,
-        username:    finalUsername,
-        signup_via:  'self_register'
-      });
+      // Send welcome email
+      try {
+        await sendWelcomeSelfEmail(resendKey, {
+          to:       email,
+          name:     forename,
+          username: finalUsername,
+          loginUrl: LOGIN_URL
+        });
+      } catch (e) {
+        // Fail silently
+      }
+
+      return ok({ user_id, username: finalUsername, signup_via: 'self_register' });
     }
 
-    // Unknown route
+
+    // ============================================================
+    // POST /reset/request
+    // Body: { identifier } — email or username
+    // ============================================================
+    if (pathname === '/reset/request') {
+      const identifier = (body.identifier || '').trim().toLowerCase();
+
+      // Always return generic message — never reveal if account exists
+      const genericResponse = ok({ message: 'If this account exists, a reset link has been sent.' });
+
+      if (!identifier) return genericResponse;
+
+      // Look up by email first, then username
+      let user = await getUserByEmail(db, identifier);
+      if (!user) user = await getUserByUsername(db, identifier);
+
+      // No user or inactive — return generic response silently
+      if (!user || !user.active) return genericResponse;
+
+      // Generate reset token — UUID, 1hr expiry
+      const resetToken  = crypto.randomUUID().replace(/-/g, '');
+      const now         = new Date().toISOString();
+      const expiresUtc  = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+      // Store in reset_requests
+      try {
+        await createResetRequest(db, {
+          user_id:     user.user_id,
+          email:       user.email,
+          reset_token: resetToken,
+          expires_utc: expiresUtc,
+          created_utc: now
+        });
+      } catch (e) {
+        return genericResponse;
+      }
+
+      // Build reset link
+      const resetLink = `${RESET_URL}?rt=${encodeURIComponent(resetToken)}`;
+
+      // Send email — fail silently
+      try {
+        const firstName = user.forename || user.name || '';
+        await sendResetEmail(resendKey, {
+          to:        user.email,
+          name:      firstName,
+          resetLink: resetLink
+        });
+      } catch (e) {
+        // Fail silently — token is stored, user can retry
+      }
+
+      return genericResponse;
+    }
+
+
+    // ============================================================
+    // POST /reset/apply
+    // Body: { reset_token, new_password }
+    // ============================================================
+    if (pathname === '/reset/apply') {
+      const resetToken   = (body.reset_token   || '').trim();
+      const newPassword  = (body.new_password  || '');
+
+      if (!resetToken)   return fail('missing_token');
+      if (!newPassword)  return fail('missing_password');
+      if (newPassword.length < 8) return fail('password_policy_failed');
+
+      // Look up reset request
+      const resetReq = await getResetRequestByToken(db, resetToken);
+      if (!resetReq) return fail('invalid_token');
+
+      // Check not already used
+      if (resetReq.used) return fail('reset_expired');
+
+      // Check not expired
+      if (new Date() >= new Date(resetReq.expires_utc)) return fail('reset_expired');
+
+      // Look up user
+      const user = await getUserById(db, resetReq.user_id);
+      if (!user)        return fail('user_missing');
+      if (!user.active) return fail('user_inactive');
+
+      // Generate new salt + hash
+      const newSalt = await generateSalt();
+      const newHash = await hashPassword(newSalt, newPassword);
+
+      // Update password
+      await updatePassword(db, user.user_id, newHash, newSalt);
+
+      // Mark token as used
+      await markResetUsed(db, resetToken);
+
+      return ok({ message: 'password_updated' });
+    }
+
+
     return fail('unknown_action');
   }
 };
