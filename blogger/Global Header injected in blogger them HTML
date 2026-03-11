@@ -1,0 +1,743 @@
+<!-- =========================================================
+  QAcademy Global Header  Start
+  (UPDATED: hide-on-pages denylist + new menus + mobile accordion;
+   PRESERVES My Courses cache behavior)
+
+  &#9989; 2026-03 PATCH (Teacher Assess integration)
+  - Dashboard now points to Router (/p/router.html)
+  - Adds a "Teacher Assess" entry (also points to Router, which routes to Teacher vs Student TA)
+  - Hides header on TA pages (your provided slugs) + My Classes
+  - Keeps all existing Alpha (Licensure) links intact
+========================================================= -->
+
+<style>
+  :root{
+    --qa-brand:#0b7a75;
+    --qa-muted:#859998;
+    --qa-ink:#0f172a;
+    --qa-bg:#ffffff;
+    --qa-soft:rgba(15,23,42,.08);
+    --qa-soft2:rgba(15,23,42,.12);
+    --qa-h:60px;
+    --qa-red: #dc2626;
+  }
+
+  #qa-global-header {
+    position: sticky;
+    top: 0;
+    z-index: 2147483000;
+    font-family: system-ui, -apple-system, sans-serif;
+    transition: transform 0.3s ease-in-out;
+    will-change: transform;
+  }
+
+  #qa-global-header.header-hidden {
+    transform: translateY(-110%);
+  }
+
+  .qa-gh{ height:var(--qa-h); background:var(--qa-bg); color:var(--qa-ink); border-bottom:1px solid var(--qa-soft); }
+  .qa-gh:after{ content:&quot;&quot;; display:block; height:3px; background:var(--qa-muted); opacity:.55; }
+
+  .qa-gh-row{
+    height:var(--qa-h); max-width:1180px; margin:0 auto; padding:0 12px;
+    display:flex; align-items:center; justify-content: space-between; box-sizing:border-box;
+  }
+
+  .qa-gh-brand{ display:flex; align-items:center; gap:10px; text-decoration:none; color:inherit; }
+  .qa-gh-mark{
+    width:36px; height:36px; border-radius:10px; display:grid; place-items:center;
+    background:transparent; border:none;
+    color:var(--qa-brand); font-weight:800;
+  }
+  .qa-gh-mark img{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    display:block;
+    border-radius:10px;
+  }
+
+  .qa-gh-title b{ font-size:16px; display: block; }
+  .qa-gh-title small{ font-size:11px; color:rgba(15,23,42,.64); }
+
+  .qa-gh-actions{ display:flex; align-items:center; gap:8px; }
+
+  .qa-gh-btn, .qa-drop-trigger, .qa-mobile-toggle{
+    display:inline-flex; align-items:center; gap:8px;
+    height:40px; padding:0 12px; border-radius:10px;
+    border:1px solid var(--qa-soft); background:#fff;
+    color:var(--qa-ink); text-decoration:none;
+    font:700 13px/1.1 inherit; cursor:pointer; white-space:nowrap;
+  }
+  .qa-gh-btn:hover, .qa-drop-trigger:hover, .qa-gh-dropdown.is-active .qa-drop-trigger{
+    border-color:var(--qa-brand); background:#f0f9f8;
+  }
+
+  .qa-gh-btn svg, .qa-drop-trigger svg, .qa-mobile-toggle svg{ width:18px; height:18px; color:var(--qa-brand); flex-shrink:0; }
+
+  .qa-gh-dropdown { position: relative; }
+  .qa-drop-menu {
+    position: absolute; top: 48px; right: 0;
+    background: #fff; min-width: 220px;
+    max-height: 450px; overflow-y: auto;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+    border-radius: 12px; border: 1px solid var(--qa-soft);
+    padding: 8px; display: none; z-index: 100;
+  }
+  .qa-gh-dropdown.is-active .qa-drop-menu { display: block; }
+  .qa-drop-menu .qa-gh-btn { display: flex; width: 100%; border: none; justify-content: flex-start; margin-bottom: 2px; }
+
+  /* Account dropdown: make logout visually distinct */
+  .qa-drop-menu .qa-gh-btn.qa-logout { color: var(--qa-red); font-weight: 800; }
+  .qa-drop-menu .qa-gh-btn.qa-logout:hover { background: rgba(220,38,38,.08); }
+
+  .qa-mobile-toggle { display: none; }
+
+  .qa-mobile-drawer {
+    position: fixed; top: 0; right: -100%; width: 290px; height: 100%;
+    background: #fff; z-index: 2147484001; box-shadow: -5px 0 20px rgba(0,0,0,0.1);
+    transition: right 0.3s ease; padding: 18px; box-sizing: border-box;
+    overflow-y: auto;
+  }
+  .qa-mobile-drawer.is-open { right: 0; }
+  .qa-drawer-overlay {
+    position: fixed; top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.4); z-index: 2147484000; display: none;
+  }
+  .qa-drawer-overlay.is-active { display: block; }
+
+  .qa-drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .qa-drawer-link {
+    display: flex; align-items: center; gap: 12px; padding: 12px;
+    text-decoration: none; color: var(--qa-ink); font-weight: 650; font-size: 14px;
+    border-radius: 10px; margin: 2px 6px;
+  }
+  .qa-drawer-link:hover { background: var(--qa-soft); }
+
+  /* Mobile accordion (inside drawer) */
+  .qa-acc-item{
+    border: 1px solid var(--qa-soft);
+    border-radius: 14px;
+    overflow: hidden;
+    margin: 10px 0;
+    background: #fff;
+  }
+  .qa-acc-trigger{
+    width: 100%;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 12px;
+    background: #fff;
+    border: none;
+    cursor: pointer;
+    color: var(--qa-ink);
+    font-weight: 850;
+    font-size: 13px;
+  }
+  .qa-acc-trigger:hover{ background: #f7fbfa; }
+  .qa-acc-chevron{
+    width: 18px; height: 18px; flex: 0 0 auto;
+    color: var(--qa-brand);
+    transition: transform .18s ease;
+  }
+  .qa-acc-item.is-open .qa-acc-chevron{ transform: rotate(180deg); }
+
+  .qa-acc-panel{
+    display: none;
+    padding: 6px 0 10px;
+    border-top: 1px solid var(--qa-soft);
+    background: #fff;
+  }
+  .qa-acc-item.is-open .qa-acc-panel{ display: block; }
+
+  .qa-logout-link { color: var(--qa-red) !important; font-weight: 850; }
+  .qa-logout-link:hover { background: rgba(220,38,38,.08) !important; }
+
+  @media (max-width: 900px) {
+    .qa-gh-actions { display: none; }
+    .qa-mobile-toggle { display: flex; }
+  }
+</style>
+
+<div id='qa-global-header'>
+  <header class='qa-gh'>
+    <div class='qa-gh-row'>
+
+      <a class='qa-gh-brand' href='#' id='qaGhBrand'>
+        <div class='qa-gh-mark'>
+          <img alt='QAcademy' decoding='async' height='36' src='https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgoHT-lndJbXyiseTwtVJK2V3_3zJojbbpiBoHsoPhhjqGcCeZT6Kt_107wjQxRso-svJ3Po0YGNA-fZbSAsJ8ezGBqCUkWa4MPKm_5rTbuvi1E-7ovkDrEvL9S8EWeh1XLGvpZ8bRdwjhWCxAx9sHJe-QAc1fFE8lDvxsXB0LX6ctPTpGJ76VZT1Yqbr2X/s200/logo-small.png' width='36'/>
+        </div>
+        <div class='qa-gh-title'>
+          <b>QAcademy Nurses Hub</b>
+          <small>NMC Ghana Licensure Prep &#8226; Quizzes &#8226; Timed Exams &#8226; Offline Packs</small>
+        </div>
+      </a>
+
+      <!-- ================= Desktop nav ================= -->
+      <nav class='qa-gh-actions'>
+        <a class='qa-gh-btn' href='#' id='qaGhDash'>Dashboard</a>
+
+        <!-- &#9989; NEW: Teacher Assess entry (routes via Router) -->
+        <a class='qa-gh-btn' href='#' id='qaGhTeacherAssess'>Teacher Assess</a>
+
+        <div class='qa-gh-dropdown'>
+          <button class='qa-drop-trigger' type='button'>My Courses</button>
+          <div class='qa-drop-menu' id='qaGhCoursesMenu'>
+            <!-- &#9989; VALID HTML (not self-closing) -->
+            <div id='qaGhCoursesList'/>
+
+            <div id='qaGhCoursesEmpty' style='display:none;padding:10px 10px;font-size:13px;color:rgba(15,23,42,.70);'>
+              No active courses yet.
+            </div>
+          </div>
+        </div>
+
+        <!-- Dropdown 1: Quiz Builder / PDF Builder / Fixed Quizzes -->
+        <div class='qa-gh-dropdown'>
+          <button class='qa-drop-trigger' type='button'>Quiz Tools</button>
+          <div class='qa-drop-menu'>
+            <a class='qa-gh-btn' href='#' id='qaGhBuild'>Quiz Builder</a>
+            <a class='qa-gh-btn' href='#' id='qaGhPdf'>PDF Builder</a>
+            <a class='qa-gh-btn' href='#' id='qaGhFixed'>Fixed Quizzes</a>
+          </div>
+        </div>
+
+        <!-- Dropdown 2: My Learning History / My Offline Packs -->
+        <div class='qa-gh-dropdown'>
+          <button class='qa-drop-trigger' type='button'>My Learning</button>
+          <div class='qa-drop-menu'>
+            <a class='qa-gh-btn' href='#' id='qaGhHistory'>My Learning History</a>
+            <a class='qa-gh-btn' href='#' id='qaGhOffline'>My Offline Packs</a>
+          </div>
+        </div>
+
+        <!-- Rename Updates -> Communications -->
+        <div class='qa-gh-dropdown'>
+          <button class='qa-drop-trigger' type='button'>Communications</button>
+          <div class='qa-drop-menu'>
+            <a class='qa-gh-btn' href='#' id='qaGhAnn'>Announcements</a>
+            <a class='qa-gh-btn' href='#' id='qaGhMsg'>Messages</a>
+          </div>
+        </div>
+
+        <!-- New Account dropdown -->
+        <div class='qa-gh-dropdown'>
+          <button class='qa-drop-trigger' type='button'>Account</button>
+          <div class='qa-drop-menu'>
+            <a class='qa-gh-btn' href='#' id='qaGhLogin'>Login</a>
+            <a class='qa-gh-btn' href='#' id='qaGhProfile'>My Profile</a>
+            <a class='qa-gh-btn' href='#' id='qaGhUpgrade'>Update My Account</a>
+            <a class='qa-gh-btn qa-logout' href='#' id='qaGhLogout'>Logout</a>
+          </div>
+        </div>
+      </nav>
+
+      <!-- ================= Mobile toggle ================= -->
+      <button class='qa-mobile-toggle' id='qaMobileOpen' type='button'>
+        <svg fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M4 6h16M4 12h16m-7 6h7'/></svg>
+        <span>Menu</span>
+      </button>
+    </div>
+  </header>
+</div>
+
+<!-- &#9989; VALID HTML (not self-closing) -->
+<div class='qa-drawer-overlay' id='qaOverlay'/>
+
+<!-- ================= Mobile drawer ================= -->
+<div class='qa-mobile-drawer' id='qaDrawer'>
+  <div class='qa-drawer-header'>
+    <b style='color:var(--qa-brand)'>Menu</b>
+    <button id='qaMobileClose' style='border:none; background:none; cursor:pointer; padding: 5px;' type='button'>
+      <svg fill='none' height='24' stroke='currentColor' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' viewBox='0 0 24 24' width='24'>
+        <line x1='18' x2='6' y1='6' y2='18'/><line x1='6' x2='18' y1='6' y2='18'/>
+      </svg>
+    </button>
+  </div>
+
+  <a class='qa-drawer-link' href='#' id='qaMobDash'>Dashboard</a>
+
+  <!-- &#9989; NEW: Teacher Assess entry (routes via Router) -->
+  <a class='qa-drawer-link' href='#' id='qaMobTeacherAssess'>Teacher Assess</a>
+
+  <!-- Accordion: My Courses (cache behavior preserved by keeping ids) -->
+  <div class='qa-acc-item' id='qaAccCourses'>
+    <button class='qa-acc-trigger' data-acc='courses' type='button'>
+      <span>My Courses</span>
+      <svg class='qa-acc-chevron' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M6 9l6 6 6-6'/></svg>
+    </button>
+    <div class='qa-acc-panel' data-panel='courses'>
+      <!-- &#9989; VALID HTML (not self-closing) -->
+      <div id='qaMobCoursesList'/>
+
+      <div id='qaMobCoursesEmpty' style='display:none;padding:10px 12px;font-size:13px;color:rgba(15,23,42,.70);'>
+        No active courses yet.
+      </div>
+    </div>
+  </div>
+
+  <!-- Accordion: Quiz Tools -->
+  <div class='qa-acc-item'>
+    <button class='qa-acc-trigger' data-acc='tools' type='button'>
+      <span>Quiz Tools</span>
+      <svg class='qa-acc-chevron' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M6 9l6 6 6-6'/></svg>
+    </button>
+    <div class='qa-acc-panel' data-panel='tools'>
+      <a class='qa-drawer-link' href='#' id='qaMobBuild'>Quiz Builder</a>
+      <a class='qa-drawer-link' href='#' id='qaMobPdf'>PDF Builder</a>
+      <a class='qa-drawer-link' href='#' id='qaMobFixed'>Fixed Quizzes</a>
+    </div>
+  </div>
+
+  <!-- Accordion: My Learning -->
+  <div class='qa-acc-item'>
+    <button class='qa-acc-trigger' data-acc='learning' type='button'>
+      <span>My Learning</span>
+      <svg class='qa-acc-chevron' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M6 9l6 6 6-6'/></svg>
+    </button>
+    <div class='qa-acc-panel' data-panel='learning'>
+      <a class='qa-drawer-link' href='#' id='qaMobHistory'>My Learning History</a>
+      <a class='qa-drawer-link' href='#' id='qaMobOffline'>My Offline Packs</a>
+    </div>
+  </div>
+
+  <!-- Accordion: Communications -->
+  <div class='qa-acc-item'>
+    <button class='qa-acc-trigger' data-acc='comms' type='button'>
+      <span>Communications</span>
+      <svg class='qa-acc-chevron' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M6 9l6 6 6-6'/></svg>
+    </button>
+    <div class='qa-acc-panel' data-panel='comms'>
+      <a class='qa-drawer-link' href='#' id='qaMobAnn'>Announcements</a>
+      <a class='qa-drawer-link' href='#' id='qaMobMsg'>Messages</a>
+    </div>
+  </div>
+
+  <!-- Accordion: Account -->
+  <div class='qa-acc-item'>
+    <button class='qa-acc-trigger' data-acc='account' type='button'>
+      <span>Account</span>
+      <svg class='qa-acc-chevron' fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24'><path d='M6 9l6 6 6-6'/></svg>
+    </button>
+    <div class='qa-acc-panel' data-panel='account'>
+      <a class='qa-drawer-link' href='#' id='qaMobLogin'>Login</a>
+      <a class='qa-drawer-link' href='#' id='qaMobProfile'>My Profile</a>
+      <a class='qa-drawer-link' href='#' id='qaMobUpgrade'>Update My Account</a>
+      <a class='qa-drawer-link qa-logout-link' href='#' id='qaMobLogout'>Logout</a>
+    </div>
+  </div>
+</div>
+
+<script type='text/javascript'>
+//<![CDATA[
+(function(){
+  "use strict";
+
+  /* =========================================================
+     HIDE HEADER ON SPECIFIC PAGES (DENYLIST)
+     - Exact slugs are safest (ignores query params automatically)
+     - Keyword denylist is the safety net for new runner pages
+     ---------------------------------------------------------
+     ✅ To hide the header on a new page:
+        1) Add "/p/your-page.html" into QA_HIDE_EXACT below, OR
+        2) Ensure the slug contains one of QA_HIDE_KEYWORDS
+  ========================================================= */
+
+  var QA_HIDE_EXACT = [
+    "/p/instant-ruuner-for-quiz-builder.html",
+    "/p/timed-ruuner-for-quiz-builder.html",
+    "/p/offline-pack-renderer.html",
+    "/p/welcome-page.html",
+
+    // ✅ TEACHER ASSESS (hide header on TA pages)
+    "/p/teacher-classes-manager.html",
+    "/p/teacher-quizzes-manager_25.html",
+    "/p/teacher-bank.html",
+    "/p/teacher-bank-import.html",
+    "/p/teacher-library-picker.html",
+    "/p/teacher-results.html",
+    "/p/my-classes.html"
+
+    // ✅ ADD MORE EXACT PAGES HERE (one per line, keep commas)
+    // "/p/another-page-to-hide-header.html"
+  ];
+
+  var QA_HIDE_KEYWORDS = [
+    "ruuner"
+    // ✅ OPTIONAL: add more keywords if you are 100% sure they won't collide:
+    // "runner"
+  ];
+
+  function _normPath(p){
+    p = String(p || "").trim();
+    if(!p) return "";
+    p = p.toLowerCase();
+    // Remove trailing slash safety
+    if(p.length > 1 && p.charAt(p.length - 1) === "/") p = p.slice(0, -1);
+    return p;
+  }
+
+  function _shouldHideHeader(){
+    var path = _normPath(location && location.pathname);
+    if(!path) return false;
+
+    // Exact match
+    for(var i=0;i<QA_HIDE_EXACT.length;i++){
+      if(_normPath(QA_HIDE_EXACT[i]) === path) return true;
+    }
+
+    // Keyword match (path only; ignores query params like attempt_id)
+    for(var k=0;k<QA_HIDE_KEYWORDS.length;k++){
+      var kw = String(QA_HIDE_KEYWORDS[k] || "").toLowerCase().trim();
+      if(kw && path.indexOf(kw) >= 0) return true;
+    }
+
+    return false;
+  }
+
+  function _hideHeaderNow(){
+    // Hide all header UI parts safely
+    var h = document.getElementById("qa-global-header");
+    var d = document.getElementById("qaDrawer");
+    var o = document.getElementById("qaOverlay");
+
+    if(h) h.style.display = "none";
+    if(d) d.style.display = "none";
+    if(o) o.style.display = "none";
+
+    // Also remove any open classes if present (defensive)
+    if(d) d.classList.remove("is-open");
+    if(o) o.classList.remove("is-active");
+  }
+
+  // ✅ EARLY EXIT (no listeners, no dropdown hooks, no scroll, no cache calls)
+  if(_shouldHideHeader()){
+    _hideHeaderNow();
+    return;
+  }
+
+  var QA_NAV = {
+    welcome:   "/p/welcome-page.html", // used for Brand + Login
+    dashboard: "/p/dashboard_23.html",       // ✅ UPDATED: Dashboard now routes via Router
+    teacher_router: "/p/router.html",  // ✅ NEW: Teacher Assess entry points here
+
+    announce:  "/p/announcement.html",
+    history:   "/p/learning-history.html",
+    messages:  "/p/messages.html",
+    offline:   "/p/my-offline-packs.html",
+    pdf:       "/p/pdf-downloader.html",
+    fixed:     "/p/fixed-quizzes.html",
+    builder:   "/p/quiz-builder.html",
+
+    // NEW/CONFIRMED
+    upgrade:   "/p/upgrade-extend-add-on-my-subscription.html",
+    profile:   "/p/myprofile.html",
+    logout:    "/p/logout.html",
+
+    // Login not provided separately — safest is to use your welcome/login hub
+    login:     "/p/welcome-page.html"
+  };
+
+  /* =======================
+     My Courses cache (fallback)  ✅ DO NOT BREAK
+     ======================= */
+  var QA_HDR_CACHE_KEY = "qa_access_cache_v1";
+  var QA_HDR_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+
+  function _safeJsonParse(s){
+    try { return JSON.parse(s); } catch(e){ return null; }
+  }
+
+  function _getCachedAccess(){
+    var raw = null;
+    try { raw = localStorage.getItem(QA_HDR_CACHE_KEY); } catch(e){}
+    if(!raw) return null;
+
+    var obj = _safeJsonParse(raw);
+    if(!obj || !obj.ts || !obj.access) return null;
+
+    if((Date.now() - obj.ts) > QA_HDR_CACHE_TTL_MS) return null;
+    return obj.access;
+  }
+
+  function _setCachedAccess(access){
+    if(!access) return;
+
+    // Keep it small + stable
+    var slim = {
+      coursesMeta: Array.isArray(access.coursesMeta) ? access.coursesMeta : [],
+      // Optional: if your hasCourse relies on a list, store it here too.
+      courses: Array.isArray(access.courses) ? access.courses : null,
+      entitlements: Array.isArray(access.entitlements) ? access.entitlements : null
+    };
+
+    try {
+      localStorage.setItem(QA_HDR_CACHE_KEY, JSON.stringify({ ts: Date.now(), access: slim }));
+    } catch(e){}
+  }
+
+  function normCourseId(id){
+    return String(id || '').trim().toUpperCase();
+  }
+
+  function _hasCourseFallback(access, courseId){
+    var cid = normCourseId(courseId);
+    if(!cid) return false;
+
+    var arr = access && (access.entitlements || access.courses);
+    if(Array.isArray(arr)){
+      return arr.map(normCourseId).indexOf(cid) >= 0;
+    }
+    // If nothing to check against, assume meta already filtered server-side
+    return true;
+  }
+
+  function courseHrefFromMeta(c){
+    var slug = String((c && c.page_slug) || '').trim();
+    if(!slug){
+      slug = String((c && c.course_id) || '').trim().toLowerCase();
+    }
+    return slug ? ("/p/" + slug + ".html") : "#";
+  }
+
+  function sortCoursesGpFirst(list){
+    var gp = [];
+    var rest = [];
+    list.forEach(function(c){
+      if(normCourseId(c.course_id) === "GP") gp.push(c);
+      else rest.push(c);
+    });
+    rest.sort(function(a,b){
+      var ta = String(a.title || a.course_id || "");
+      var tb = String(b.title || b.course_id || "");
+      return ta.localeCompare(tb);
+    });
+    return gp.concat(rest);
+  }
+
+  function renderMyCoursesFromGuard(){
+    var deskList  = document.getElementById("qaGhCoursesList");
+    var deskEmpty = document.getElementById("qaGhCoursesEmpty");
+
+    var mobList   = document.getElementById("qaMobCoursesList");
+    var mobEmpty  = document.getElementById("qaMobCoursesEmpty");
+
+    // ✅ Prefer live QA_ACCESS only if it contains usable coursesMeta; otherwise fallback to cache
+    var access = null;
+    var live = window.QA_ACCESS;
+
+    if(live && Array.isArray(live.coursesMeta) && live.coursesMeta.length){
+      access = live;
+    } else {
+      access = _getCachedAccess();
+    }
+
+    if(!access){
+      if(deskEmpty) deskEmpty.style.display = "block";
+      if(mobEmpty)  mobEmpty.style.display  = "block";
+      if(deskList) deskList.innerHTML = "";
+      if(mobList)  mobList.innerHTML  = "";
+      return;
+    }
+
+    var meta = Array.isArray(access.coursesMeta) ? access.coursesMeta.slice() : [];
+
+    // Prefer true hasCourse() only when available on this page AND when access is live
+    var hasCourseFn =
+      (access === live && live && live.hasCourse && typeof live.hasCourse === "function")
+        ? live.hasCourse.bind(live)
+        : function(cid){ return _hasCourseFallback(access, cid); };
+
+    var active = meta
+      .filter(function(c){ return String(c.status || "").toLowerCase() === "active"; })
+      .filter(function(c){
+        var cid = normCourseId(c.course_id);
+        if(!cid) return false;
+        return hasCourseFn ? !!hasCourseFn(cid) : true;
+      });
+
+    var sorted = sortCoursesGpFirst(active);
+
+    if(deskList) deskList.innerHTML = "";
+    if(mobList)  mobList.innerHTML  = "";
+
+    if(!sorted.length){
+      if(deskEmpty) deskEmpty.style.display = "block";
+      if(mobEmpty)  mobEmpty.style.display  = "block";
+      return;
+    }
+
+    if(deskEmpty) deskEmpty.style.display = "none";
+    if(mobEmpty)  mobEmpty.style.display  = "none";
+
+    sorted.forEach(function(c){
+      var title = String(c.title || c.course_id || "Course").trim();
+      var href  = courseHrefFromMeta(c);
+
+      if(deskList){
+        var a = document.createElement("a");
+        a.className = "qa-gh-btn";
+        a.href = href;
+        a.textContent = title;
+        deskList.appendChild(a);
+      }
+
+      if(mobList){
+        var m = document.createElement("a");
+        m.className = "qa-drawer-link";
+        m.href = href;
+        m.textContent = title;
+        mobList.appendChild(m);
+      }
+    });
+  }
+
+  function hookGuardForCourses(){
+    if(window.qaGuardReady && typeof window.qaGuardReady.then === "function"){
+      window.qaGuardReady
+        .then(function(state){
+          // ✅ Only refresh cache when coursesMeta exists (avoid wiping good cache)
+          try{
+            if(state && state.ok && !state.blocked){
+              if(window.QA_ACCESS && Array.isArray(window.QA_ACCESS.coursesMeta) && window.QA_ACCESS.coursesMeta.length){
+                _setCachedAccess(window.QA_ACCESS);
+              }
+            }
+          }catch(e){}
+          renderMyCoursesFromGuard();
+        })
+        .catch(function(){
+          renderMyCoursesFromGuard();
+        });
+    } else {
+      // No guard on this page: render from cache if available
+      renderMyCoursesFromGuard();
+    }
+  }
+
+  function mount(){
+    var map = {
+      // Brand + Dashboard
+      "qaGhBrand": QA_NAV.welcome,
+      "qaGhDash": QA_NAV.dashboard,
+      "qaMobDash": QA_NAV.dashboard,
+
+      // ✅ NEW: Teacher Assess entry points (Router)
+      "qaGhTeacherAssess": QA_NAV.teacher_router,
+      "qaMobTeacherAssess": QA_NAV.teacher_router,
+
+      // Communications
+      "qaGhAnn": QA_NAV.announce,  "qaMobAnn": QA_NAV.announce,
+      "qaGhMsg": QA_NAV.messages,  "qaMobMsg": QA_NAV.messages,
+
+      // My Learning
+      "qaGhHistory": QA_NAV.history, "qaMobHistory": QA_NAV.history,
+      "qaGhOffline": QA_NAV.offline, "qaMobOffline": QA_NAV.offline,
+
+      // Quiz tools
+      "qaGhPdf": QA_NAV.pdf,        "qaMobPdf": QA_NAV.pdf,
+      "qaGhFixed": QA_NAV.fixed,    "qaMobFixed": QA_NAV.fixed,
+      "qaGhBuild": QA_NAV.builder,  "qaMobBuild": QA_NAV.builder,
+
+      // Account
+      "qaGhLogin": QA_NAV.login,      "qaMobLogin": QA_NAV.login,
+      "qaGhProfile": QA_NAV.profile,  "qaMobProfile": QA_NAV.profile,
+      "qaGhUpgrade": QA_NAV.upgrade,  "qaMobUpgrade": QA_NAV.upgrade,
+      "qaGhLogout": QA_NAV.logout,    "qaMobLogout": QA_NAV.logout
+    };
+
+    for (var id in map) {
+      var el = document.getElementById(id);
+      if (el) el.href = map[id];
+    }
+
+    // Desktop dropdown toggle
+    document.querySelectorAll(".qa-drop-trigger").forEach(function(btn) {
+      btn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        var p = this.parentElement;
+        document.querySelectorAll(".qa-gh-dropdown").forEach(function(dd){
+          if(dd !== p) dd.classList.remove("is-active");
+        });
+        p.classList.toggle("is-active");
+      });
+    });
+
+    // Mobile Drawer open/close
+    var drawer = document.getElementById("qaDrawer");
+    var overlay = document.getElementById("qaOverlay");
+    var openBtn = document.getElementById("qaMobileOpen");
+    var closeBtn = document.getElementById("qaMobileClose");
+
+    if(openBtn) openBtn.onclick = function(){
+      drawer.classList.add("is-open");
+      overlay.classList.add("is-active");
+    };
+
+    var closeDrawer = function(){
+      drawer.classList.remove("is-open");
+      overlay.classList.remove("is-active");
+    };
+
+    if(closeBtn) closeBtn.onclick = closeDrawer;
+    if(overlay) overlay.onclick = closeDrawer;
+
+    // Mobile accordion behavior (single-open)
+    function closeAllAcc(exceptPanel){
+      document.querySelectorAll(".qa-acc-item").forEach(function(item){
+        var panel = item.querySelector(".qa-acc-panel");
+        var key = panel ? panel.getAttribute("data-panel") : "";
+        if(exceptPanel && key === exceptPanel) return;
+        item.classList.remove("is-open");
+      });
+    }
+
+    document.querySelectorAll(".qa-acc-trigger").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var key = this.getAttribute("data-acc");
+        var item = this.closest(".qa-acc-item");
+        var isOpen = item.classList.contains("is-open");
+        closeAllAcc(key);
+        if(!isOpen) item.classList.add("is-open");
+        else item.classList.remove("is-open");
+      });
+    });
+
+    // Close desktop dropdowns on outside click
+    document.addEventListener("click", function() {
+      document.querySelectorAll(".qa-gh-dropdown").forEach(function(dd) {
+        dd.classList.remove("is-active");
+      });
+    });
+
+    // Smart Scroll
+    var lastScroll = 0;
+    var header = document.getElementById("qa-global-header");
+    window.addEventListener("scroll", function() {
+      var currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+      if (currentScroll <= 0) {
+        header.classList.remove("header-hidden");
+        return;
+      }
+      if (currentScroll > lastScroll && !header.classList.contains("header-hidden")) {
+        header.classList.add("header-hidden");
+      }
+      else if (currentScroll < lastScroll && header.classList.contains("header-hidden")) {
+        header.classList.remove("header-hidden");
+      }
+      lastScroll = currentScroll;
+    });
+
+    // ✅ IMPORTANT: call after DOM elements exist
+    hookGuardForCourses();
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
+  else mount();
+
+})();
+//]]>
+</script>
+
+<!-- =========================================================
+  QAcademy Global Header  End
+========================================================= -->
