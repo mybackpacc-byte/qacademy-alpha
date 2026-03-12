@@ -1,2 +1,0 @@
-announcement_id,title,body,body_html,body_text,status,created_at,start_at,end_at,pinned,priority,dismissible,scope_programs,scope_courses,scope_level,scope_subscription_kind,scope_product_ids,scope_audience,scope_cohort,scope_user_ids
-ANN_c4556a8eb3,Special Annoncement for sam,,<p>this is a test message and should appear only for admin-sam</p>,this is a test message and should appear only for admin-sam,active,2026-01-14T23:14:44.052Z,2026-01-14 23:13,,TRUE,3,TRUE,,,,,,,,admin1
