@@ -1,82 +1,77 @@
 # QAcademy Nurses Hub — Migration Workspace
 
-**Live platform:** qacademynurses.com
-**Dev environment:** qacademy-alpha.pages.dev
-**Auth Worker:** auth-worker.mybackpacc.workers.dev
-**GitHub Repo:** qacademy-alpha (user: mybackpacc-byte)
-**Database:** Supabase (PostgreSQL) — qacademy-alpha project, West EU (Ireland)
+**Live platform:** qacademynurses.com ← untouched, never touch this  
+**Dev environment:** qacademy-alpha.pages.dev  
+**GitHub Repo:** mybackpacc-byte/qacademy-alpha  
 
 ---
 
 ## About This Project
 
-QAcademy Nurses Hub is an online exam prep platform for Ghanaian nursing students preparing for NMC licensure exams. It covers 5 programs (RN, RM, RPHN, RMHN, NACNAP) across 11 courses.
+QAcademy Nurses Hub is an online exam prep platform for Ghanaian nursing students preparing for
+NMC licensure exams. It covers 5 programs (RN, RM, RPHN, RMHN, NACNAP) across 11 courses.
+Built by Samuel Owusu-Ansah with no coding background — just determination.
 
-**The production platform (qacademynurses.com) is untouched. All dev work is entirely separate.**
-
----
-
-## Current Status — Phase 1 Backend COMPLETE. Starting Frontend.
-
-The Supabase migration is done. Auth Worker is live and tested. Next session starts Phase 1 frontend pages.
+> *"I had no coding knowledge. I just wanted to help nursing students prepare for their exams."*  
+> — Samuel Owusu-Ansah, Creator of QAcademy Nurses Hub
 
 ---
 
-## Final Stack (locked)
+## Target Stack (locked)
 
 | Layer | Tool | Notes |
 |---|---|---|
 | **Frontend** | Cloudflare Pages | qacademy-alpha.pages.dev |
-| **Backend / API** | Cloudflare Workers | auth-worker.mybackpacc.workers.dev |
-| **Database** | Supabase (PostgreSQL) | All 32 tables created and seeded |
-| **Auth** | Supabase Auth | Email+password live. Google OAuth pending. |
-| **File Storage** | Supabase Storage | For future use |
-| **Email** | Resend | noreply@qacademynurses.com. Custom SMTP in Supabase. |
+| **Backend / API** | Cloudflare Workers | Routed under `/api/*` on same Pages domain |
+| **Database** | Supabase (PostgreSQL) | qacademy-alpha project, West EU (Ireland) |
+| **Auth** | Supabase Auth | Email+password. Google OAuth Phase 1. |
+| **Sessions** | HttpOnly Cookies | access_token + refresh_token, never in localStorage |
+| **Email** | Resend | noreply@qacademynurses.com |
 | **Payments** | Paystack | Phase 2 |
-| **Code** | GitHub | qacademy-alpha repo |
+| **Code** | GitHub | mybackpacc-byte/qacademy-alpha |
 
 ---
 
-## Worker Files (app/workers/auth-worker/)
+## Why HttpOnly Cookies (not localStorage)
 
-| File | Status |
-|---|---|
-| `index.js` | ✅ Rewritten for Supabase |
-| `db.js` | ✅ Rewritten for Supabase |
-| `password.js` | ✅ Slimmed down — username helpers only |
-| `email.js` | ✅ Unchanged — Resend email sending |
-| `wrangler.toml` | ✅ Updated — D1 removed, Supabase secrets |
-| `package.json` | ✅ Created — @supabase/supabase-js installed |
-| `jwt.js` | 🗑️ Deleted — Supabase handles JWT |
+The old AppScript system stored session tokens in localStorage — readable by JavaScript,
+vulnerable to XSS attacks. The new system uses HttpOnly cookies set by the Worker.
+The browser stores them invisibly. JavaScript never touches the token.
+
+For this to work, the frontend and Worker must share the same domain. We achieve this by
+routing `qacademy-alpha.pages.dev/api/*` to the Worker via Cloudflare Pages Functions.
 
 ---
 
-## Cloudflare Worker Secrets (already added)
+## Repo Structure
 
-| Secret | Status |
-|---|---|
-| `SUPABASE_URL` | ✅ Added |
-| `SUPABASE_SERVICE_KEY` | ✅ Added |
-| `RESEND_API_KEY` | ✅ Added |
-| `JWT_SECRET` | 🗑️ No longer needed |
+```
+/old                                  ← original AppScript code (read-only reference)
+/app
+  /workers
+    /auth-worker
+      index.js                        ← request router
+      auth.js                         ← login, register, verify, logout
+      reset.js                        ← reset/request, reset/apply
+      admin.js                        ← create-user, assign-product
+      db.js                           ← all Supabase queries
+      email.js                        ← Resend email (keep unchanged)
+      wrangler.toml
+      package.json
+  /pages
+    /functions
+      /api
+        [[route]].js                  ← proxies /api/* to Worker
+    login.html
+    register.html
+    reset-request.html
+    reset-apply.html
+    dashboard.html
+```
 
 ---
 
-## Supabase Auth Configuration (done)
-
-- ✅ Email + password enabled
-- ✅ Secure email change on
-- ✅ Secure password change on
-- ✅ Custom SMTP via Resend (smtp.resend.com, port 465)
-- ✅ Sender: noreply@qacademynurses.com — QAcademy Nurses Hub
-- ✅ Site URL: https://qacademy-alpha.pages.dev
-- ✅ Redirect URLs: https://qacademy-alpha.pages.dev/reset-password and https://qacademy-alpha.pages.dev/**
-- ✅ Reset password email template — branded QAcademy HTML
-- ⏳ Google OAuth — pending (Phase 1 frontend)
-
----
-
-## Database — 32 Tables (all created and seeded in Supabase)
+## Supabase — 32 Tables (already created in Supabase)
 
 ### Main Portal (18)
 users, programs, courses, program_course_map, levels, products, subscriptions,
@@ -90,86 +85,105 @@ teacher_quizzes, teacher_quiz_items, teacher_attempts, teacher_quiz_classes, lib
 ### Telegram (5)
 telegram_groups, telegram_allowlist, telegram_audit, telegram_links, telegram_link_codes
 
-### Seed Data (inserted)
-- 5 programs: RN, RM, RPHN, RMHN, NACNAP
-- 11 courses with sheet_ids
-- 5 program-course mappings
-- Config defaults (offline_max_questions, offline_packs_per_course)
-- 11 library_courses (Teacher Assess)
+---
+
+## Old AppScript Services → New Cloudflare Workers (migration map)
+
+| Old AppScript | New Worker | Phase |
+|---|---|---|
+| Portal_Authv2 | auth-worker | Phase 1 |
+| Payments_App | payments-worker | Phase 2 |
+| Builder_Fixed_Quizzes | quiz-worker | Phase 3 |
+| Portal_Messaging | messaging-worker | Phase 4 |
+| Offline_Pack | offline-worker | Phase 4 |
+| Telegram Worker | telegram-worker | Phase 5 |
 
 ---
 
-## Phase 1 — Auth Endpoints (all tested and working)
+## Worker Secrets (add in Cloudflare dashboard)
 
-| Endpoint | Status | Notes |
-|---|---|---|
-| `POST /login` | ✅ Live | Supabase signInWithPassword, returns JWT + profile |
-| `POST /verify` | ✅ Live | Supabase getUser, returns profile + access |
-| `POST /register` | ✅ Live | Creates Supabase Auth user + public.users profile + WELCOME_TRIAL |
-| `POST /reset/request` | ✅ Live | Supabase sends branded reset email automatically |
-| `POST /reset/apply` | ✅ Live | Supabase updates password via access_token |
-| `POST /login/google` | ⏳ Pending | Phase 1 frontend |
-| `POST /admin/create-user` | ⏳ Pending | Phase 1 backend continuation |
-| `POST /admin/assign-product` | ⏳ Pending | Phase 1 backend continuation |
+| Secret | Used by |
+|---|---|
+| `SUPABASE_URL` | All workers |
+| `SUPABASE_SERVICE_KEY` | All workers |
+| `RESEND_API_KEY` | auth-worker |
 
 ---
 
 ## Build Phases
 
-### Phase 1 — Auth & Identity ← NEXT: Frontend pages
+### Phase 1 — Auth & Identity ← WE ARE HERE
 ### Phase 2 — Products, Subscriptions & Payments
-### Phase 3 — Core Learning (quiz engine, question bank, runners, history)
+### Phase 3 — Core Learning (quiz engine, attempts, history)
 ### Phase 4 — Communication & Extras (messaging, announcements, offline packs)
 ### Phase 5 — Telegram Gating
 ### Phase 6 — Teacher Assess
 
 ---
 
-## ⏭️ NEXT SESSION — Resume Here
+## Phase 1 — Backend Endpoints
 
-### Phase 1 Frontend Pages (build these next, in order)
-1. **Login page** — email + password, calls POST /login
-2. **Register page** — self signup form, calls POST /register
-3. **Reset password request page** — calls POST /reset/request
-4. **Reset password apply page** — reads access_token from URL, calls POST /reset/apply
-5. **Dashboard** — basic page showing user profile + active courses (calls POST /verify)
+| Endpoint | What it does | Status |
+|---|---|---|
+| `POST /api/login` | Email + password → set HttpOnly cookies | ⏳ |
+| `POST /api/verify` | Read cookie → return profile + subscriptions | ⏳ |
+| `POST /api/logout` | Clear HttpOnly cookies | ⏳ |
+| `POST /api/register` | Create Supabase user + public.users row + WELCOME_TRIAL | ⏳ |
+| `POST /api/reset/request` | Trigger Supabase branded reset email | ⏳ |
+| `POST /api/reset/apply` | Apply new password via Supabase token | ⏳ |
+| `POST /api/admin/create-user` | Admin creates a user manually | ⏳ |
+| `POST /api/admin/assign-product` | Admin assigns a product/subscription | ⏳ |
 
-### After frontend pages
-- `POST /admin/create-user`
-- `POST /admin/assign-product`
-- Then move to Phase 2
+---
+
+## Phase 1 — Frontend Pages
+
+| Page | Calls | Status |
+|---|---|---|
+| login.html | POST /api/login | ⏳ |
+| register.html | POST /api/register | ⏳ |
+| reset-request.html | POST /api/reset/request | ⏳ |
+| reset-apply.html | POST /api/reset/apply | ⏳ |
+| dashboard.html | POST /api/verify | ⏳ |
 
 ---
 
 ## Standing Rules (always apply)
 
-- Always confirm plan with Samuel before producing final code
-- All logic must match original AppScript exactly — same error codes, same behaviour
-- Worker deployed via `wrangler deploy` from `app/workers/auth-worker/` folder
-- Always `git pull` before touching any files
+- **Always confirm plan with Samuel before writing final code**
+- All logic must match original AppScript behaviour — same error codes, same data shapes
+- Worker deployed via `wrangler deploy` from `app/workers/auth-worker/`
+- Always `git pull` before touching files
 - Always `git push` after finishing a session
-- Test commands use PowerShell `Invoke-WebRequest -UseBasicParsing` syntax — Windows machine
-- Supabase client in Workers uses service role key (bypasses RLS) — RLS policies added later
+- PowerShell used for all commands (Windows machine)
+- Supabase service role key used in Workers (bypasses RLS) — RLS added later
 - Keep `email.js` exactly as written
-- Frontend pages live in Cloudflare Pages (qacademy-alpha.pages.dev)
+- Samuel has no coding background — always explain steps in plain English
 
 ---
 
 ## Important References
 
 - **Supabase Project:** qacademy-alpha, West EU (Ireland)
-- **Auth Worker URL:** https://auth-worker.mybackpacc.workers.dev
 - **Google Client ID:** 117220903038-1qe508lr01t59mjabeavcl640hraigs4.apps.googleusercontent.com
 - **Brand:** QAcademy Nurses Hub
 - **Support email:** mybackpacc@gmail.com
-- **Owner:** Samuel Owusu-Ansah (no coding background — explain clearly)
+- **Owner:** Samuel Owusu-Ansah
 
 ---
 
-## Built With Heart
+## ⏭️ NEXT SESSION — Resume Here
 
-This platform was not built by a team of developers with a budget and a roadmap.
-It was built by one person, learning as they went, because they believed nursing students deserved better preparation tools.
+**Phase 1 backend. Build auth-worker from scratch with HttpOnly cookie sessions.**
 
-> *"I had no coding knowledge. I just wanted to help nursing students prepare for their exams."*
-> — Samuel Owusu-Ansah, Creator of QAcademy Nurses Hub
+Build order:
+1. `package.json`
+2. `wrangler.toml`
+3. `db.js`
+4. `auth.js`
+5. `reset.js`
+6. `admin.js`
+7. `index.js`
+8. `[[route]].js` (Pages proxy)
+9. Test all endpoints
+10. Build frontend pages
