@@ -1,0 +1,9 @@
+message_id,thread_id,sender_type,sender_id,body_text,created_at,read_by_user,read_by_admin
+MSG_234CB2540DC74CA9,THR_FB1F49B4B5084BFA,admin,admin1,testing course count,2025-12-23T12:14:50.245Z,TRUE,TRUE
+MSG_81E6A90B1BD84EF0,THR_618AE193738C4FF9,admin,admin1,testing course count,2025-12-23T12:14:50.245Z,FALSE,TRUE
+MSG_6B1D2F11ADD142D0,THR_968711E721E84663,user,admin1,please expalin this question,2025-12-23T12:17:00.071Z,TRUE,TRUE
+MSG_C374277A84664EF2,THR_968711E721E84663,admin,admin1,what explauination do you need,2025-12-23T12:17:46.956Z,FALSE,TRUE
+MSG_FA1BD38DB9094BA8,THR_1DD840E2E64D437E,admin,admin1,We will be satrting our intensive classes,2025-12-23T12:18:23.604Z,TRUE,TRUE
+MSG_C685726F4FDA4295,THR_673418C283684C89,admin,admin1,We will be satrting our intensive classes,2025-12-23T12:18:23.604Z,FALSE,TRUE
+MSG_076405AE100448CA,THR_7DD955A6FC2F4678,admin,admin1,We will be satrting our intensive classes,2025-12-23T12:18:23.604Z,FALSE,TRUE
+MSG_147B3CAB14134E17,THR_538E63158E5A41B7,admin,admin1,We will be satrting our intensive classes,2025-12-23T12:18:23.604Z,FALSE,TRUE

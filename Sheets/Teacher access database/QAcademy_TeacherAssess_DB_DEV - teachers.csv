@@ -1,0 +1,5 @@
+teacher_id,active,plan_type,created_at,display_name,email,request_status,requested_at,updated_at,request_note,request_count,last_request_at,phone_number,organisation,role_requested
+U_3712233b3b,TRUE,FREE,,Albert owusu-ansah,albert@Qacademynurses.com,,,,,,,,,
+admin1,TRUE,FREE,,Earnest Asante,mybackpacc@gmail.com,,,,,,,,,
+U_7786686795,FALSE,FREE,2026-03-05T02:24:51Z,Samuel Owusu-Ansah,mybackpacc@gmail.com,DISABLED,2026-03-05T02:24:51Z,2026-03-05T02:27:46Z,,1,2026-03-05T02:24:51Z,547483338,Kwadaso SDA,TEACHER
+U_abfbf814b9,TRUE,FREE,2026-03-05T02:33:36Z,Vincent owusu,sowusucbt@gmail.com,APPROVED,2026-03-05T02:33:36Z,2026-03-05T02:37:14Z,,1,2026-03-05T02:33:36Z,,Kwadaso SDA,TEACHER
