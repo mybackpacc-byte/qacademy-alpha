@@ -1,0 +1,5 @@
+name = "qacademy-alpha"
+pages_build_output_dir = "app/src/pages"
+
+[build]
+command = "cd app/functions && npm install"
