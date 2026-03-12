@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QAcademy Nurses Hub — NMC Licensure Exam Prep</title>
+  <meta name="description" content="Ghana's premier NMC licensure exam preparation platform for student nurses. Practice quizzes, mock exams, and study tools built for RN, RM, RPHN, and RMHN candidates." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --teal:       #0b7a75;
+      --teal-dark:  #095e5a;
+      --teal-mid:   #0d8880;
+      --teal-light: #e8f4f3;
+      --teal-glow:  rgba(11,122,117,.18);
+      --ink:        #1a2724;
+      --muted:      #526460;
+      --faint:      #8aaaa7;
+      --line:       #dce9e7;
+      --bg:         #f4f8f7;
+      --card:       #ffffff;
+      --max:        1120px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ── Animated BG ── */
+    .qa-bg {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 1100px 700px at 0%   10%, rgba(11,122,117,.09) 0%, transparent 55%),
+        radial-gradient(ellipse  800px 600px at 100% 80%, rgba(11,122,117,.06) 0%, transparent 55%),
+        linear-gradient(170deg, #f0f7f6 0%, #f9fbfb 55%, #edf5f4 100%);
+    }
+    .qa-bg::before {
+      content: ''; position: absolute; inset: -40%;
+      background: conic-gradient(from 0deg at 50% 50%,
+        rgba(11,122,117,.03) 0deg, transparent 90deg,
+        rgba(11,122,117,.04) 180deg, transparent 270deg);
+      filter: blur(90px);
+      animation: bgSpin 45s linear infinite;
+    }
+    .qa-bg::after {
+      content: ''; position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(11,122,117,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(11,122,117,.03) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 20%, transparent 100%);
+    }
+    @keyframes bgSpin { to { transform: rotate(360deg); } }
+
+    /* ── Nav ── */
+    .qa-nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(244,248,247,.88);
+      backdrop-filter: saturate(1.4) blur(16px);
+      border-bottom: 1px solid rgba(11,122,117,.09);
+    }
+    .qa-nav-inner {
+      position: relative; z-index: 1;
+      max-width: var(--max); margin: 0 auto;
+      padding: 0 24px; height: 66px;
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 20px;
+    }
+    .qa-nav-brand {
+      display: flex; align-items: center; gap: 11px;
+      text-decoration: none; color: inherit;
+    }
+    .qa-nav-mark {
+      width: 42px; height: 42px; border-radius: 12px;
+      background: linear-gradient(140deg, var(--teal-mid), var(--teal-dark));
+      display: grid; place-items: center;
+      box-shadow: 0 4px 14px rgba(11,122,117,.28);
+    }
+    .qa-nav-mark svg { width: 22px; height: 22px; }
+    .qa-nav-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: 17px; color: var(--ink); letter-spacing: .2px;
+    }
+    .qa-nav-sub { font-size: 11px; color: var(--faint); margin-top: 1px; }
+
+    .qa-nav-actions { display: flex; align-items: center; gap: 10px; }
+    .qa-btn-ghost {
+      padding: 9px 18px; border-radius: 999px;
+      border: 1.5px solid var(--line); background: var(--card);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13.5px; font-weight: 700; color: var(--ink);
+      text-decoration: none; transition: all .15s;
+      box-shadow: 0 2px 6px rgba(0,0,0,.04);
+    }
+    .qa-btn-ghost:hover { border-color: var(--teal); color: var(--teal); }
+    .qa-btn-solid {
+      padding: 9px 20px; border-radius: 999px;
+      background: var(--teal); color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13.5px; font-weight: 700;
+      text-decoration: none; transition: all .15s;
+      box-shadow: 0 4px 14px rgba(11,122,117,.30);
+    }
+    .qa-btn-solid:hover {
+      background: var(--teal-dark);
+      box-shadow: 0 6px 20px rgba(11,122,117,.38);
+      transform: translateY(-1px);
+    }
+
+    /* ── Hero ── */
+    .qa-hero {
+      position: relative; z-index: 1;
+      max-width: var(--max); margin: 0 auto;
+      padding: 88px 24px 72px;
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 60px; align-items: center;
+    }
+
+    .qa-hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 14px; border-radius: 999px;
+      background: rgba(11,122,117,.08);
+      border: 1px solid rgba(11,122,117,.16);
+      font-size: 12px; font-weight: 800;
+      color: var(--teal); letter-spacing: .5px;
+      text-transform: uppercase; margin-bottom: 20px;
+    }
+    .qa-hero-eyebrow-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--teal);
+      box-shadow: 0 0 6px rgba(11,122,117,.6);
+      animation: dotPulse 2s ease-in-out infinite;
+    }
+    @keyframes dotPulse {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.6; transform:scale(1.3); }
+    }
+
+    .qa-hero-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(36px, 5vw, 54px);
+      line-height: 1.12; letter-spacing: -.5px;
+      color: var(--ink); margin-bottom: 20px;
+    }
+    .qa-hero-headline em {
+      font-style: italic; color: var(--teal);
+    }
+
+    .qa-hero-sub {
+      font-size: 17px; color: var(--muted);
+      line-height: 1.65; margin-bottom: 32px;
+      max-width: 520px;
+    }
+
+    .qa-hero-cta {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      margin-bottom: 36px;
+    }
+    .qa-cta-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 14px 28px; border-radius: 999px;
+      background: var(--teal); color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px; font-weight: 800;
+      text-decoration: none; letter-spacing: .1px;
+      transition: all .15s;
+      box-shadow: 0 6px 24px rgba(11,122,117,.35), inset 0 -2px 0 rgba(0,0,0,.1);
+    }
+    .qa-cta-primary:hover {
+      background: var(--teal-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 32px rgba(11,122,117,.40);
+    }
+    .qa-cta-primary svg { width: 16px; height: 16px; }
+    .qa-cta-secondary {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 14px 22px; border-radius: 999px;
+      border: 1.5px solid var(--line); background: var(--card);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px; font-weight: 700; color: var(--ink);
+      text-decoration: none; transition: all .15s;
+      box-shadow: 0 2px 8px rgba(0,0,0,.05);
+    }
+    .qa-cta-secondary:hover { border-color: var(--teal); color: var(--teal); transform: translateY(-1px); }
+
+    .qa-hero-social-proof {
+      display: flex; align-items: center; gap: 14px;
+      font-size: 13px; color: var(--faint);
+    }
+    .qa-hero-avatars {
+      display: flex;
+    }
+    .qa-hero-av {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 2px solid var(--bg);
+      background: linear-gradient(135deg, var(--teal-mid), var(--teal-dark));
+      margin-left: -8px; display: grid; place-items: center;
+      font-size: 11px; font-weight: 800; color: #fff;
+    }
+    .qa-hero-av:first-child { margin-left: 0; }
+    .qa-hero-av.amber  { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .qa-hero-av.purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+    .qa-sp-text { line-height: 1.4; }
+    .qa-sp-text strong { color: var(--ink); font-weight: 800; }
+
+    /* ── Hero card ── */
+    .qa-hero-card {
+      background: var(--card);
+      border: 1px solid rgba(11,122,117,.14);
+      border-radius: 24px;
+      box-shadow: 0 24px 64px rgba(11,122,117,.12), 0 4px 16px rgba(0,0,0,.06);
+      overflow: hidden;
+      animation: heroCardIn .7s cubic-bezier(.22,1,.36,1) .2s both;
+    }
+    @keyframes heroCardIn {
+      from { opacity:0; transform:translateY(24px) scale(.98); }
+      to   { opacity:1; transform:translateY(0)   scale(1); }
+    }
+    .qa-hero-card-head {
+      background: linear-gradient(140deg, var(--teal-mid) 0%, var(--teal-dark) 100%);
+      padding: 20px 22px;
+      position: relative; overflow: hidden;
+    }
+    .qa-hero-card-head::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(400px 250px at 80% 20%, rgba(255,255,255,.13) 0%, transparent 70%);
+    }
+    .qa-hero-card-title {
+      position: relative; z-index: 1;
+      font-family: 'DM Serif Display', serif;
+      font-size: 17px; color: #fff; margin-bottom: 4px;
+    }
+    .qa-hero-card-sub {
+      position: relative; z-index: 1;
+      font-size: 12px; color: rgba(255,255,255,.7);
+    }
+    .qa-hero-card-body { padding: 20px 22px; }
+
+    .qa-mini-stat-row {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 10px; margin-bottom: 16px;
+    }
+    .qa-mini-stat {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 14px; padding: 12px 14px;
+    }
+    .qa-mini-stat-val { font-size: 22px; font-weight: 800; color: var(--ink); }
+    .qa-mini-stat-lbl { font-size: 11px; color: var(--faint); margin-top: 2px; font-weight: 600; }
+
+    .qa-feature-list { display: flex; flex-direction: column; gap: 10px; }
+    .qa-feature-item {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13.5px; color: var(--muted);
+    }
+    .qa-feature-check {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--teal-light);
+      border: 1px solid rgba(11,122,117,.2);
+      display: grid; place-items: center; flex-shrink: 0;
+    }
+    .qa-feature-check svg { width: 10px; height: 10px; color: var(--teal); }
+
+    .qa-hero-card-cta {
+      display: block; width: 100%; margin-top: 18px;
+      padding: 13px;
+      background: var(--teal); color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14.5px; font-weight: 800;
+      text-align: center; text-decoration: none;
+      border-radius: 14px;
+      box-shadow: 0 4px 14px rgba(11,122,117,.28), inset 0 -2px 0 rgba(0,0,0,.08);
+      transition: all .15s;
+    }
+    .qa-hero-card-cta:hover {
+      background: var(--teal-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 22px rgba(11,122,117,.35);
+    }
+    .qa-hero-card-login {
+      display: block; text-align: center;
+      margin-top: 10px; font-size: 13px;
+      color: var(--faint);
+    }
+    .qa-hero-card-login a {
+      color: var(--teal); font-weight: 700;
+      text-decoration: none;
+    }
+    .qa-hero-card-login a:hover { text-decoration: underline; }
+
+    /* ── Programmes strip ── */
+    .qa-strip {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.6);
+      padding: 18px 24px;
+    }
+    .qa-strip-inner {
+      max-width: var(--max); margin: 0 auto;
+      display: flex; align-items: center;
+      gap: 10px; flex-wrap: wrap; justify-content: center;
+    }
+    .qa-strip-label { font-size: 12px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: .5px; margin-right: 6px; }
+    .qa-strip-tag {
+      padding: 6px 14px; border-radius: 999px;
+      border: 1px solid var(--line); background: var(--card);
+      font-size: 13px; font-weight: 700; color: var(--muted);
+      box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    }
+    .qa-strip-tag.active { border-color: rgba(11,122,117,.3); background: var(--teal-light); color: var(--teal); }
+
+    /* ── Features section ── */
+    .qa-features {
+      position: relative; z-index: 1;
+      max-width: var(--max); margin: 0 auto;
+      padding: 80px 24px 60px;
+    }
+    .qa-section-head {
+      text-align: center; margin-bottom: 52px;
+    }
+    .qa-section-eyebrow {
+      font-size: 12px; font-weight: 800; color: var(--teal);
+      text-transform: uppercase; letter-spacing: .6px;
+      margin-bottom: 12px;
+    }
+    .qa-section-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(28px, 4vw, 40px);
+      color: var(--ink); line-height: 1.15; margin-bottom: 14px;
+    }
+    .qa-section-sub {
+      font-size: 16px; color: var(--muted);
+      line-height: 1.6; max-width: 540px; margin: 0 auto;
+    }
+
+    .qa-features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .qa-feat-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 26px 24px;
+      box-shadow: 0 2px 10px rgba(11,122,117,.06);
+      transition: transform .2s, box-shadow .2s, border-color .2s;
+    }
+    .qa-feat-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 36px rgba(11,122,117,.12);
+      border-color: rgba(11,122,117,.2);
+    }
+    .qa-feat-icon {
+      width: 50px; height: 50px; border-radius: 14px;
+      display: grid; place-items: center; margin-bottom: 16px;
+    }
+    .qa-feat-icon svg { width: 24px; height: 24px; }
+    .qa-feat-icon.teal   { background: var(--teal-light); color: var(--teal); }
+    .qa-feat-icon.amber  { background: #fffbeb; color: #d97706; }
+    .qa-feat-icon.purple { background: #f3f0ff; color: #7c3aed; }
+    .qa-feat-icon.blue   { background: #eff6ff; color: #2563eb; }
+    .qa-feat-icon.rose   { background: #fff1f2; color: #e11d48; }
+    .qa-feat-icon.green  { background: #f0fdf4; color: #16a34a; }
+    .qa-feat-title { font-size: 16px; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
+    .qa-feat-desc  { font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+    .qa-feat-tag {
+      display: inline-block; margin-top: 12px;
+      padding: 3px 9px; border-radius: 999px;
+      font-size: 10.5px; font-weight: 800;
+      background: #fffbeb; border: 1px solid #fde68a;
+      color: #92400e; text-transform: uppercase; letter-spacing: .3px;
+    }
+    .qa-feat-tag.live {
+      background: var(--teal-light); border-color: rgba(11,122,117,.25);
+      color: var(--teal-dark);
+    }
+
+    /* ── CTA Banner ── */
+    .qa-cta-banner {
+      position: relative; z-index: 1;
+      max-width: var(--max); margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+    .qa-cta-banner-inner {
+      background: linear-gradient(130deg, var(--teal-mid) 0%, var(--teal-dark) 100%);
+      border-radius: 24px; padding: 52px 48px;
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 32px;
+      position: relative; overflow: hidden;
+      box-shadow: 0 16px 48px rgba(11,122,117,.25);
+    }
+    .qa-cta-banner-inner::before {
+      content: ''; position: absolute; inset: 0;
+      background:
+        radial-gradient(600px 400px at 80% 50%, rgba(255,255,255,.1) 0%, transparent 70%),
+        radial-gradient(300px 200px at 10% 90%, rgba(242,201,76,.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .qa-cta-deco {
+      position: absolute; right: -60px; top: -60px;
+      width: 260px; height: 260px; border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.08); pointer-events: none;
+    }
+    .qa-cta-deco2 {
+      position: absolute; left: 40%; bottom: -80px;
+      width: 200px; height: 200px; border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.06); pointer-events: none;
+    }
+    .qa-cta-banner-left { position: relative; z-index: 1; }
+    .qa-cta-banner-tag {
+      display: inline-block; margin-bottom: 14px;
+      padding: 4px 12px; border-radius: 999px;
+      font-size: 11px; font-weight: 800;
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.25);
+      color: rgba(255,255,255,.9);
+      text-transform: uppercase; letter-spacing: .4px;
+    }
+    .qa-cta-banner-headline {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(24px, 3.5vw, 36px);
+      color: #fff; line-height: 1.15; margin-bottom: 10px;
+    }
+    .qa-cta-banner-sub {
+      font-size: 15px; color: rgba(255,255,255,.75);
+      line-height: 1.55; max-width: 440px;
+    }
+    .qa-cta-banner-right {
+      position: relative; z-index: 1;
+      display: flex; flex-direction: column;
+      align-items: flex-end; gap: 10px; flex-shrink: 0;
+    }
+    .qa-cta-banner-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 14px 28px; border-radius: 999px;
+      background: #fff; color: var(--teal);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px; font-weight: 800;
+      text-decoration: none; white-space: nowrap;
+      transition: all .15s;
+      box-shadow: 0 4px 16px rgba(0,0,0,.12);
+    }
+    .qa-cta-banner-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.16); }
+    .qa-cta-banner-btn svg { width: 16px; height: 16px; }
+    .qa-cta-banner-note {
+      font-size: 12px; color: rgba(255,255,255,.6);
+    }
+
+    /* ── Footer ── */
+    .qa-footer {
+      position: relative; z-index: 1;
+      border-top: 1px solid var(--line);
+      background: rgba(255,255,255,.5);
+    }
+    .qa-footer-inner {
+      max-width: var(--max); margin: 0 auto;
+      padding: 28px 24px;
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 16px;
+      flex-wrap: wrap;
+    }
+    .qa-footer-brand {
+      display: flex; align-items: center; gap: 9px;
+      text-decoration: none; color: inherit;
+    }
+    .qa-footer-mark {
+      width: 34px; height: 34px; border-radius: 10px;
+      background: linear-gradient(140deg, var(--teal-mid), var(--teal-dark));
+      display: grid; place-items: center;
+    }
+    .qa-footer-mark svg { width: 17px; height: 17px; }
+    .qa-footer-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: 14px; color: var(--ink);
+    }
+    .qa-footer-links {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    }
+    .qa-footer-links a {
+      padding: 6px 12px; border-radius: 999px;
+      font-size: 13px; font-weight: 600; color: var(--muted);
+      text-decoration: none; transition: color .15s;
+    }
+    .qa-footer-links a:hover { color: var(--teal); }
+    .qa-footer-copy { font-size: 12px; color: var(--faint); }
+
+    /* ── Responsive ── */
+    @media (max-width: 960px) {
+      .qa-hero { grid-template-columns: 1fr; padding: 60px 24px 48px; gap: 40px; }
+      .qa-hero-card { max-width: 480px; }
+      .qa-features-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 700px) {
+      .qa-hero { padding: 40px 18px 36px; }
+      .qa-features { padding: 52px 18px 40px; }
+      .qa-features-grid { grid-template-columns: 1fr; }
+      .qa-cta-banner-inner { flex-direction: column; align-items: flex-start; padding: 36px 28px; }
+      .qa-cta-banner-right { align-items: flex-start; }
+      .qa-footer-inner { flex-direction: column; gap: 12px; text-align: center; }
+      .qa-nav-inner { padding: 0 16px; }
+      .qa-hero-sub { font-size: 15px; }
+    }
+    @media (max-width: 440px) {
+      .qa-nav-actions .qa-btn-ghost { display: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .qa-bg::before, .qa-hero-card,
+      .qa-hero-eyebrow-dot, .qa-feat-card { animation: none; transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="qa-bg" aria-hidden="true"></div>
+
+<!-- ── Nav ── -->
+<nav class="qa-nav">
+  <div class="qa-nav-inner">
+    <a class="qa-nav-brand" href="/">
+      <div class="qa-nav-mark">
+        <svg viewBox="0 0 22 22" fill="none">
+          <circle cx="11" cy="11" r="9" stroke="rgba(255,255,255,.4)" stroke-width="1"/>
+          <path d="M8 8c0 1.657 1.343 3 3 3s3-1.343 3-3" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/>
+          <path d="M8 8v.5a1.5 1.5 0 003 0V8" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/>
+          <circle cx="15.5" cy="12" r="1.1" fill="#fff"/>
+          <path d="M15.5 13.1v2.2a3.5 3.5 0 01-7 0v-2.2" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="qa-nav-name">QAcademy Nurses Hub</div>
+        <div class="qa-nav-sub">NMC Licensure Exam Prep</div>
+      </div>
+    </a>
+    <div class="qa-nav-actions">
+      <a class="qa-btn-ghost" href="pages/login.html">Sign In</a>
+      <a class="qa-btn-solid" href="pages/register.html">Get Started Free</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<section>
+  <div class="qa-hero">
+
+    <!-- Left: copy -->
+    <div>
+      <div class="qa-hero-eyebrow">
+        <span class="qa-hero-eyebrow-dot"></span>
+        Now in Beta — Join Free
+      </div>
+
+      <h1 class="qa-hero-headline">
+        Pass Your NMC Exam<br/>
+        with <em>Confidence</em>
+      </h1>
+
+      <p class="qa-hero-sub">
+        Ghana's dedicated NMC licensure prep platform for student nurses.
+        Practice quizzes, mock exams, performance tracking, and
+        study tools — built specifically for RN, RM, RPHN, RMHN, and NACNAP candidates.
+      </p>
+
+      <div class="qa-hero-cta">
+        <a class="qa-cta-primary" href="pages/register.html">
+          Start Studying Free
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 8h10M9 4l4 4-4 4"/>
+          </svg>
+        </a>
+        <a class="qa-cta-secondary" href="pages/login.html">
+          Sign In
+        </a>
+      </div>
+
+      <div class="qa-hero-social-proof">
+        <div class="qa-hero-avatars">
+          <div class="qa-hero-av">SA</div>
+          <div class="qa-hero-av amber">KM</div>
+          <div class="qa-hero-av purple">AB</div>
+          <div class="qa-hero-av" style="background:linear-gradient(135deg,#0d8880,#095e5a)">EO</div>
+        </div>
+        <div class="qa-sp-text">
+          <strong>Students</strong> already signed up<br/>
+          Be among the first to prepare smarter
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: preview card -->
+    <div class="qa-hero-card">
+      <div class="qa-hero-card-head">
+        <div class="qa-hero-card-title">Your Study Dashboard</div>
+        <div class="qa-hero-card-sub">Everything you need to pass, in one place</div>
+      </div>
+      <div class="qa-hero-card-body">
+        <div class="qa-mini-stat-row">
+          <div class="qa-mini-stat">
+            <div class="qa-mini-stat-val">2,400+</div>
+            <div class="qa-mini-stat-lbl">Practice Questions</div>
+          </div>
+          <div class="qa-mini-stat">
+            <div class="qa-mini-stat-val">8 Subjects</div>
+            <div class="qa-mini-stat-lbl">Core NMC Topics</div>
+          </div>
+        </div>
+        <div class="qa-feature-list">
+          <div class="qa-feature-item">
+            <div class="qa-feature-check">
+              <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 5l2 2 4-4"/>
+              </svg>
+            </div>
+            Build custom quizzes by subject or topic
+          </div>
+          <div class="qa-feature-item">
+            <div class="qa-feature-check">
+              <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 5l2 2 4-4"/>
+              </svg>
+            </div>
+            Timed mock exams with detailed explanations
+          </div>
+          <div class="qa-feature-item">
+            <div class="qa-feature-check">
+              <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 5l2 2 4-4"/>
+              </svg>
+            </div>
+            Track performance and weak areas over time
+          </div>
+          <div class="qa-feature-item">
+            <div class="qa-feature-check">
+              <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 5l2 2 4-4"/>
+              </svg>
+            </div>
+            Offline study packs for low-data environments
+          </div>
+          <div class="qa-feature-item">
+            <div class="qa-feature-check">
+              <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 5l2 2 4-4"/>
+              </svg>
+            </div>
+            Covers RN, RM, RPHN, RMHN &amp; NACNAP programmes
+          </div>
+        </div>
+        <a class="qa-hero-card-cta" href="pages/register.html">Create Free Account</a>
+        <div class="qa-hero-card-login">Already have an account? <a href="pages/login.html">Sign in</a></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── Programmes strip ── -->
+<div class="qa-strip">
+  <div class="qa-strip-inner">
+    <span class="qa-strip-label">Programmes</span>
+    <span class="qa-strip-tag active">RN — Registered Nurse</span>
+    <span class="qa-strip-tag active">RM — Registered Midwife</span>
+    <span class="qa-strip-tag active">RPHN — Public Health Nurse</span>
+    <span class="qa-strip-tag active">RMHN — Mental Health Nurse</span>
+    <span class="qa-strip-tag active">NACNAP</span>
+  </div>
+</div>
+
+<!-- ── Features ── -->
+<section class="qa-features">
+  <div class="qa-section-head">
+    <div class="qa-section-eyebrow">Why QAcademy</div>
+    <h2 class="qa-section-headline">Everything built for<br/>the NMC exam</h2>
+    <p class="qa-section-sub">
+      Unlike generic quiz apps, every feature is designed around how the
+      NMC licensure exam actually works — so you practice the right way.
+    </p>
+  </div>
+
+  <div class="qa-features-grid">
+
+    <div class="qa-feat-card">
+      <div class="qa-feat-icon teal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="3"/>
+          <path d="M8 12h8M8 8h5M8 16h3"/>
+        </svg>
+      </div>
+      <div class="qa-feat-title">Smart Quiz Builder</div>
+      <div class="qa-feat-desc">Filter questions by subject, difficulty, or topic. Build exactly the practice session you need for your weak areas.</div>
+      <span class="qa-feat-tag">Coming soon</span>
+    </div>
+
+    <div class="qa-feat-card">
+      <div class="qa-feat-icon amber">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 7v5l3.5 3.5"/>
+        </svg>
+      </div>
+      <div class="qa-feat-title">Timed Mock Exams</div>
+      <div class="qa-feat-desc">Simulate real NMC exam conditions with timed tests. Review every answer with full explanations after each attempt.</div>
+      <span class="qa-feat-tag">Coming soon</span>
+    </div>
+
+    <div class="qa-feat-card">
+      <div class="qa-feat-icon purple">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 20V8M9 20V4M14 20v-7M19 20v-4"/>
+        </svg>
+      </div>
+      <div class="qa-feat-title">Performance Tracking</div>
+      <div class="qa-feat-desc">See your scores over time, identify weak subjects, and measure your progress toward exam readiness.</div>
+      <span class="qa-feat-tag">Coming soon</span>
+    </div>
+
+    <div class="qa-feat-card">
+      <div class="qa-feat-icon blue">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3L2 9v12h7v-6h6v6h7V9L12 3z"/>
+        </svg>
+      </div>
+      <div class="qa-feat-title">Secure &amp; Accessible</div>
+      <div class="qa-feat-desc">Your account and progress are always safe. Access from any device — phone, tablet, or desktop — wherever you study.</div>
+      <span class="qa-feat-tag live">Live now</span>
+    </div>
+
+    <div class="qa-feat-card">
+      <div class="qa-feat-icon rose">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+        </svg>
+      </div>
+      <div class="qa-feat-title">Tutor Messaging</div>
+      <div class="qa-feat-desc">Receive announcements, study tips, and guidance directly from your tutors inside the platform.</div>
+      <span class="qa-feat-tag">Coming soon</span>
+    </div>
+
+    <div class="qa-feat-card">
+      <div class="qa-feat-icon green">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="qa-feat-title">Offline Study Packs</div>
+      <div class="qa-feat-desc">Download study materials and practice in low-data or offline environments — perfect for anywhere in Ghana.</div>
+      <span class="qa-feat-tag">Coming soon</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── CTA Banner ── -->
+<div class="qa-cta-banner">
+  <div class="qa-cta-banner-inner">
+    <div class="qa-cta-deco"  aria-hidden="true"></div>
+    <div class="qa-cta-deco2" aria-hidden="true"></div>
+    <div class="qa-cta-banner-left">
+      <div class="qa-cta-banner-tag">Free during Beta</div>
+      <h2 class="qa-cta-banner-headline">Ready to start<br/>preparing smarter?</h2>
+      <p class="qa-cta-banner-sub">
+        Create your free account today and get immediate access to the
+        platform as we build it out. No credit card required.
+      </p>
+    </div>
+    <div class="qa-cta-banner-right">
+      <a class="qa-cta-banner-btn" href="pages/register.html">
+        Create Free Account
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 8h10M9 4l4 4-4 4"/>
+        </svg>
+      </a>
+      <div class="qa-cta-banner-note">Already have an account? <a href="pages/login.html" style="color:rgba(255,255,255,.75);font-weight:700;">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Footer ── -->
+<footer class="qa-footer">
+  <div class="qa-footer-inner">
+    <a class="qa-footer-brand" href="/">
+      <div class="qa-footer-mark">
+        <svg viewBox="0 0 17 17" fill="none">
+          <path d="M6 6c0 1.105.895 2 2 2s2-.895 2-2" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M6 6v.333A1 1 0 008 6.333V6" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="11.5" cy="8.5" r=".8" fill="#fff"/>
+          <path d="M11.5 9.3v1.7a2.5 2.5 0 01-5 0V9.3" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <span class="qa-footer-name">QAcademy Nurses Hub</span>
+    </a>
+    <div class="qa-footer-links">
+      <a href="pages/register.html">Register</a>
+      <a href="pages/login.html">Sign In</a>
+      <a href="mailto:mybackpacc@gmail.com">Support</a>
+    </div>
+    <div class="qa-footer-copy">© 2025 QAcademy. All rights reserved.</div>
+  </div>
+</footer>
+
+</body>
+</html>
