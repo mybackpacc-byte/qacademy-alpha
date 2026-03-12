@@ -3,8 +3,8 @@
 **Live platform:** qacademynurses.com  
 **Dev environment:** qacademy-alpha.pages.dev  
 **Auth Worker:** auth-worker.mybackpacc.workers.dev  
-**GitHub Repo:** qacademy-alpha  
-**Database:** Alpha_db (Cloudflare D1)
+**GitHub Repo:** qacademy-alpha (user: mybackpacc-byte)  
+**Current Database:** Alpha_db (Cloudflare D1) ← BEING REPLACED WITH SUPABASE
 
 ---
 
@@ -12,123 +12,110 @@
 
 QAcademy Nurses Hub is an online exam prep platform for Ghanaian nursing students preparing for NMC licensure exams. It covers 5 programs (RN, RM, RPHN, RMHN, NACNAP) across 11 courses.
 
-This repository is the migration workspace — moving the platform from a Blogger + Google Apps Script + Google Sheets stack to a professional Cloudflare Pages + Workers + D1 stack.
-
 **The production platform (qacademynurses.com) is untouched. All dev work is entirely separate.**
 
 ---
 
-## Original Stack
+## ⚠️ CURRENT STATUS — MID SWITCH TO SUPABASE
 
-- **Frontend:** Blogger (60+ pages)
-- **Backend:** Google Apps Script (8 projects, 14+ files)
-- **Database:** Google Sheets (4 databases + 11 question bank sheets)
-- **Email:** Gmail via AppScript (100/day limit)
-- **Payments:** Paystack
-- **Code:** Scattered across Google Drive, no version control
+We have made a deliberate decision to switch from Cloudflare D1 to Supabase before building any further. This decision was made after a thorough evaluation. See reasoning below.
+
+**Nothing has been deleted yet. The switch has not started. We are starting fresh in a new chat.**
 
 ---
 
-## New Stack
+## Why We Are Switching from D1 to Supabase
 
-| Layer | Old | New |
+After completing Phase 1 Auth on D1 we evaluated Supabase and decided it is the right long term foundation. Key reasons:
+
+- **Built-in auth** — login, register, password reset, Google Sign-In all handled. No custom JWT/hashing code to maintain
+- **Better security** — bcrypt password hashing, Row Level Security, SOC 2 certified, token refresh and revocation
+- **File storage** — profile pictures and rationale images built in. D1 cannot store files at all
+- **Visual dashboard** — manage students, subscriptions, attempts without writing SQL
+- **50,000 free monthly active users** — generous free tier that scales with the platform
+- **Full PostgreSQL** — more powerful than D1/SQLite, never need to migrate again
+- **Realtime** — live announcements and messaging without extra infrastructure
+- **Open source** — not locked in, can self-host if needed
+- **Last migration** — PostgreSQL powers Instagram, Reddit, Spotify. QAcademy will never outgrow it
+
+---
+
+## Final Stack Decision (locked)
+
+| Layer | Tool | Notes |
 |---|---|---|
-| **Frontend** | Blogger | Cloudflare Pages |
-| **Backend / API** | Google Apps Script | Cloudflare Workers |
-| **Database** | Google Sheets | Cloudflare D1 (SQLite) |
-| **Question Banks** | Google Sheets (11 files) | Cloudflare D1 |
-| **Email** | Gmail via AppScript | Resend (3,000/month free) |
-| **Payments** | Paystack | Paystack (unchanged) |
-| **Code** | Google Drive | GitHub (version controlled) |
-
-### Key Decisions
-- **One D1 database** (`Alpha_db`) — all tables consolidated, no more per-sheet splitting
-- **JWT instead of stored tokens** — no DB read needed per request for auth verification, 12hr expiry
-- **Separate Workers per domain** — auth-worker, quiz-worker, payments-worker etc.
-- **Same logic, restructured** — all AppScript business logic preserved exactly, just moved to Workers
-- **Resend for email** — replaces Gmail/AppScript, verified domain `qacademynurses.com`
+| **Frontend** | Cloudflare Pages | Unchanged |
+| **Backend / API** | Cloudflare Workers | Unchanged — just talks to Supabase instead of D1 |
+| **Database** | Supabase (PostgreSQL) | Replaces D1 |
+| **Auth** | Supabase Auth | Replaces custom JWT/password code |
+| **File Storage** | Supabase Storage | Profile pictures, rationale images, PDFs |
+| **Email** | Resend | Unchanged — welcome and product assigned emails |
+| **Payments** | Paystack | Unchanged |
+| **Code** | GitHub | Unchanged |
 
 ---
 
-## Repo Structure
+## What Changes in the Switch
 
-```
-qacademy-alpha/
-├── blogger/                          ← original Blogger frontend (untouched)
-├── Portal_Authv2-DEV/                ← original AppScript auth (untouched)
-├── [other original AppScript files]  ← untouched reference
-├── 0.QAcademy_Portal_DB/             ← CSV exports of original Sheets data
-├── QAcademy_Email_Templates/         ← HTML email templates
-└── app/                              ← NEW STACK (everything built here)
-    ├── workers/
-    │   └── auth-worker/
-    │       ├── index.js              ← main router
-    │       ├── jwt.js                ← JWT sign/verify
-    │       ├── password.js           ← hashing, salt, user ID generation
-    │       ├── db.js                 ← all D1 query helpers
-    │       └── email.js              ← Resend email sending
-    ├── src/
-    │   ├── js/                       ← shared frontend JS (auth.js etc.)
-    │   └── pages/                    ← HTML frontend pages
-    ├── db/
-    │   └── migrations/
-    │       └── 0001_portal_db_schema.sql  ← full D1 schema
-    └── wrangler.toml                 ← Cloudflare Worker config
-```
-
----
-
-## Database — Alpha_db
-
-All 15 tables created and live in Cloudflare D1. Schema file: `app/db/migrations/0001_portal_db_schema.sql`
-
-| Table | Status | Description |
-|---|---|---|
-| `users` | ✅ Live | Student and admin accounts |
-| `programs` | ✅ Live + Seeded | RN, RM, RPHN, RMHN, NACNAP |
-| `courses` | ✅ Live + Seeded | 11 courses across 5 programs |
-| `program_course_map` | ✅ Live + Seeded | Maps programs to courses |
-| `levels` | ✅ Live | Student year levels |
-| `products` | ✅ Live | Subscription products |
-| `subscriptions` | ✅ Live | User subscriptions |
-| `auth_events` | ✅ Live | Login audit + rate limiting |
-| `reset_requests` | ✅ Live | Password reset tokens |
-| `payments` | ✅ Live | Paystack payment records |
-| `quizzes` | ✅ Live | Fixed/admin quiz definitions |
-| `attempts` | ✅ Live | Quiz attempt records |
-| `offline_packs` | ✅ Live | Student offline packs |
-| `threads` | ✅ Live | Messaging threads |
-| `messages` | ✅ Live | Thread messages |
-| `announcements` | ✅ Live | Platform announcements |
-| `user_notice_state` | ✅ Live | Per-user seen/dismissed state |
-| `config` | ✅ Live + Seeded | Platform config key/values |
-
----
-
-## Worker Secrets (stored in Cloudflare — never in code)
-
-| Secret | Purpose |
+| File | Action |
 |---|---|
-| `JWT_SECRET` | Signs and verifies JWTs |
-| `RESEND_API_KEY` | Sends transactional emails via Resend |
+| `db.js` | Rewritten — Supabase client instead of D1 |
+| `jwt.js` | Deleted — Supabase handles JWT |
+| `password.js` | Mostly deleted — Supabase handles hashing |
+| `index.js` | Login, register, reset endpoints simplified massively |
+| `wrangler.toml` | Remove D1 binding, add Supabase URL and key as secrets |
+| `email.js` | Unchanged |
+| `app/db/migrations/` | Schema recreated in Supabase dashboard |
+
+## What Stays Exactly the Same
+
+- Database schema — all 15 tables, same columns, same relationships
+- Business logic — subscriptions, quiz engine, programs, courses
+- Email templates — all four HTML templates unchanged
+- Cloudflare Pages frontend
+- Paystack payments
+- GitHub repo structure
+- All future phases — Phase 2 through 6 unaffected
+
+---
+
+## Worker Secrets (Cloudflare)
+
+| Secret | Status | Notes |
+|---|---|---|
+| `JWT_SECRET` | Will be deleted | Supabase handles JWT |
+| `RESEND_API_KEY` | Keep | Still needed for welcome and product emails |
+| `SUPABASE_URL` | To be added | After Supabase project created |
+| `SUPABASE_SERVICE_KEY` | To be added | After Supabase project created |
 
 ---
 
 ## Email — Resend
 
-- **Domain:** qacademynurses.com ✅ Verified
+- **Domain:** qacademynurses.com ✅ Verified and working
 - **Sending address:** noreply@qacademynurses.com
-- **Templates inlined in** `email.js`:
-  - Reset password email
-  - Welcome email (self-registered)
-  - Welcome email (admin-created)
-  - Product assigned email
+- **Reset password email** — will move to Supabase (handled automatically)
+- **Welcome self email** — stays on Resend
+- **Welcome admin email** — stays on Resend
+- **Product assigned email** — stays on Resend
+
+---
+
+## Database Schema (unchanged — recreating in Supabase)
+
+All 15 tables: users, programs, courses, program_course_map, levels, products, subscriptions, auth_events, reset_requests, payments, quizzes, attempts, offline_packs, threads, messages, announcements, user_notice_state, config
+
+Seed data to re-insert:
+- 5 programs (RN, RM, RPHN, RMHN, NACNAP)
+- 11 courses
+- 15 program-course mappings
+- Config defaults
 
 ---
 
 ## Build Phases
 
-### Phase 1 — Auth & Identity ← CURRENT
+### Phase 1 — Auth & Identity ← SWITCHING TO SUPABASE THEN RESUMING
 ### Phase 2 — Products, Subscriptions & Payments
 ### Phase 3 — Core Learning (quiz engine, question bank, runners, history)
 ### Phase 4 — Communication & Extras (messaging, announcements, offline packs)
@@ -137,80 +124,80 @@ All 15 tables created and live in Cloudflare D1. Schema file: `app/db/migrations
 
 ---
 
-## Phase 1 — Auth Worker Progress
+## Phase 1 — Auth Endpoints Target State (after Supabase switch)
 
-**Base URL:** `https://auth-worker.mybackpacc.workers.dev`
-
-| Endpoint | Status | Description |
+| Endpoint | Status | Notes |
 |---|---|---|
-| `POST /login` | ✅ Done + Tested | Email + password login, returns JWT |
-| `POST /verify` | ✅ Done + Tested | Verifies JWT, returns user + access |
-| `POST /register` | ✅ Done + Tested | Self registration, assigns WELCOME_TRIAL |
-| `POST /reset/request` | ✅ Done + Tested | Sends reset email via Resend |
-| `POST /reset/apply` | ✅ Done + Tested | Validates token, updates password |
-| `POST /login/google` | ⏳ Pending | Google Sign-In |
-| `POST /admin/create-user` | ⏳ Pending | Admin creates student account |
-| `POST /admin/assign-product` | ⏳ Pending | Admin assigns subscription to user |
+| `POST /login` | 🔄 Rewrite with Supabase | Simpler — one Supabase call |
+| `POST /verify` | 🔄 Rewrite with Supabase | Supabase verifies JWT |
+| `POST /register` | 🔄 Rewrite with Supabase | Simpler — one Supabase call |
+| `POST /reset/request` | 🔄 Rewrite with Supabase | Supabase sends email automatically |
+| `POST /reset/apply` | 🔄 Rewrite with Supabase | Supabase handles token |
+| `POST /login/google` | ⏳ Pending | Much easier with Supabase |
+| `POST /admin/create-user` | ⏳ Pending | Next after switch |
+| `POST /admin/assign-product` | ⏳ Pending | Next after switch |
 
 ---
 
 ## ⏭️ NEXT SESSION — Resume Here
 
-### Immediate next task: Admin Endpoints
+### Step 1 — Create Supabase project
+- Go to supabase.com and create a free account
+- Create a new project — region: West EU (Ireland) to match Resend
+- Get the project URL and service role key from Settings → API
 
-Build these two endpoints in `index.js` (with supporting helpers in `db.js`):
+### Step 2 — Recreate schema in Supabase
+- Run the full schema SQL in Supabase SQL editor
+- Re-insert all seed data (programs, courses, mappings, config)
 
-**1. `POST /admin/create-user`**
-- Requires valid JWT with `role = ADMIN`
-- Body: `{ forename, surname, email, program_id, cohort?, role?, product_id? }`
-- Generates temp password (`Qa-` + 8 chars)
-- Creates user row with `must_change_password = true`
-- Optionally assigns a product/subscription if `product_id` provided
-- Sends welcome admin email via Resend with temp password
-- Returns `{ ok, user_id, username, temp_password }`
-- Original AppScript reference: `apiAdminCreateUser()` in `Portal_Authv2-DEV/auth_actions_admin`
+### Step 3 — Configure Supabase Auth
+- Enable email + password auth
+- Configure password reset email template with QAcademy branding
+- Set redirect URL to `https://qacademy-alpha.pages.dev/reset-password`
+- Enable Google Sign-In (OAuth)
 
-**2. `POST /admin/assign-product`**
-- Requires valid JWT with `role = ADMIN`
-- Body: `{ user_id or email, product_id, start_utc? }`
-- Looks up product, validates it exists and is active
-- Computes expiry from `product.duration_days`
-- Creates subscription row
-- Sends product assigned email via Resend
-- Returns `{ ok, subscription_id, expires_utc }`
-- Original AppScript reference: `apiAssignProduct()` in `Portal_Authv2-DEV/auth_actions_admin`
+### Step 4 — Rewrite auth Worker
+- Install Supabase JS client in the Worker
+- Rewrite `db.js` using Supabase client
+- Delete `jwt.js` and `password.js`
+- Simplify `index.js` — login, register, reset, verify endpoints
+- Add `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` as Worker secrets
 
-### After admin endpoints:
-- `POST /login/google` — Google Sign-In (Client ID: `117220903038-1qe508lr01t59mjabeavcl640hraigs4.apps.googleusercontent.com`)
-- First frontend page — `app/src/pages/login.html`
+### Step 5 — Test all endpoints
+- `/login` → `/verify` → `/register` → `/reset/request` → `/reset/apply`
 
-### Important context for next session:
-- Samuel's instruction: **always confirm plan before producing final code**
-- All logic must match original AppScript exactly — same error codes, same behaviour, restructured not rewritten
-- Worker deployed via `wrangler deploy` from `app/workers/auth-worker/` folder
-- Always `git pull` before deploying to get latest GitHub changes locally
-- Test commands use PowerShell `Invoke-WebRequest` syntax (not curl) — Windows machine
-- JWT stored in `localStorage` on frontend, sent as `Authorization: Bearer TOKEN` or in request body as `token`
+### Step 6 — Continue Phase 1
+- `POST /admin/create-user`
+- `POST /admin/assign-product`
+- Then frontend pages
 
 ---
 
-## Why We Are Migrating
+## Important Notes for Next Session
 
-The original stack was a brilliant solution built by one person with no coding background — but it has real limitations:
+- Samuel's instruction: **always confirm plan before producing final code**
+- All logic must match original AppScript exactly — same error codes, same behaviour
+- Worker deployed via `wrangler deploy` from `app/workers/auth-worker/` folder
+- Always `git pull` before deploying
+- Test commands use PowerShell `Invoke-WebRequest` syntax — Windows machine
+- Supabase client in Workers uses the service role key (bypasses RLS) — RLS policies added later
+- Keep `email.js` exactly as written — only update which emails go through Supabase vs Resend
 
-- **Speed** — Blogger is slow; Apps Script has 2–5 second cold starts per API call
-- **Email limits** — Gmail via AppScript is hard-capped at 100 emails/day
-- **Database limits** — Google Sheets slows significantly as data grows
-- **Apps Script limits** — 6-minute execution timeouts, daily quotas
-- **Maintenance** — code scattered across Google Drive with no version control
+---
+
+## Original System Reference
+
+- **Portal DB ID:** `1Aq0IaPOjC1Vo4bQb8aP0S0bO5EaeUx_4oYUlnJ2g2vc`
+- **Google Client ID:** `117220903038-1qe508lr01t59mjabeavcl640hraigs4.apps.googleusercontent.com`
+- **Brand:** QAcademy Nurses Hub
+- **Support:** mybackpacc@gmail.com
+- **Auth Worker URL (old AppScript):** `https://script.google.com/macros/s/AKfycbxaChsaqn6Or1G-SHqsXla1DdgYdWXzXLfs9GVs_7xrxDeYwjT0OhvWlYUsJtpMU8so/exec`
 
 ---
 
 ## Built With Heart
 
 This platform was not built by a team of developers with a budget and a roadmap. It was built by one person, learning as they went, because they believed nursing students deserved better preparation tools.
-
-The migration to a professional stack is not a rejection of that origin story — it's the next chapter of it.
 
 > *"I had no coding knowledge. I just wanted to help nursing students prepare for their exams."*  
 > — Samuel Owusu-Ansah, Creator of QAcademy Nurses Hub
