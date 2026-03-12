@@ -1,0 +1,827 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log In — QAcademy Nurses Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+  <style>
+    /* ============================================================
+       TOKENS
+    ============================================================ */
+    :root {
+      --teal:        #0b7a75;
+      --teal-dark:   #095e5a;
+      --teal-light:  #e8f4f3;
+      --teal-glow:   rgba(11,122,117,.18);
+      --ink:         #1a2724;
+      --muted:       #526460;
+      --line:        #dce9e7;
+      --bg:          #f4f8f7;
+      --card:        #ffffff;
+      --danger:      #c0392b;
+      --danger-bg:   #fdf3f2;
+      --success:     #0b7a75;
+      --radius:      16px;
+      --shadow:      0 20px 60px rgba(11,122,117,.10), 0 4px 16px rgba(0,0,0,.06);
+    }
+
+    /* ============================================================
+       RESET + BASE
+    ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ============================================================
+       ANIMATED BACKGROUND
+    ============================================================ */
+    .qa-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 900px 600px at 10% 15%, rgba(11,122,117,.08) 0%, transparent 65%),
+        radial-gradient(ellipse 700px 500px at 92% 85%, rgba(11,122,117,.06) 0%, transparent 65%),
+        linear-gradient(160deg, #f0f7f6 0%, #f8fbfb 50%, #eef5f4 100%);
+      overflow: hidden;
+    }
+    .qa-bg::before {
+      content: '';
+      position: absolute;
+      inset: -30%;
+      background: conic-gradient(from 0deg at 50% 50%,
+        rgba(11,122,117,.04) 0deg,
+        transparent 90deg,
+        rgba(11,122,117,.05) 180deg,
+        transparent 270deg
+      );
+      filter: blur(60px);
+      animation: spin 35s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Subtle grid texture */
+    .qa-bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(11,122,117,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(11,122,117,.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
+    }
+
+    /* ============================================================
+       PAGE LAYOUT
+    ============================================================ */
+    .qa-shell {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    /* ============================================================
+       CARD
+    ============================================================ */
+    .qa-card {
+      width: 100%;
+      max-width: 900px;
+      background: var(--card);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(11,122,117,.12);
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: cardIn .55s cubic-bezier(.22,1,.36,1) .1s forwards;
+    }
+    @keyframes cardIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============================================================
+       LEFT BRAND PANE
+    ============================================================ */
+    .qa-left {
+      position: relative;
+      background: linear-gradient(160deg, #0d8880 0%, #0a6e6a 45%, #095e5a 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 32px;
+      text-align: center;
+      overflow: hidden;
+      color: #fff;
+    }
+    .qa-left::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(600px 400px at 20% 15%, rgba(255,255,255,.12) 0%, transparent 65%),
+        radial-gradient(400px 300px at 85% 88%, rgba(242,201,76,.18) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    /* Decorative circles */
+    .qa-left::after {
+      content: '';
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.08);
+      bottom: -80px;
+      right: -80px;
+    }
+    .qa-deco-ring {
+      position: absolute;
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.06);
+      top: -50px;
+      left: -60px;
+    }
+
+    .qa-logo-wrap {
+      position: relative;
+      z-index: 1;
+      width: 88px;
+      height: 88px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.15);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,.25);
+      display: grid;
+      place-items: center;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    }
+    .qa-logo-wrap svg {
+      width: 48px;
+      height: 48px;
+    }
+
+    .qa-brand-name {
+      position: relative;
+      z-index: 1;
+      font-family: 'DM Serif Display', serif;
+      font-size: 22px;
+      font-weight: 400;
+      letter-spacing: .3px;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+    .qa-brand-sub {
+      position: relative;
+      z-index: 1;
+      font-size: 13px;
+      color: rgba(255,255,255,.75);
+      line-height: 1.5;
+      max-width: 200px;
+    }
+
+    .qa-badge {
+      position: relative;
+      z-index: 1;
+      margin-top: 28px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.18);
+      font-size: 12px;
+      color: rgba(255,255,255,.88);
+      backdrop-filter: blur(8px);
+    }
+    .qa-badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 6px rgba(74,222,128,.8);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: .7; transform: scale(1.2); }
+    }
+
+    /* ============================================================
+       RIGHT FORM PANE
+    ============================================================ */
+    .qa-right {
+      padding: 40px 36px 36px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .qa-form-title {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -.3px;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+    .qa-form-sub {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    /* ============================================================
+       FORM ELEMENTS
+    ============================================================ */
+    .qa-field {
+      margin-bottom: 16px;
+    }
+    .qa-label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: .3px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .qa-input-wrap {
+      position: relative;
+    }
+    .qa-input {
+      width: 100%;
+      padding: 12px 14px 12px 42px;
+      border: 1.5px solid var(--line);
+      border-radius: 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14.5px;
+      color: var(--ink);
+      background: #fcfefe;
+      transition: border-color .15s, box-shadow .15s, background .15s;
+      outline: none;
+    }
+    .qa-input:focus {
+      border-color: var(--teal);
+      background: #fff;
+      box-shadow: 0 0 0 4px var(--teal-glow);
+    }
+    .qa-input-icon {
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #9ab5b2;
+      pointer-events: none;
+      display: grid;
+      place-items: center;
+    }
+    .qa-input-icon svg { width: 16px; height: 16px; }
+
+    /* Password toggle */
+    .qa-pw-toggle {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #9ab5b2;
+      padding: 4px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      transition: color .15s;
+    }
+    .qa-pw-toggle:hover { color: var(--teal); }
+    .qa-pw-toggle svg { width: 16px; height: 16px; }
+
+    /* Row with label + forgot link */
+    .qa-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .qa-forgot {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--teal);
+      text-decoration: none;
+      transition: opacity .15s;
+    }
+    .qa-forgot:hover { opacity: .75; text-decoration: underline; }
+
+    /* ============================================================
+       ERROR / SUCCESS BANNERS
+    ============================================================ */
+    .qa-banner {
+      display: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 13.5px;
+      line-height: 1.45;
+      margin-bottom: 16px;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .qa-banner.show { display: flex; }
+    .qa-banner.error {
+      background: var(--danger-bg);
+      border: 1px solid #f5c6c2;
+      color: var(--danger);
+    }
+    .qa-banner.success {
+      background: #edf7f6;
+      border: 1px solid #c4e0dd;
+      color: var(--success);
+    }
+    .qa-banner-icon { flex-shrink: 0; margin-top: 1px; }
+    .qa-banner-icon svg { width: 16px; height: 16px; }
+
+    /* ============================================================
+       SUBMIT BUTTON
+    ============================================================ */
+    .qa-btn {
+      width: 100%;
+      padding: 13px;
+      background: var(--teal);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: .2px;
+      transition: background .15s, transform .1s, box-shadow .15s;
+      box-shadow: 0 4px 14px rgba(11,122,117,.30), inset 0 -2px 0 rgba(0,0,0,.08);
+      position: relative;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .qa-btn:hover:not(:disabled) {
+      background: var(--teal-dark);
+      box-shadow: 0 6px 20px rgba(11,122,117,.38);
+      transform: translateY(-1px);
+    }
+    .qa-btn:active:not(:disabled) { transform: translateY(0); }
+    .qa-btn:disabled {
+      opacity: .65;
+      cursor: not-allowed;
+    }
+
+    /* Spinner inside button */
+    .qa-btn-inner { display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .qa-spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    .qa-btn.loading .qa-spinner { display: block; }
+    .qa-btn.loading .qa-btn-text { opacity: .8; }
+
+    /* ============================================================
+       DIVIDER + GOOGLE (placeholder)
+    ============================================================ */
+    .qa-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 18px 0;
+      color: #b0c4c2;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+    .qa-divider::before, .qa-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--line);
+    }
+
+    .qa-google-btn {
+      width: 100%;
+      padding: 11px;
+      background: #fff;
+      border: 1.5px solid var(--line);
+      border-radius: 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+      cursor: not-allowed;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      opacity: .55;
+      position: relative;
+    }
+    .qa-google-coming {
+      position: absolute;
+      right: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      background: #fef3c7;
+      color: #92400e;
+      padding: 2px 6px;
+      border-radius: 999px;
+      letter-spacing: .3px;
+      text-transform: uppercase;
+    }
+
+    /* ============================================================
+       FOOTER LINKS
+    ============================================================ */
+    .qa-footer {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 13.5px;
+      color: var(--muted);
+    }
+    .qa-footer a {
+      color: var(--teal);
+      font-weight: 700;
+      text-decoration: none;
+      transition: opacity .15s;
+    }
+    .qa-footer a:hover { opacity: .75; text-decoration: underline; }
+
+    /* ============================================================
+       RESPONSIVE
+    ============================================================ */
+    @media (max-width: 720px) {
+      .qa-card {
+        grid-template-columns: 1fr;
+        max-width: 460px;
+      }
+      .qa-left {
+        padding: 32px 24px;
+        flex-direction: row;
+        text-align: left;
+        gap: 16px;
+        justify-content: flex-start;
+      }
+      .qa-logo-wrap { width: 60px; height: 60px; border-radius: 16px; margin-bottom: 0; flex-shrink: 0; }
+      .qa-logo-wrap svg { width: 32px; height: 32px; }
+      .qa-left::after, .qa-deco-ring { display: none; }
+      .qa-badge { display: none; }
+      .qa-brand-sub { display: none; }
+      .qa-right { padding: 28px 24px 24px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .qa-bg::before, .qa-card, .qa-badge-dot { animation: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Background -->
+<div class="qa-bg" aria-hidden="true"></div>
+
+<!-- Shell -->
+<main class="qa-shell">
+  <div class="qa-card" role="main">
+
+    <!-- ===== LEFT: Brand pane ===== -->
+    <div class="qa-left" aria-hidden="true">
+      <div class="qa-deco-ring"></div>
+
+      <div class="qa-logo-wrap">
+        <!-- Stethoscope / medical icon -->
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="24" cy="24" r="20" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.3)" stroke-width="1.5"/>
+          <path d="M16 14c0 5.523 4.477 10 10 10s10-4.477 10-10" stroke="rgba(255,255,255,.9)" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M16 14v2a4 4 0 008 0v-2" stroke="rgba(255,255,255,.9)" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="36" cy="26" r="3" fill="rgba(255,255,255,.9)"/>
+          <path d="M36 29v5a6 6 0 01-12 0v-5" stroke="rgba(255,255,255,.9)" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="qa-brand-name">QAcademy<br/>Nurses Hub</div>
+      <div class="qa-brand-sub">NMC Licensure Exam Preparation Platform</div>
+
+      <div class="qa-badge">
+        <span class="qa-badge-dot"></span>
+        Secure Login
+      </div>
+    </div>
+
+    <!-- ===== RIGHT: Form pane ===== -->
+    <div class="qa-right">
+      <h1 class="qa-form-title">Welcome back</h1>
+      <p class="qa-form-sub">Sign in to your account to continue studying.</p>
+
+      <!-- Error banner -->
+      <div class="qa-banner error" id="qa-error" role="alert" aria-live="polite">
+        <span class="qa-banner-icon">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm.75 9.75h-1.5v-1.5h1.5v1.5zm0-3h-1.5v-4h1.5v4z"/></svg>
+        </span>
+        <span id="qa-error-text">Something went wrong.</span>
+      </div>
+
+      <!-- Success banner -->
+      <div class="qa-banner success" id="qa-success" role="status" aria-live="polite">
+        <span class="qa-banner-icon">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm3.28 5.03l-4 4a.75.75 0 01-1.06 0l-2-2a.75.75 0 111.06-1.06L6.75 8.44l3.47-3.47a.75.75 0 111.06 1.06z"/></svg>
+        </span>
+        <span id="qa-success-text">Logged in! Redirecting…</span>
+      </div>
+
+      <!-- Form -->
+      <form id="qa-form" novalidate autocomplete="on">
+
+        <!-- Email -->
+        <div class="qa-field">
+          <label class="qa-label" for="qa-email">Email or Username</label>
+          <div class="qa-input-wrap">
+            <span class="qa-input-icon">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <rect x="1.5" y="3.5" width="13" height="9" rx="1.5"/>
+                <path d="M1.5 5.5l6.5 4 6.5-4" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <input
+              class="qa-input"
+              type="text"
+              id="qa-email"
+              name="email"
+              autocomplete="username"
+              placeholder="your@email.com"
+              spellcheck="false"
+              required
+            />
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="qa-field">
+          <div class="qa-label-row">
+            <label class="qa-label" for="qa-password" style="margin-bottom:0">Password</label>
+            <a class="qa-forgot" href="reset-request.html">Forgot password?</a>
+          </div>
+          <div class="qa-input-wrap">
+            <span class="qa-input-icon">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <rect x="3.5" y="7" width="9" height="7" rx="1.5"/>
+                <path d="M5.5 7V5a2.5 2.5 0 015 0v2" stroke-linecap="round"/>
+              </svg>
+            </span>
+            <input
+              class="qa-input"
+              type="password"
+              id="qa-password"
+              name="password"
+              autocomplete="current-password"
+              placeholder="••••••••"
+              required
+            />
+            <button type="button" class="qa-pw-toggle" id="qa-pw-toggle" aria-label="Show password">
+              <svg id="qa-eye-show" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/>
+                <circle cx="8" cy="8" r="2"/>
+              </svg>
+              <svg id="qa-eye-hide" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" style="display:none">
+                <path d="M2 2l12 12M6.5 6.6A2 2 0 0110 9.4"/>
+                <path d="M1.5 8S4 3.5 8 3.5c1.1 0 2.1.3 3 .8M12.5 5.5C13.6 6.5 14.5 8 14.5 8S12 12.5 8 12.5c-1.1 0-2.1-.3-3-.8"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="qa-btn" id="qa-submit">
+          <span class="qa-btn-inner">
+            <span class="qa-spinner"></span>
+            <span class="qa-btn-text">Sign In</span>
+          </span>
+        </button>
+
+      </form>
+
+      <!-- Divider -->
+      <div class="qa-divider">or</div>
+
+      <!-- Google (coming soon placeholder) -->
+      <div class="qa-google-btn" aria-disabled="true" title="Coming soon">
+        <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+          <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+          <path d="M3.964 10.706A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.038l3.007-2.332z" fill="#FBBC05"/>
+          <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.962L3.964 7.294C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+        </svg>
+        Continue with Google
+        <span class="qa-google-coming">Soon</span>
+      </div>
+
+      <!-- Footer -->
+      <p class="qa-footer">
+        Don't have an account? <a href="register.html">Create one free</a>
+      </p>
+    </div>
+
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  // ============================================================
+  // CONFIG — change only these if URLs ever change
+  // ============================================================
+  var AUTH_WORKER_URL  = 'https://auth-worker.mybackpacc.workers.dev';
+  var DASHBOARD_URL    = 'dashboard.html';
+  var TOKEN_KEY        = 'qa_token';
+  var USER_KEY         = 'qa_user';
+
+  // ============================================================
+  // DOM
+  // ============================================================
+  var form      = document.getElementById('qa-form');
+  var emailEl   = document.getElementById('qa-email');
+  var passwordEl = document.getElementById('qa-password');
+  var submitBtn  = document.getElementById('qa-submit');
+  var errorBanner  = document.getElementById('qa-error');
+  var errorText    = document.getElementById('qa-error-text');
+  var successBanner = document.getElementById('qa-success');
+  var successText   = document.getElementById('qa-success-text');
+  var pwToggle   = document.getElementById('qa-pw-toggle');
+  var eyeShow    = document.getElementById('qa-eye-show');
+  var eyeHide    = document.getElementById('qa-eye-hide');
+
+  // ============================================================
+  // If already logged in, redirect straight to dashboard
+  // ============================================================
+  (function checkExistingSession() {
+    var token = localStorage.getItem(TOKEN_KEY);
+    if (!token) return;
+    // Quickly verify before redirecting
+    fetch(AUTH_WORKER_URL + '/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: token })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      if (d && d.ok) window.location.replace(DASHBOARD_URL);
+    })
+    .catch(function () { /* ignore — just show the login form */ });
+  })();
+
+  // ============================================================
+  // Password show/hide toggle
+  // ============================================================
+  pwToggle.addEventListener('click', function () {
+    var isPassword = passwordEl.type === 'password';
+    passwordEl.type = isPassword ? 'text' : 'password';
+    eyeShow.style.display = isPassword ? 'none' : '';
+    eyeHide.style.display = isPassword ? '' : 'none';
+    pwToggle.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+  });
+
+  // ============================================================
+  // Error code → human message
+  // ============================================================
+  function mapError(code) {
+    var messages = {
+      'invalid_credentials':   'Incorrect email or password. Please try again.',
+      'user_inactive':         'Your account has been deactivated. Please contact support.',
+      'user_expired':          'Your access has expired. Please renew your subscription.',
+      'missing_fields':        'Please enter both your email and password.',
+      'rate_limited':          'Too many login attempts. Please wait a few minutes and try again.',
+      'network_error':         'Unable to connect. Please check your internet connection.',
+    };
+    return messages[code] || 'Something went wrong. Please try again.';
+  }
+
+  // ============================================================
+  // Banner helpers
+  // ============================================================
+  function showError(msg) {
+    errorText.textContent = msg;
+    errorBanner.classList.add('show');
+    successBanner.classList.remove('show');
+  }
+  function showSuccess(msg) {
+    successText.textContent = msg || 'Logged in! Redirecting…';
+    successBanner.classList.add('show');
+    errorBanner.classList.remove('show');
+  }
+  function clearBanners() {
+    errorBanner.classList.remove('show');
+    successBanner.classList.remove('show');
+  }
+
+  // ============================================================
+  // Loading state
+  // ============================================================
+  function setLoading(on) {
+    submitBtn.disabled = on;
+    submitBtn.classList.toggle('loading', on);
+  }
+
+  // ============================================================
+  // Pre-fill from query string (e.g. after register redirect)
+  // ============================================================
+  (function prefillFromQS() {
+    try {
+      var qs = new URLSearchParams(window.location.search);
+      var u  = qs.get('u');
+      if (u) emailEl.value = decodeURIComponent(u);
+      if (qs.get('reg') === '1') {
+        showSuccess('Account created! Please sign in.');
+      }
+      if (qs.get('reset') === '1') {
+        showSuccess('Password updated! Please sign in with your new password.');
+      }
+    } catch (e) { /* ignore */ }
+  })();
+
+  // ============================================================
+  // Form submit
+  // ============================================================
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    clearBanners();
+
+    var email    = emailEl.value.trim();
+    var password = passwordEl.value;
+
+    if (!email || !password) {
+      showError(mapError('missing_fields'));
+      return;
+    }
+
+    setLoading(true);
+
+    fetch(AUTH_WORKER_URL + '/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: password })
+    })
+    .then(function (res) {
+      return res.json();
+    })
+    .then(function (data) {
+      if (!data || !data.ok) {
+        showError(mapError(data && data.error));
+        setLoading(false);
+        return;
+      }
+
+      // Save token + user profile to localStorage
+      if (data.token) {
+        localStorage.setItem(TOKEN_KEY, data.token);
+      }
+      if (data.user) {
+        localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+      }
+
+      showSuccess('Logged in! Redirecting to your dashboard…');
+
+      // Redirect after brief pause
+      setTimeout(function () {
+        window.location.replace(DASHBOARD_URL);
+      }, 700);
+    })
+    .catch(function (err) {
+      console.error('Login error:', err);
+      showError(mapError('network_error'));
+      setLoading(false);
+    });
+  });
+
+})();
+</script>
+
+</body>
+</html>
