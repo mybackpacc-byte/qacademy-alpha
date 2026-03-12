@@ -32,7 +32,6 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Background ── */
     .qa-bg {
       position: fixed; inset: 0; z-index: 0;
       background:
@@ -48,83 +47,52 @@
         rgba(11,122,117,.04) 0deg, transparent 90deg,
         rgba(11,122,117,.05) 180deg, transparent 270deg);
       filter: blur(60px);
-      animation: spin 35s linear infinite;
+      animation: qa-spin 35s linear infinite;
     }
-    .qa-bg::after {
-      content: '';
-      position: absolute; inset: 0;
-      background-image:
-        linear-gradient(rgba(11,122,117,.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(11,122,117,.04) 1px, transparent 1px);
-      background-size: 48px 48px;
-      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes qa-spin { to { transform: rotate(360deg); } }
 
-    /* ── Shell ── */
     .qa-shell {
       position: relative; z-index: 1;
       min-height: 100vh;
-      display: flex; align-items: center; justify-content: center;
-      padding: 24px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 16px;
     }
 
-    /* ── Card ── */
+    /* ── Split card ── */
     .qa-card {
-      width: 100%; max-width: 880px;
+      width: 100%;
+      max-width: 780px;
       background: var(--card);
-      border-radius: 24px;
+      border-radius: 20px;
       box-shadow: var(--shadow);
-      border: 1px solid rgba(11,122,117,.12);
+      border: 1px solid rgba(11,122,117,.08);
       display: grid;
-      grid-template-columns: 300px 1fr;
+      grid-template-columns: 260px 1fr;
       overflow: hidden;
-      opacity: 0; transform: translateY(20px);
-      animation: cardIn .55s cubic-bezier(.22,1,.36,1) .1s forwards;
     }
-    @keyframes cardIn { to { opacity: 1; transform: translateY(0); } }
 
     /* ── Left pane ── */
     .qa-left {
-      position: relative;
-      background: linear-gradient(160deg, #0d8880 0%, #0a6e6a 45%, #095e5a 100%);
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      padding: 48px 28px; text-align: center;
-      overflow: hidden; color: #fff;
+      background: linear-gradient(160deg, var(--teal) 0%, var(--teal-dark) 100%);
+      padding: 40px 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      color: #fff;
     }
-    .qa-left::before {
-      content: ''; position: absolute; inset: 0;
-      background:
-        radial-gradient(600px 400px at 20% 15%, rgba(255,255,255,.12) 0%, transparent 65%),
-        radial-gradient(400px 300px at 85% 88%, rgba(242,201,76,.18) 0%, transparent 65%);
-      pointer-events: none;
-    }
-    .qa-left::after {
-      content: ''; position: absolute;
-      width: 300px; height: 300px; border-radius: 50%;
-      border: 1px solid rgba(255,255,255,.08);
-      bottom: -80px; right: -80px;
-    }
-    .qa-deco-ring {
-      position: absolute; width: 200px; height: 200px; border-radius: 50%;
-      border: 1px solid rgba(255,255,255,.06);
-      top: -50px; left: -60px;
-    }
-
-    .qa-logo-wrap {
-      position: relative; z-index: 1;
-      width: 80px; height: 80px; border-radius: 20px;
+    .qa-left-icon {
+      width: 56px; height: 56px;
       background: rgba(255,255,255,.15);
-      backdrop-filter: blur(10px);
       border: 1px solid rgba(255,255,255,.25);
+      border-radius: 16px;
       display: grid; place-items: center;
-      margin-bottom: 18px;
-      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+      margin-bottom: 20px;
     }
-    .qa-logo-wrap svg { width: 40px; height: 40px; }
-
-    .qa-brand-name {
+    .qa-left-icon svg { width: 28px; height: 28px; }
+    .qa-brand-title {
       position: relative; z-index: 1;
       font-family: 'DM Serif Display', serif;
       font-size: 20px; letter-spacing: .3px; line-height: 1.2;
@@ -135,8 +103,6 @@
       font-size: 12.5px; color: rgba(255,255,255,.72);
       line-height: 1.55; max-width: 190px;
     }
-
-    /* Info box on left pane */
     .qa-info-box {
       position: relative; z-index: 1;
       margin-top: 28px;
@@ -175,7 +141,6 @@
       display: flex; flex-direction: column;
       justify-content: center;
     }
-
     .qa-form-title {
       font-size: 24px; font-weight: 800;
       letter-spacing: -.3px; color: var(--ink);
@@ -202,196 +167,168 @@
       font-family: 'DM Sans', sans-serif;
       font-size: 14.5px; color: var(--ink);
       background: #fcfefe;
-      transition: border-color .15s, box-shadow .15s, background .15s;
+      transition: border-color .15s, box-shadow .15s;
       outline: none;
     }
     .qa-input:focus {
-      border-color: var(--teal); background: #fff;
+      border-color: var(--teal);
+      background: #fff;
       box-shadow: 0 0 0 4px var(--teal-glow);
     }
     .qa-input-icon {
-      position: absolute; left: 14px; top: 50%;
+      position: absolute; left: 13px; top: 50%;
       transform: translateY(-50%);
       color: #9ab5b2; pointer-events: none;
       display: grid; place-items: center;
     }
     .qa-input-icon svg { width: 16px; height: 16px; }
     .qa-hint {
-      font-size: 12px; color: #8aaaa7;
-      margin-top: 6px; line-height: 1.4;
+      font-size: 12px; color: var(--muted);
+      margin-top: 6px; line-height: 1.45;
     }
 
-    /* ── Banners ── */
+    /* ── Error banner ── */
     .qa-banner {
-      display: none; padding: 12px 16px;
-      border-radius: 12px; font-size: 13.5px;
-      line-height: 1.5; margin-bottom: 20px;
-      align-items: flex-start; gap: 12px;
+      display: none; align-items: flex-start;
+      gap: 10px; padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 13.5px; line-height: 1.45;
+      margin-bottom: 18px;
     }
     .qa-banner.show { display: flex; }
     .qa-banner.error {
       background: var(--danger-bg);
-      border: 1px solid #f5c6c2; color: var(--danger);
+      border: 1px solid rgba(192,57,43,.18);
+      color: var(--danger);
     }
-    .qa-banner.success {
-      background: #edf7f6;
-      border: 1px solid #c4e0dd; color: var(--teal-dark);
-    }
-    .qa-banner-icon { flex-shrink: 0; margin-top: 2px; }
-    .qa-banner-icon svg { width: 16px; height: 16px; }
+    .qa-banner-icon svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
 
     /* ── Button ── */
     .qa-btn {
-      width: 100%; padding: 13px;
-      background: var(--teal); color: #fff;
-      border: none; border-radius: 12px;
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);
+      color: #fff; border: none; border-radius: 12px;
       font-family: 'DM Sans', sans-serif;
       font-size: 15px; font-weight: 700;
-      cursor: pointer; letter-spacing: .2px;
-      transition: background .15s, transform .1s, box-shadow .15s;
-      box-shadow: 0 4px 14px rgba(11,122,117,.30), inset 0 -2px 0 rgba(0,0,0,.08);
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      box-shadow: 0 4px 14px rgba(11,122,117,.28);
     }
-    .qa-btn:hover:not(:disabled) {
-      background: var(--teal-dark);
-      box-shadow: 0 6px 20px rgba(11,122,117,.38);
-      transform: translateY(-1px);
+    .qa-btn:hover:not(:disabled) { opacity: .92; }
+    .qa-btn:active:not(:disabled) { transform: scale(.99); }
+    .qa-btn:disabled { opacity: .6; cursor: not-allowed; }
+    .qa-btn-inner {
+      display: flex; align-items: center;
+      justify-content: center; gap: 8px;
     }
-    .qa-btn:active:not(:disabled) { transform: translateY(0); }
-    .qa-btn:disabled { opacity: .65; cursor: not-allowed; }
-
-    .qa-btn-inner { display: flex; align-items: center; justify-content: center; gap: 8px; }
     .qa-spinner {
-      display: none; width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,.35);
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.4);
       border-top-color: #fff; border-radius: 50%;
-      animation: spin .7s linear infinite;
+      animation: qa-spin .7s linear infinite;
+      display: none;
     }
     .qa-btn.loading .qa-spinner { display: block; }
-    .qa-btn.loading .qa-btn-text { opacity: .8; }
+    .qa-btn.loading .qa-btn-text { display: none; }
 
-    /* ── Sent state (replaces form) ── */
-    .qa-sent {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      padding: 16px 0;
-      gap: 16px;
+    /* ── Footer link ── */
+    .qa-footer {
+      margin-top: 20px;
+      font-size: 13.5px; color: var(--muted);
     }
-    .qa-sent.show { display: flex; }
+    .qa-footer a {
+      color: var(--teal); font-weight: 600; text-decoration: none;
+    }
+    .qa-footer a:hover { text-decoration: underline; }
+
+    /* ── Sent confirmation view ── */
+    .qa-sent { display: none; }
+    .qa-sent.show { display: block; }
     .qa-sent-icon {
-      width: 68px; height: 68px; border-radius: 50%;
+      width: 60px; height: 60px;
       background: #edf7f6;
-      border: 2px solid #c4e0dd;
+      border: 1px solid rgba(11,122,117,.2);
+      border-radius: 16px;
       display: grid; place-items: center;
-      animation: popIn .4s cubic-bezier(.34,1.56,.64,1) forwards;
+      margin-bottom: 18px;
+      color: var(--teal);
     }
-    @keyframes popIn {
-      from { transform: scale(.6); opacity: 0; }
-      to   { transform: scale(1);  opacity: 1; }
-    }
-    .qa-sent-icon svg { width: 32px; height: 32px; color: var(--teal); }
+    .qa-sent-icon svg { width: 28px; height: 28px; }
     .qa-sent-title {
-      font-size: 20px; font-weight: 800; color: var(--ink);
+      font-size: 22px; font-weight: 800;
+      letter-spacing: -.3px; color: var(--ink);
+      margin-bottom: 10px;
     }
     .qa-sent-body {
       font-size: 14px; color: var(--muted);
-      line-height: 1.6; max-width: 340px;
+      line-height: 1.6; margin-bottom: 16px;
     }
     .qa-sent-note {
-      font-size: 12.5px; color: #8aaaa7;
-      background: #f4f8f7; border-radius: 10px;
-      padding: 10px 14px; line-height: 1.5;
-      border: 1px solid var(--line);
+      font-size: 12.5px; color: #8aadaa;
+      line-height: 1.55; margin-bottom: 24px;
     }
     .qa-sent-back {
       display: inline-flex; align-items: center; gap: 6px;
-      color: var(--teal); font-weight: 700; font-size: 14px;
-      text-decoration: none; transition: opacity .15s;
+      font-size: 13.5px; font-weight: 600;
+      color: var(--teal); text-decoration: none;
+      transition: opacity .15s;
     }
     .qa-sent-back:hover { opacity: .75; text-decoration: underline; }
-    .qa-sent-back svg { width: 14px; height: 14px; }
+    .qa-sent-back svg { width: 13px; height: 13px; }
 
-    /* ── Footer ── */
-    .qa-footer {
-      margin-top: 20px; text-align: center;
-      font-size: 13px; color: var(--muted);
-    }
-    .qa-footer a {
-      color: var(--teal); font-weight: 700;
-      text-decoration: none; transition: opacity .15s;
-    }
-    .qa-footer a:hover { opacity: .75; text-decoration: underline; }
-
-    /* ── Responsive ── */
-    @media (max-width: 720px) {
-      .qa-card { grid-template-columns: 1fr; max-width: 460px; }
-      .qa-left {
-        padding: 22px 20px; flex-direction: row;
-        text-align: left; gap: 14px; justify-content: flex-start;
-      }
-      .qa-logo-wrap { width: 52px; height: 52px; border-radius: 14px; margin-bottom: 0; flex-shrink: 0; }
-      .qa-logo-wrap svg { width: 28px; height: 28px; }
-      .qa-left::after, .qa-deco-ring, .qa-info-box, .qa-brand-sub { display: none; }
-      .qa-right { padding: 28px 22px 24px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .qa-bg::before, .qa-card, .qa-sent-icon { animation: none; }
+    /* ── Mobile ── */
+    @media (max-width: 600px) {
+      .qa-card { grid-template-columns: 1fr; }
+      .qa-left { display: none; }
+      .qa-right { padding: 32px 24px 28px; }
     }
   </style>
 </head>
 <body>
 
-<div class="qa-bg" aria-hidden="true"></div>
+<div class="qa-bg"></div>
 
 <main class="qa-shell">
-  <div class="qa-card" role="main">
+  <div class="qa-card">
 
-    <!-- ===== LEFT ===== -->
-    <div class="qa-left" aria-hidden="true">
-      <div class="qa-deco-ring"></div>
-
-      <div class="qa-logo-wrap">
-        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="24" cy="24" r="20" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.3)" stroke-width="1.5"/>
-          <path d="M16 14c0 5.523 4.477 10 10 10s10-4.477 10-10" stroke="rgba(255,255,255,.9)" stroke-width="2.5" stroke-linecap="round"/>
-          <path d="M16 14v2a4 4 0 008 0v-2" stroke="rgba(255,255,255,.9)" stroke-width="2.5" stroke-linecap="round"/>
-          <circle cx="36" cy="26" r="3" fill="rgba(255,255,255,.9)"/>
-          <path d="M36 29v5a6 6 0 01-12 0v-5" stroke="rgba(255,255,255,.9)" stroke-width="2.5" stroke-linecap="round"/>
+    <!-- Left pane -->
+    <div class="qa-left">
+      <div class="qa-left-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2"/>
+          <path d="M7 11V7a5 5 0 0110 0v4"/>
         </svg>
       </div>
-
-      <div class="qa-brand-name">QAcademy<br/>Nurses Hub</div>
-      <div class="qa-brand-sub">NMC Licensure Exam Preparation Platform</div>
-
+      <div class="qa-brand-title">Forgot your password?</div>
+      <div class="qa-brand-sub">No worries — we'll send you a secure reset link right away.</div>
       <div class="qa-info-box">
         <div class="qa-info-box-title">How it works</div>
         <div class="qa-info-step">
           <div class="qa-info-step-num">1</div>
-          <span>Enter your email or username below</span>
+          <div>Enter your email or username below</div>
         </div>
         <div class="qa-info-step">
           <div class="qa-info-step-num">2</div>
-          <span>Check your inbox for a reset link</span>
+          <div>Check your inbox for a reset link</div>
         </div>
         <div class="qa-info-step">
           <div class="qa-info-step-num">3</div>
-          <span>Click the link and choose a new password</span>
+          <div>Click the link and choose a new password</div>
         </div>
       </div>
     </div>
 
-    <!-- ===== RIGHT ===== -->
+    <!-- Right pane -->
     <div class="qa-right">
 
       <!-- Form view -->
       <div id="qa-form-view">
-        <h1 class="qa-form-title">Forgot your password?</h1>
-        <p class="qa-form-sub">
-          No problem. Enter the email or username linked to your account and
+        <div class="qa-form-title">Reset your password</div>
+        <div class="qa-form-sub">
+          Enter the email or username linked to your account and
           we'll send you a reset link.
-        </p>
+        </div>
 
         <!-- Error banner -->
         <div class="qa-banner error" id="qa-error" role="alert" aria-live="polite">
@@ -473,8 +410,14 @@
 (function () {
   'use strict';
 
-  var AUTH_WORKER_URL = 'https://auth-worker.mybackpacc.workers.dev';
+  // ============================================================
+  // CONFIG
+  // ============================================================
+  var API_URL = '/api';
 
+  // ============================================================
+  // DOM
+  // ============================================================
   var form        = document.getElementById('qa-form');
   var formView    = document.getElementById('qa-form-view');
   var sentView    = document.getElementById('qa-sent-view');
@@ -507,20 +450,20 @@
 
     setLoading(true);
 
-    fetch(AUTH_WORKER_URL + '/reset/request', {
+    fetch(API_URL + '/reset/request', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ identifier: identifier })
     })
     .then(function (res) { return res.json(); })
     .then(function () {
-      // Always show the sent confirmation — never reveal if email exists
+      // Always show sent confirmation — never reveal if account exists
       formView.style.display = 'none';
       sentView.classList.add('show');
     })
     .catch(function () {
-      // Even on network error, show the confirmation screen
-      // so we don't leak whether the account exists
+      // Even on network error, show confirmation to avoid leaking account existence
       formView.style.display = 'none';
       sentView.classList.add('show');
     })
