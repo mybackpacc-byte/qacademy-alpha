@@ -1,6 +1,6 @@
 // ============================================================
 // index.js — Auth Worker main router
-// QAcademy Nurses Hub — Phase 1 Auth
+// QAcademy Nurses Hub — Phase 1 Auth (Supabase)
 // Endpoints:
 //   POST /login
 //   POST /verify
@@ -9,10 +9,9 @@
 //   POST /reset/apply
 // ============================================================
 
-import { verifyPassword, hashPassword, generateSalt, generateUserId, generateUsernameFromForename, isValidUsername } from './password.js';
-import { signJWT, verifyJWT, extractToken } from './jwt.js';
-import { getUserByEmail, getUserById, getUserByUsername, getAllUsernames, usernameExists, getActiveSubscriptions, getAccessFromSubscriptions, createUser, createSubscription, updateLastLogin, getProductById, logAuthEvent, checkLoginRateLimit, createResetRequest, getResetRequestByToken, markResetUsed, updatePassword } from './db.js';
-import { sendResetEmail, sendWelcomeSelfEmail } from './email.js';
+import { generateUsernameFromForename, isValidUsername, generateUserId } from './password.js';
+import { getSupabaseClient, getUserByEmail, getUserById, getUserByUsername, getUserBySupabaseUid, getAllUsernames, usernameExists, getActiveSubscriptions, getAccessFromSubscriptions, createUser, createSubscription, updateLastLogin, getProductById, logAuthEvent, checkLoginRateLimit, createResetRequest, updatePassword } from './db.js';
+import { sendWelcomeSelfEmail } from './email.js';
 
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
@@ -22,7 +21,6 @@ const CORS = {
 };
 
 const LOGIN_URL = 'https://qacademy-alpha.pages.dev/login';
-const RESET_URL = 'https://qacademy-alpha.pages.dev/reset-password';
 
 function ok(data)    { return new Response(JSON.stringify({ ok: true,  ...data }), { headers: CORS }); }
 function fail(error) { return new Response(JSON.stringify({ ok: false, error }),   { headers: CORS }); }
@@ -48,13 +46,15 @@ export default {
 
     const url      = new URL(request.url);
     const pathname = url.pathname.replace(/\/$/, '');
-    const db       = env.DB;
-    const secret   = env.JWT_SECRET;
+
+    // Supabase client — created fresh per request using service role key
+    const supabase  = getSupabaseClient(env);
     const resendKey = env.RESEND_API_KEY;
 
 
     // ============================================================
     // POST /login
+    // Body: { email, password, ua?, ip? }
     // ============================================================
     if (pathname === '/login') {
       const email    = (body.email    || '').trim().toLowerCase();
@@ -63,115 +63,133 @@ export default {
       const ip       = (body.ip       || request.headers.get('CF-Connecting-IP') || '');
 
       if (!email || !password) {
-        await logAuthEvent(db, { kind: 'LOGIN_EMAIL', identifier: email, ok: false, error_code: 'missing_credentials' });
+        await logAuthEvent(supabase, { kind: 'LOGIN_EMAIL', identifier: email, ok: false, error_code: 'missing_credentials' });
         return fail('missing_credentials');
       }
 
-      const user = await getUserByEmail(db, email);
-
-      const rl = await checkLoginRateLimit(db, email, user?.user_id || '', ip);
+      // Rate limit check before attempting login
+      const user = await getUserByEmail(supabase, email).catch(() => null);
+      const rl   = await checkLoginRateLimit(supabase, email, user?.user_id || '', ip);
       if (rl.blocked) {
-        await logAuthEvent(db, { kind: 'LOGIN_EMAIL', identifier: email, user_id: user?.user_id || '', ok: false, error_code: rl.reason });
+        await logAuthEvent(supabase, { kind: 'LOGIN_EMAIL', identifier: email, user_id: user?.user_id || '', ok: false, error_code: rl.reason });
         return fail(rl.reason);
       }
 
-      if (!user) {
-        await logAuthEvent(db, { kind: 'LOGIN_EMAIL', identifier: email, ok: false, error_code: 'user_not_found' });
-        return fail('user_not_found');
+      // Supabase Auth — handles password verification
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (authError || !authData?.user) {
+        await logAuthEvent(supabase, { kind: 'LOGIN_EMAIL', identifier: email, ok: false, error_code: 'invalid_login' });
+        return fail('invalid_login');
       }
 
-      if (!user.active) {
-        await logAuthEvent(db, { kind: 'LOGIN_EMAIL', identifier: email, user_id: user.user_id, ok: false, error_code: 'user_inactive' });
+      // Fetch profile from public.users
+      const profile = await getUserBySupabaseUid(supabase, authData.user.id);
+
+      if (!profile) {
+        await logAuthEvent(supabase, { kind: 'LOGIN_EMAIL', identifier: email, ok: false, error_code: 'user_missing' });
+        return fail('user_missing');
+      }
+
+      if (!profile.active) {
+        await logAuthEvent(supabase, { kind: 'LOGIN_EMAIL', identifier: email, user_id: profile.user_id, ok: false, error_code: 'user_inactive' });
         return fail('user_inactive');
       }
 
-      if (user.expires_utc && new Date() >= new Date(user.expires_utc)) {
-        await logAuthEvent(db, { kind: 'LOGIN_EMAIL', identifier: email, user_id: user.user_id, ok: false, error_code: 'user_expired' });
+      if (profile.expires_utc && new Date() >= new Date(profile.expires_utc)) {
+        await logAuthEvent(supabase, { kind: 'LOGIN_EMAIL', identifier: email, user_id: profile.user_id, ok: false, error_code: 'user_expired' });
         return fail('user_expired');
       }
 
-      const passwordOk = await verifyPassword(user, password);
-      if (!passwordOk) {
-        await logAuthEvent(db, { kind: 'LOGIN_EMAIL', identifier: email, user_id: user.user_id, ok: false, error_code: 'wrong_password' });
-        return fail('wrong_password');
-      }
-
-      const subs   = await getActiveSubscriptions(db, user.user_id);
+      const subs   = await getActiveSubscriptions(supabase, profile.user_id);
       const access = getAccessFromSubscriptions(subs);
 
-      const profile = {
-        user_id:              user.user_id,
-        username:             user.username,
-        name:                 user.name || [user.forename, user.surname].filter(Boolean).join(' '),
-        forename:             user.forename || '',
-        surname:              user.surname  || '',
-        email:                user.email,
-        phone_number:         user.phone_number || '',
-        program_id:           user.program_id   || '',
-        cohort:               user.cohort        || '',
-        level:                user.level         || '',
-        avatar_url:           user.avatar_url    || '',
-        role:                 user.role          || 'STUDENT',
-        must_change_password: !!user.must_change_password,
-        expires_utc:          user.expires_utc   || ''
+      const userOut = {
+        user_id:              profile.user_id,
+        username:             profile.username,
+        name:                 profile.name || [profile.forename, profile.surname].filter(Boolean).join(' '),
+        forename:             profile.forename     || '',
+        surname:              profile.surname      || '',
+        email:                profile.email,
+        phone_number:         profile.phone_number || '',
+        program_id:           profile.program_id   || '',
+        cohort:               profile.cohort       || '',
+        level:                profile.level        || '',
+        avatar_url:           profile.avatar_url   || '',
+        role:                 profile.role         || 'STUDENT',
+        must_change_password: !!profile.must_change_password,
+        expires_utc:          profile.expires_utc  || ''
       };
 
-      const token = await signJWT({ ...profile, access }, secret);
-      const token_expires_utc = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+      // Use Supabase's JWT — no custom signing needed
+      const token             = authData.session.access_token;
+      const token_expires_utc = new Date(authData.session.expires_at * 1000).toISOString();
 
-      await updateLastLogin(db, user.user_id);
-      await logAuthEvent(db, { kind: 'LOGIN_EMAIL', identifier: email, user_id: user.user_id, ok: true, error_code: 'ok' });
+      await updateLastLogin(supabase, profile.user_id);
+      await logAuthEvent(supabase, { kind: 'LOGIN_EMAIL', identifier: email, user_id: profile.user_id, ok: true, error_code: 'ok' });
 
-      return ok({ token, token_expires_utc, profile, login_via: 'email' });
+      return ok({ token, token_expires_utc, profile: userOut, access, login_via: 'email' });
     }
 
 
     // ============================================================
     // POST /verify
+    // Body: { token } or Authorization: Bearer <token>
     // ============================================================
     if (pathname === '/verify') {
-      const token = extractToken(request, body);
+      const token = (request.headers.get('Authorization') || '').replace('Bearer ', '').trim()
+                 || (body.token || '').trim();
+
       if (!token) return fail('missing_token');
 
-      const payload = await verifyJWT(token, secret);
-      if (!payload) return fail('invalid_or_expired');
+      // Supabase verifies the JWT and returns the auth user
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
 
-      const user = await getUserById(db, payload.user_id);
-      if (!user)        return fail('user_missing');
-      if (!user.active) return fail('user_inactive');
-      if (user.expires_utc && new Date() >= new Date(user.expires_utc)) return fail('user_expired');
+      if (authError || !authUser) return fail('invalid_or_expired');
 
-      const subs   = await getActiveSubscriptions(db, user.user_id);
+      // Fetch profile from public.users
+      const profile = await getUserBySupabaseUid(supabase, authUser.id);
+
+      if (!profile)        return fail('user_missing');
+      if (!profile.active) return fail('user_inactive');
+      if (profile.expires_utc && new Date() >= new Date(profile.expires_utc)) return fail('user_expired');
+
+      const subs   = await getActiveSubscriptions(supabase, profile.user_id);
       const access = getAccessFromSubscriptions(subs);
 
       const userOut = {
-        user_id:              user.user_id,
-        username:             user.username,
-        name:                 user.name || [user.forename, user.surname].filter(Boolean).join(' '),
-        forename:             user.forename || '',
-        surname:              user.surname  || '',
-        email:                user.email,
-        phone_number:         user.phone_number || '',
-        program_id:           user.program_id   || '',
-        cohort:               user.cohort        || '',
-        level:                user.level         || '',
-        avatar_url:           user.avatar_url    || '',
-        role:                 user.role          || 'STUDENT',
-        must_change_password: !!user.must_change_password,
-        expires_utc:          user.expires_utc   || ''
+        user_id:              profile.user_id,
+        username:             profile.username,
+        name:                 profile.name || [profile.forename, profile.surname].filter(Boolean).join(' '),
+        forename:             profile.forename     || '',
+        surname:              profile.surname      || '',
+        email:                profile.email,
+        phone_number:         profile.phone_number || '',
+        program_id:           profile.program_id   || '',
+        cohort:               profile.cohort       || '',
+        level:                profile.level        || '',
+        avatar_url:           profile.avatar_url   || '',
+        role:                 profile.role         || 'STUDENT',
+        must_change_password: !!profile.must_change_password,
+        expires_utc:          profile.expires_utc  || ''
       };
 
       return ok({
         user:    userOut,
         access,
         courses: access.courses,
-        flags:   { is_admin: user.role?.toUpperCase() === 'ADMIN' }
+        flags:   { is_admin: profile.role?.toUpperCase() === 'ADMIN' }
       });
     }
 
 
     // ============================================================
     // POST /register
+    // Body: { forename, surname, email, password, phone_number?,
+    //         program_id?, cohort?, username? }
     // ============================================================
     if (pathname === '/register') {
       const forename      = (body.forename     || '').trim();
@@ -186,67 +204,79 @@ export default {
       if (!forename || !surname || !email || !password) return fail('missing_fields');
       if (password.length < 8) return fail('password_policy_failed');
 
-      const existing = await getUserByEmail(db, email);
+      // Check email not already in use
+      const existing = await getUserByEmail(supabase, email);
       if (existing) return fail('email_exists');
 
+      // Resolve username
       let finalUsername = '';
       if (usernameInput) {
         if (!isValidUsername(usernameInput)) return fail('invalid_username');
-        if (await usernameExists(db, usernameInput)) return fail('username_exists');
+        if (await usernameExists(supabase, usernameInput)) return fail('username_exists');
         finalUsername = usernameInput;
       } else {
-        const existingUsernames = await getAllUsernames(db);
+        const existingUsernames = await getAllUsernames(supabase);
         finalUsername = generateUsernameFromForename(forename, existingUsernames);
       }
 
       const user_id = generateUserId();
-      const salt    = await generateSalt();
-      const hash    = await hashPassword(salt, password);
       const now     = new Date().toISOString();
       const name    = [forename, surname].filter(Boolean).join(' ');
 
-      await createUser(db, {
-        user_id,
-        username:      finalUsername,
+      // Create Supabase Auth user — handles password hashing
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email,
-        password_hash: hash,
-        salt,
+        password,
+        email_confirm: true  // skip email confirmation for now
+      });
+
+      if (authError) {
+        if (authError.message?.includes('already')) return fail('email_exists');
+        return fail('registration_failed');
+      }
+
+      const supabase_uid = authData.user.id;
+
+      // Insert profile into public.users
+      await createUser(supabase, {
+        user_id,
+        supabase_uid,
+        username:             finalUsername,
+        email,
         name,
         forename,
         surname,
         phone_number,
         program_id,
         cohort,
-        role:          'STUDENT',
-        active:        1,
-        must_change_password: 0,
-        signup_source: 'SELF',
-        created_utc:   now
+        role:                 'STUDENT',
+        active:               true,
+        must_change_password: false,
+        signup_source:        'SELF',
+        created_utc:          now
       });
 
       // Assign WELCOME_TRIAL subscription
       try {
-        const trialProduct = await getProductById(db, 'WELCOME_TRIAL');
+        const trialProduct = await getProductById(supabase, 'WELCOME_TRIAL');
         if (trialProduct) {
           const durationDays = trialProduct.duration_days || 7;
-          const expires = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
-          await createSubscription(db, {
+          const expires      = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+          await createSubscription(supabase, {
             subscription_id: 'S_' + crypto.randomUUID().replace(/-/g, '').slice(0, 10),
             user_id,
             product_id:  'WELCOME_TRIAL',
-            kind:        'TRIAL',
             status:      'ACTIVE',
             start_utc:   now,
             expires_utc: expires,
-            source:      'SYSTEM',
-            created_utc: now
+            source:      'SYSTEM'
           });
         }
       } catch (e) {
-        // Fail silently
+        // Fail silently — user is created, trial just didn't attach
       }
 
-      // Send welcome email
+      // Send welcome email via Resend
       try {
         await sendWelcomeSelfEmail(resendKey, {
           to:       email,
@@ -275,85 +305,50 @@ export default {
       if (!identifier) return genericResponse;
 
       // Look up by email first, then username
-      let user = await getUserByEmail(db, identifier);
-      if (!user) user = await getUserByUsername(db, identifier);
+      let user = await getUserByEmail(supabase, identifier).catch(() => null);
+      if (!user) user = await getUserByUsername(supabase, identifier).catch(() => null);
 
-      // No user or inactive — return generic response silently
       if (!user || !user.active) return genericResponse;
 
-      // Generate reset token — UUID, 1hr expiry
-      const resetToken  = crypto.randomUUID().replace(/-/g, '');
-      const now         = new Date().toISOString();
-      const expiresUtc  = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      // Supabase sends the reset email automatically using our branded template
+      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+        redirectTo: 'https://qacademy-alpha.pages.dev/reset-password'
+      });
 
-      // Store in reset_requests
-      try {
-        await createResetRequest(db, {
-          user_id:     user.user_id,
-          email:       user.email,
-          reset_token: resetToken,
-          expires_utc: expiresUtc,
-          created_utc: now
-        });
-      } catch (e) {
-        return genericResponse;
+      if (!error) {
+        // Store audit record
+        await createResetRequest(supabase, {
+          email:   user.email,
+          user_id: user.user_id
+        }).catch(() => {});
       }
 
-      // Build reset link
-      const resetLink = `${RESET_URL}?rt=${encodeURIComponent(resetToken)}`;
-
-      // Send email — fail silently
-      try {
-        const firstName = user.forename || user.name || '';
-        await sendResetEmail(resendKey, {
-          to:        user.email,
-          name:      firstName,
-          resetLink: resetLink
-        });
-      } catch (e) {
-        // Fail silently — token is stored, user can retry
-      }
-
+      // Always return generic response
       return genericResponse;
     }
 
 
     // ============================================================
     // POST /reset/apply
-    // Body: { reset_token, new_password }
+    // Body: { access_token, new_password }
+    // NOTE: Supabase sends the user back to /reset-password with
+    // an access_token in the URL. The frontend passes it here.
     // ============================================================
     if (pathname === '/reset/apply') {
-      const resetToken   = (body.reset_token   || '').trim();
-      const newPassword  = (body.new_password  || '');
+      const accessToken = (body.access_token || '').trim();
+      const newPassword = (body.new_password || '');
 
-      if (!resetToken)   return fail('missing_token');
+      if (!accessToken)  return fail('missing_token');
       if (!newPassword)  return fail('missing_password');
       if (newPassword.length < 8) return fail('password_policy_failed');
 
-      // Look up reset request
-      const resetReq = await getResetRequestByToken(db, resetToken);
-      if (!resetReq) return fail('invalid_token');
+      // Verify the token and get the user
+      const { data: { user: authUser }, error: verifyError } = await supabase.auth.getUser(accessToken);
 
-      // Check not already used
-      if (resetReq.used) return fail('reset_expired');
+      if (verifyError || !authUser) return fail('invalid_or_expired');
 
-      // Check not expired
-      if (new Date() >= new Date(resetReq.expires_utc)) return fail('reset_expired');
-
-      // Look up user
-      const user = await getUserById(db, resetReq.user_id);
-      if (!user)        return fail('user_missing');
-      if (!user.active) return fail('user_inactive');
-
-      // Generate new salt + hash
-      const newSalt = await generateSalt();
-      const newHash = await hashPassword(newSalt, newPassword);
-
-      // Update password
-      await updatePassword(db, user.user_id, newHash, newSalt);
-
-      // Mark token as used
-      await markResetUsed(db, resetToken);
+      // Update password via Supabase Auth admin
+      await updatePassword(supabase, authUser.id, newPassword);
 
       return ok({ message: 'password_updated' });
     }

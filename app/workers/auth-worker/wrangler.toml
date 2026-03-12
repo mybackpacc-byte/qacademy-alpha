@@ -1,0 +1,10 @@
+name = "auth-worker"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+# D1 binding removed — replaced by Supabase
+# Secrets are stored in Cloudflare Workers dashboard, not here
+# To add secrets, run these commands in PowerShell from the auth-worker folder:
+#   wrangler secret put SUPABASE_URL
+#   wrangler secret put SUPABASE_SERVICE_KEY
+#   wrangler secret put RESEND_API_KEY

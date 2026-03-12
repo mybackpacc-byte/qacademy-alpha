@@ -1,0 +1,11 @@
+{
+  "name": "auth-worker",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}
