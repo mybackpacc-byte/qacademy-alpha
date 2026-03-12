@@ -63,65 +63,65 @@
       mask-image: radial-gradient(ellipse 75% 75% at 50% 50%, black 30%, transparent 100%);
     }
     @keyframes bgSpin { to { transform: rotate(360deg); } }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
 
     /* ── Top bar ── */
     .qa-topbar {
-      position: sticky; top: 0; z-index: 100;
+      position: sticky; top: 0; z-index: 20;
       background: rgba(244,248,247,.92);
-      backdrop-filter: saturate(1.4) blur(14px);
-      border-bottom: 1px solid rgba(11,122,117,.10);
+      backdrop-filter: saturate(1.3) blur(12px);
+      border-bottom: 1px solid var(--line);
     }
     .qa-topbar-inner {
-      position: relative; z-index: 1;
       max-width: var(--max); margin: 0 auto;
-      padding: 0 24px; height: 64px;
-      display: flex; align-items: center;
-      justify-content: space-between; gap: 16px;
+      height: 60px;
+      padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
     }
     .qa-brand {
-      display: flex; align-items: center; gap: 10px;
-      text-decoration: none; color: inherit;
+      display: flex; align-items: center; gap: 10px; text-decoration: none;
     }
     .qa-brand-mark {
-      width: 38px; height: 38px; border-radius: 11px;
-      background: linear-gradient(135deg, var(--teal-mid), var(--teal-dark));
+      width: 34px; height: 34px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--teal), var(--teal-dark));
       display: grid; place-items: center;
-      box-shadow: 0 3px 10px rgba(11,122,117,.3);
-    }
-    .qa-brand-mark svg { width: 20px; height: 20px; }
-    .qa-brand-label {
-      font-family: 'DM Serif Display', serif;
-      font-size: 15px; color: var(--ink); letter-spacing: .2px;
-    }
-    .qa-brand-sub { font-size: 11px; color: var(--faint); margin-top: 1px; }
-
-    .qa-topbar-right { display: flex; align-items: center; gap: 10px; }
-
-    .qa-user-chip {
-      display: flex; align-items: center; gap: 8px;
-      padding: 6px 12px 6px 8px;
-      background: var(--card); border: 1px solid var(--line);
-      border-radius: 999px; box-shadow: var(--shadow-sm);
-    }
-    .qa-avatar {
-      width: 28px; height: 28px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--teal-mid), var(--teal-dark));
-      display: grid; place-items: center;
-      font-size: 11px; font-weight: 800; color: #fff;
+      box-shadow: 0 4px 12px rgba(11,122,117,.28);
       flex-shrink: 0;
     }
-    .qa-user-name  { font-size: 13px; font-weight: 700; color: var(--ink); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .qa-user-badge { font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
-    .qa-user-badge.trial { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-    .qa-user-badge.active { background: var(--teal-soft); color: var(--teal-dark); border: 1px solid #c4e0dd; }
+    .qa-brand-mark svg { width: 18px; height: 18px; }
+    .qa-brand-name { font-size: 14px; font-weight: 800; color: var(--ink); }
+    .qa-brand-tag  { font-size: 11px; color: var(--muted); margin-top: 1px; }
 
+    .qa-topbar-right { display: flex; align-items: center; gap: 10px; }
+    .qa-user-name {
+      font-size: 13px; font-weight: 700; color: var(--ink);
+      max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .qa-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+      display: grid; place-items: center;
+      font-family: 'DM Serif Display', serif;
+      font-size: 13px; color: #fff;
+      border: 2px solid rgba(11,122,117,.2);
+      flex-shrink: 0;
+    }
+    .qa-user-badge {
+      padding: 3px 10px; border-radius: 999px;
+      font-size: 11px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase;
+    }
+    .qa-user-badge.trial  { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .qa-user-badge.active { background: var(--teal-soft); color: var(--teal-dark); border: 1px solid rgba(11,122,117,.2); }
     .qa-signout {
-      padding: 8px 14px; border-radius: 999px;
-      border: 1px solid var(--line); background: var(--card);
+      appearance: none; background: #fff;
+      border: 1px solid var(--line); color: var(--muted);
+      padding: 7px 13px; border-radius: 10px;
       font-family: 'DM Sans', sans-serif;
-      font-size: 12.5px; font-weight: 700; color: var(--muted);
-      cursor: pointer; transition: all .15s;
-      box-shadow: var(--shadow-sm);
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      transition: border-color .15s, color .15s;
     }
     .qa-signout:hover { border-color: #e57373; color: #c0392b; }
 
@@ -152,185 +152,106 @@
         radial-gradient(300px 200px at 15% 90%, rgba(242,201,76,.12) 0%, transparent 70%);
       pointer-events: none;
     }
-    .qa-welcome-deco {
-      position: absolute; right: -40px; top: -40px;
-      width: 220px; height: 220px; border-radius: 50%;
-      border: 1px solid rgba(255,255,255,.08);
-      pointer-events: none;
-    }
-    .qa-welcome-deco2 {
-      position: absolute; right: 60px; bottom: -60px;
-      width: 160px; height: 160px; border-radius: 50%;
-      border: 1px solid rgba(255,255,255,.06);
-      pointer-events: none;
-    }
+    .qa-welcome-deco  { position: absolute; right: -40px; top: -40px; width: 220px; height: 220px; border-radius: 50%; border: 1px solid rgba(255,255,255,.08); pointer-events: none; }
+    .qa-welcome-deco2 { position: absolute; right: 60px; bottom: -60px; width: 160px; height: 160px; border-radius: 50%; border: 1px solid rgba(255,255,255,.06); pointer-events: none; }
     .qa-welcome-left { position: relative; z-index: 1; }
-    .qa-welcome-greeting {
-      font-size: 12px; font-weight: 700;
-      color: rgba(255,255,255,.72); letter-spacing: .5px;
-      text-transform: uppercase; margin-bottom: 6px;
-    }
-    .qa-welcome-name {
-      font-family: 'DM Serif Display', serif;
-      font-size: 26px; color: #fff; line-height: 1.2; margin-bottom: 8px;
-    }
-    .qa-welcome-sub { font-size: 13.5px; color: rgba(255,255,255,.75); line-height: 1.5; }
-
-    .qa-welcome-right {
-      position: relative; z-index: 1;
-      display: flex; flex-direction: column;
-      align-items: flex-end; gap: 8px; flex-shrink: 0;
-    }
+    .qa-welcome-greeting { font-size: 12px; font-weight: 700; color: rgba(255,255,255,.72); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 6px; }
+    .qa-welcome-name { font-family: 'DM Serif Display', serif; font-size: 26px; color: #fff; line-height: 1.2; margin-bottom: 8px; }
+    .qa-welcome-sub  { font-size: 13.5px; color: rgba(255,255,255,.75); line-height: 1.5; }
+    .qa-welcome-right { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
     .qa-sub-badge {
       padding: 6px 14px; border-radius: 999px;
-      font-size: 12px; font-weight: 800;
-      letter-spacing: .3px; text-transform: uppercase;
+      font-size: 12px; font-weight: 800; letter-spacing: .3px; text-transform: uppercase;
       backdrop-filter: blur(8px);
     }
     .qa-sub-badge.trial  { background: rgba(254,243,199,.2); border: 1px solid rgba(253,230,138,.4); color: #fef3c7; }
-    .qa-sub-badge.active { background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.3);  color: #fff; }
+    .qa-sub-badge.active { background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.3); color: #fff; }
     .qa-welcome-date { font-size: 12px; color: rgba(255,255,255,.55); }
 
-    @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
-
-    /* ── Stats row ── */
+    /* ── Stats strip ── */
     .qa-stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      display: grid; grid-template-columns: repeat(4, 1fr);
       gap: 14px; margin-bottom: 24px;
     }
     .qa-stat {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 18px 20px;
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 14px; padding: 16px 18px;
       box-shadow: var(--shadow-sm);
-      display: flex; flex-direction: column; gap: 4px;
       opacity: 0; transform: translateY(12px);
+      animation: fadeUp .4s ease forwards;
     }
-    .qa-stat:nth-child(1) { animation: fadeUp .45s ease .18s forwards; }
-    .qa-stat:nth-child(2) { animation: fadeUp .45s ease .24s forwards; }
-    .qa-stat:nth-child(3) { animation: fadeUp .45s ease .30s forwards; }
-    .qa-stat:nth-child(4) { animation: fadeUp .45s ease .36s forwards; }
-    .qa-stat-icon {
-      width: 36px; height: 36px; border-radius: 10px;
-      display: grid; place-items: center; margin-bottom: 6px;
-    }
-    .qa-stat-icon svg { width: 18px; height: 18px; }
-    .qa-stat-icon.teal   { background: var(--teal-soft); color: var(--teal); }
-    .qa-stat-icon.amber  { background: #fffbeb; color: #d97706; }
-    .qa-stat-icon.purple { background: #f3f0ff; color: #7c3aed; }
-    .qa-stat-icon.rose   { background: #fff1f2; color: #e11d48; }
-    .qa-stat-label { font-size: 11.5px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: .4px; }
-    .qa-stat-value { font-size: 26px; font-weight: 800; color: var(--ink); line-height: 1.1; }
-    .qa-stat-sub   { font-size: 12px; color: var(--faint); margin-top: 2px; }
+    .qa-stat:nth-child(1) { animation-delay: .18s; }
+    .qa-stat:nth-child(2) { animation-delay: .22s; }
+    .qa-stat:nth-child(3) { animation-delay: .26s; }
+    .qa-stat:nth-child(4) { animation-delay: .30s; }
+    .qa-stat-label { font-size: 11.5px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+    .qa-stat-value { font-size: 22px; font-weight: 800; color: var(--ink); }
 
-    /* ── Two-col layout ── */
-    .qa-layout {
-      display: grid;
-      grid-template-columns: 1fr 340px;
-      gap: 20px;
-    }
+    /* ── Main layout ── */
+    .qa-layout { display: grid; grid-template-columns: 1fr 300px; gap: 20px; }
 
-    /* ── Section header ── */
-    .qa-section-title {
-      font-size: 13px; font-weight: 800;
-      color: var(--muted); text-transform: uppercase;
-      letter-spacing: .5px; margin-bottom: 12px;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .qa-section-title::after {
-      content: ''; flex: 1; height: 1px;
-      background: var(--line); border-radius: 1px;
-    }
-
-    /* ── Quick actions card ── */
+    /* ── Section card ── */
     .qa-card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-sm);
-      overflow: hidden;
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow-sm);
+      overflow: hidden; margin-bottom: 16px;
       opacity: 0; transform: translateY(12px);
+      animation: fadeUp .45s ease .3s forwards;
     }
-    .qa-card.anim-1 { animation: fadeUp .45s ease .3s forwards; }
-    .qa-card.anim-2 { animation: fadeUp .45s ease .38s forwards; }
-    .qa-card.anim-3 { animation: fadeUp .45s ease .44s forwards; }
-
     .qa-card-head {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--line);
-      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
     }
-    .qa-card-head-title { font-size: 15px; font-weight: 800; color: var(--ink); }
-    .qa-card-head-sub   { font-size: 12.5px; color: var(--faint); margin-top: 2px; }
+    .qa-card-title { font-size: 14px; font-weight: 800; color: var(--ink); }
+    .qa-card-sub   { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .qa-card-badge {
+      padding: 3px 10px; border-radius: 999px;
+      font-size: 11px; font-weight: 700;
+      background: var(--teal-soft); color: var(--teal);
+      border: 1px solid rgba(11,122,117,.15);
+    }
 
-    /* Actions grid */
-    .qa-actions {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1px; background: var(--line);
+    /* Quick actions */
+    .qa-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px; }
+    .qa-action-btn {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      padding: 16px 12px; border-radius: 14px;
+      border: 1.5px solid var(--line); background: #fafcfb;
+      cursor: pointer; transition: border-color .15s, background .15s, transform .1s;
+      text-align: center;
     }
-    .qa-action {
-      background: var(--card);
-      padding: 18px 16px;
-      display: flex; flex-direction: column; gap: 8px;
-      cursor: pointer; transition: background .15s;
-      text-decoration: none; color: inherit;
-      position: relative;
-    }
-    .qa-action:hover { background: #f7fbfb; }
-    .qa-action:hover .qa-action-arrow { opacity: 1; transform: translate(2px, -2px); }
-    .qa-action.disabled { cursor: default; opacity: .7; }
-    .qa-action.disabled:hover { background: var(--card); }
-
+    .qa-action-btn:hover { border-color: rgba(11,122,117,.3); background: var(--teal-soft); transform: translateY(-1px); }
     .qa-action-icon {
-      width: 40px; height: 40px; border-radius: 12px;
-      display: grid; place-items: center; flex-shrink: 0;
+      width: 38px; height: 38px; border-radius: 11px;
+      display: grid; place-items: center;
     }
     .qa-action-icon svg { width: 18px; height: 18px; }
-    .qa-action-icon.teal   { background: var(--teal-soft);  color: var(--teal); }
-    .qa-action-icon.amber  { background: #fffbeb; color: #d97706; }
-    .qa-action-icon.purple { background: #f3f0ff; color: #7c3aed; }
-    .qa-action-icon.blue   { background: #eff6ff; color: #2563eb; }
-    .qa-action-icon.rose   { background: #fff1f2; color: #e11d48; }
-    .qa-action-icon.slate  { background: #f8fafc; color: #475569; }
+    .qa-action-icon.teal { background: var(--teal-soft); color: var(--teal); }
+    .qa-action-icon.blue { background: #eff6ff; color: #2563eb; }
+    .qa-action-icon.amber { background: #fffbeb; color: #d97706; }
+    .qa-action-label { font-size: 12px; font-weight: 700; color: var(--ink); }
+    .qa-action-note  { font-size: 11px; color: var(--faint); margin-top: 2px; }
 
-    .qa-action-name  { font-size: 13.5px; font-weight: 800; color: var(--ink); }
-    .qa-action-desc  { font-size: 12px; color: var(--faint); line-height: 1.45; }
-    .qa-action-arrow {
-      position: absolute; top: 14px; right: 14px;
-      color: var(--teal); opacity: 0;
-      transition: opacity .15s, transform .15s;
+    /* Courses list placeholder */
+    .qa-courses-empty {
+      padding: 28px 20px; text-align: center;
+      color: var(--faint); font-size: 13.5px; line-height: 1.6;
     }
-    .qa-action-arrow svg { width: 14px; height: 14px; }
-
-    .qa-coming-tag {
-      display: inline-flex; align-items: center;
-      padding: 2px 7px; border-radius: 999px;
-      font-size: 10px; font-weight: 800;
-      background: #fffbeb; border: 1px solid #fde68a;
-      color: #92400e; text-transform: uppercase; letter-spacing: .3px;
-      width: fit-content;
-    }
+    .qa-courses-empty svg { width: 36px; height: 36px; margin-bottom: 10px; color: var(--line); display: block; margin: 0 auto 10px; }
 
     /* ── Sidebar ── */
     .qa-sidebar { display: flex; flex-direction: column; gap: 16px; }
 
     /* Profile card */
     .qa-profile-card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-sm);
-      overflow: hidden;
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden;
       opacity: 0; transform: translateY(12px);
       animation: fadeUp .45s ease .35s forwards;
     }
     .qa-profile-head {
       background: linear-gradient(135deg, var(--teal-mid), var(--teal-dark));
-      padding: 20px;
-      display: flex; flex-direction: column; align-items: center;
+      padding: 20px; display: flex; flex-direction: column; align-items: center;
       text-align: center; gap: 10px; position: relative; overflow: hidden;
     }
     .qa-profile-head::before {
@@ -340,87 +261,80 @@
     .qa-profile-avatar {
       position: relative; z-index: 1;
       width: 64px; height: 64px; border-radius: 50%;
-      background: rgba(255,255,255,.2);
-      border: 2px solid rgba(255,255,255,.35);
+      background: rgba(255,255,255,.2); border: 2px solid rgba(255,255,255,.35);
       display: grid; place-items: center;
-      font-family: 'DM Serif Display', serif;
-      font-size: 22px; color: #fff;
+      font-family: 'DM Serif Display', serif; font-size: 22px; color: #fff;
     }
     .qa-profile-name  { position: relative; z-index: 1; font-size: 16px; font-weight: 800; color: #fff; }
     .qa-profile-email { position: relative; z-index: 1; font-size: 12px; color: rgba(255,255,255,.7); }
-
-    .qa-profile-body { padding: 16px; }
+    .qa-profile-body  { padding: 16px; }
     .qa-profile-row {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 9px 0; border-bottom: 1px solid var(--line);
-      font-size: 13px;
+      padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px;
     }
     .qa-profile-row:last-child { border-bottom: none; }
     .qa-profile-key   { color: var(--faint); font-weight: 600; }
     .qa-profile-value { font-weight: 700; color: var(--ink); }
-    .qa-profile-value.pill {
-      padding: 3px 10px; border-radius: 999px;
-      font-size: 11.5px;
-    }
+    .qa-profile-value.pill { padding: 3px 10px; border-radius: 999px; font-size: 11.5px; }
     .qa-profile-value.pill.trial  { background: #fef3c7; color: #92400e; }
     .qa-profile-value.pill.active { background: var(--teal-soft); color: var(--teal-dark); }
 
     /* Notice card */
     .qa-notice {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-left: 3px solid var(--teal);
-      border-radius: var(--radius);
-      padding: 16px 18px;
-      box-shadow: var(--shadow-sm);
+      background: var(--card); border: 1px solid var(--line);
+      border-left: 3px solid var(--teal); border-radius: var(--radius);
+      padding: 16px 18px; box-shadow: var(--shadow-sm);
       opacity: 0; transform: translateY(12px);
       animation: fadeUp .45s ease .42s forwards;
     }
     .qa-notice-title { font-size: 13.5px; font-weight: 800; color: var(--ink); margin-bottom: 6px; }
     .qa-notice-body  { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
 
-    /* Activity feed (placeholder) */
+    /* Subscription card */
+    .qa-sub-card {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: var(--radius); box-shadow: var(--shadow-sm); overflow: hidden;
+      opacity: 0; transform: translateY(12px);
+      animation: fadeUp .45s ease .48s forwards;
+    }
+    .qa-sub-head { padding: 14px 18px; border-bottom: 1px solid var(--line); }
+    .qa-sub-head-title { font-size: 13px; font-weight: 800; }
+    .qa-sub-body { padding: 14px 18px; }
+    .qa-sub-plan  { font-size: 15px; font-weight: 800; color: var(--teal); margin-bottom: 6px; }
+    .qa-sub-desc  { font-size: 12.5px; color: var(--muted); line-height: 1.5; margin-bottom: 14px; }
+
+    /* Activity feed */
     .qa-feed { padding: 0; }
-    .qa-feed-item {
-      display: flex; align-items: flex-start; gap: 12px;
-      padding: 14px 20px; border-bottom: 1px solid var(--line);
-    }
+    .qa-feed-item { display: flex; align-items: flex-start; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
     .qa-feed-item:last-child { border-bottom: none; }
-    .qa-feed-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--line); flex-shrink: 0; margin-top: 5px;
-    }
+    .qa-feed-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex-shrink: 0; margin-top: 5px; }
     .qa-feed-dot.active { background: var(--teal); box-shadow: 0 0 6px var(--teal-glow); }
     .qa-feed-text  { font-size: 13px; color: var(--ink); line-height: 1.45; }
     .qa-feed-time  { font-size: 11.5px; color: var(--faint); margin-top: 3px; }
     .qa-feed-empty { padding: 20px; text-align: center; color: var(--faint); font-size: 13px; }
 
-    /* ── Footer ── */
-    .qa-page-footer {
-      text-align: center; margin-top: 40px;
-      font-size: 12px; color: var(--faint);
-    }
+    /* Footer */
+    .qa-page-footer { text-align: center; margin-top: 40px; font-size: 12px; color: var(--faint); }
 
-    /* ── Responsive ── */
+    /* Responsive */
     @media (max-width: 900px) {
       .qa-layout { grid-template-columns: 1fr; }
       .qa-sidebar { display: grid; grid-template-columns: 1fr 1fr; }
     }
     @media (max-width: 700px) {
-      .qa-stats { grid-template-columns: repeat(2, 1fr); }
+      .qa-stats   { grid-template-columns: repeat(2, 1fr); }
       .qa-actions { grid-template-columns: repeat(2, 1fr); }
       .qa-sidebar { grid-template-columns: 1fr; }
-      .qa-shell { padding: 18px 16px 48px; }
+      .qa-shell   { padding: 18px 16px 48px; }
       .qa-topbar-inner { padding: 0 16px; }
       .qa-welcome { padding: 22px 20px; }
-      .qa-welcome-name { font-size: 22px; }
+      .qa-welcome-name  { font-size: 22px; }
       .qa-welcome-right { display: none; }
     }
     @media (max-width: 460px) {
-      .qa-stats { grid-template-columns: 1fr 1fr; }
+      .qa-stats   { grid-template-columns: 1fr 1fr; }
       .qa-actions { grid-template-columns: 1fr; }
     }
-
     @media (prefers-reduced-motion: reduce) {
       .qa-bg::before, .qa-stat, .qa-card,
       .qa-welcome, .qa-profile-card, .qa-notice { animation: none; opacity: 1; transform: none; }
@@ -445,82 +359,52 @@
         </svg>
       </div>
       <div>
-        <div class="qa-brand-label">QAcademy Nurses Hub</div>
-        <div class="qa-brand-sub">NMC Licensure Prep</div>
+        <div class="qa-brand-name">QAcademy Nurses Hub</div>
+        <div class="qa-brand-tag">NMC Licensure Exam Prep</div>
       </div>
     </a>
     <div class="qa-topbar-right">
-      <div class="qa-user-chip" id="qa-user-chip">
-        <div class="qa-avatar" id="qa-avatar">?</div>
-        <span class="qa-user-name" id="qa-user-name">Loading…</span>
-        <span class="qa-user-badge trial" id="qa-user-badge">Trial</span>
-      </div>
+      <span class="qa-user-name" id="qa-user-name"></span>
+      <div class="qa-avatar" id="qa-avatar">?</div>
+      <span class="qa-user-badge trial" id="qa-user-badge">Trial</span>
       <button class="qa-signout" id="qa-signout">Sign out</button>
     </div>
   </div>
 </header>
 
-<!-- ── Page ── -->
 <div class="qa-shell">
 
   <!-- Welcome banner -->
-  <div class="qa-welcome" id="qa-welcome">
-    <div class="qa-welcome-deco"  aria-hidden="true"></div>
+  <div class="qa-welcome">
+    <div class="qa-welcome-deco" aria-hidden="true"></div>
     <div class="qa-welcome-deco2" aria-hidden="true"></div>
     <div class="qa-welcome-left">
-      <div class="qa-welcome-greeting">Good to see you</div>
+      <div class="qa-welcome-greeting">Welcome back</div>
       <div class="qa-welcome-name" id="qa-welcome-name">Loading…</div>
-      <div class="qa-welcome-sub">Continue where you left off and keep building your exam confidence.</div>
+      <div class="qa-welcome-sub" id="qa-welcome-date"></div>
     </div>
     <div class="qa-welcome-right">
-      <div class="qa-sub-badge trial" id="qa-sub-badge">Welcome Trial</div>
-      <div class="qa-welcome-date" id="qa-welcome-date">—</div>
+      <div class="qa-sub-badge trial" id="qa-sub-badge">Trial</div>
     </div>
   </div>
 
-  <!-- Stats -->
+  <!-- Stats strip -->
   <div class="qa-stats">
     <div class="qa-stat">
-      <div class="qa-stat-icon teal">
-        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
-          <path d="M9 2L2 6v10h5v-4h4v4h5V6L9 2z"/>
-        </svg>
-      </div>
-      <div class="qa-stat-label">Active Courses</div>
+      <div class="qa-stat-label">Courses</div>
       <div class="qa-stat-value" id="stat-courses">—</div>
-      <div class="qa-stat-sub">Enrolled</div>
     </div>
     <div class="qa-stat">
-      <div class="qa-stat-icon amber">
-        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
-          <circle cx="9" cy="9" r="7"/>
-          <path d="M9 5v4l3 2"/>
-        </svg>
-      </div>
       <div class="qa-stat-label">Quizzes Done</div>
       <div class="qa-stat-value" id="stat-quizzes">—</div>
-      <div class="qa-stat-sub">All time</div>
     </div>
     <div class="qa-stat">
-      <div class="qa-stat-icon purple">
-        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
-          <path d="M5 14V8M9 14V4M13 14v-5"/>
-        </svg>
-      </div>
-      <div class="qa-stat-label">Avg. Score</div>
+      <div class="qa-stat-label">Avg Score</div>
       <div class="qa-stat-value" id="stat-score">—</div>
-      <div class="qa-stat-sub">Last 10 quizzes</div>
     </div>
     <div class="qa-stat">
-      <div class="qa-stat-icon rose">
-        <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
-          <path d="M9 2C6 2 3 5 3 8c0 4 6 9 6 9s6-5 6-9c0-3-3-6-6-6z"/>
-          <circle cx="9" cy="8" r="2"/>
-        </svg>
-      </div>
       <div class="qa-stat-label">Day Streak</div>
       <div class="qa-stat-value" id="stat-streak">—</div>
-      <div class="qa-stat-sub">Keep going!</div>
     </div>
   </div>
 
@@ -528,101 +412,79 @@
   <div class="qa-layout">
 
     <!-- Left column -->
-    <div>
-      <div class="qa-section-title">Quick Actions</div>
-      <div class="qa-card anim-1">
+    <div class="qa-main">
+
+      <!-- Quick actions -->
+      <div class="qa-card">
+        <div class="qa-card-head">
+          <div>
+            <div class="qa-card-title">Quick Actions</div>
+            <div class="qa-card-sub">Jump straight into studying</div>
+          </div>
+        </div>
         <div class="qa-actions">
-
-          <!-- Quiz Builder -->
-          <a class="qa-action disabled" href="#" title="Coming soon">
+          <button class="qa-action-btn" disabled title="Coming in Phase 3">
             <div class="qa-action-icon teal">
-              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="2" width="14" height="14" rx="3"/>
-                <path d="M6 9h6M9 6v6"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"/>
               </svg>
             </div>
-            <div class="qa-action-name">Quiz Builder</div>
-            <div class="qa-action-desc">Build custom practice quizzes by subject or topic.</div>
-            <div class="qa-coming-tag">Coming soon</div>
-          </a>
-
-          <!-- Fixed Quizzes -->
-          <a class="qa-action disabled" href="#" title="Coming soon">
-            <div class="qa-action-icon amber">
-              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 4h10v10H4z" rx="2"/>
-                <path d="M7 8l2 2 4-4"/>
-              </svg>
-            </div>
-            <div class="qa-action-name">Fixed Quizzes</div>
-            <div class="qa-action-desc">Take structured mock exams and timed tests.</div>
-            <div class="qa-coming-tag">Coming soon</div>
-          </a>
-
-          <!-- Learning History -->
-          <a class="qa-action disabled" href="#" title="Coming soon">
-            <div class="qa-action-icon purple">
-              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 9a6 6 0 1012 0A6 6 0 003 9z"/>
-                <path d="M9 6v3l2 2"/>
-              </svg>
-            </div>
-            <div class="qa-action-name">Learning History</div>
-            <div class="qa-action-desc">Review past quiz attempts, scores, and performance.</div>
-            <div class="qa-coming-tag">Coming soon</div>
-          </a>
-
-          <!-- Downloads -->
-          <a class="qa-action disabled" href="#" title="Coming soon">
+            <div class="qa-action-label">Start Quiz</div>
+            <div class="qa-action-note">Coming soon</div>
+          </button>
+          <button class="qa-action-btn" disabled title="Coming in Phase 3">
             <div class="qa-action-icon blue">
-              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 3v9M5 8l4 4 4-4"/>
-                <path d="M3 14h12"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
               </svg>
             </div>
-            <div class="qa-action-name">My Downloads</div>
-            <div class="qa-action-desc">Access offline study packs and notes.</div>
-            <div class="qa-coming-tag">Coming soon</div>
-          </a>
-
-          <!-- Messages -->
-          <a class="qa-action disabled" href="#" title="Coming soon">
-            <div class="qa-action-icon rose">
-              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 4h12v8H3z" rx="1.5"/>
-                <path d="M3 12l3-3M15 12l-3-3"/>
+            <div class="qa-action-label">My Courses</div>
+            <div class="qa-action-note">Coming soon</div>
+          </button>
+          <button class="qa-action-btn" disabled title="Coming in Phase 3">
+            <div class="qa-action-icon amber">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
               </svg>
             </div>
-            <div class="qa-action-name">Messages</div>
-            <div class="qa-action-desc">View messages and announcements from your tutors.</div>
-            <div class="qa-coming-tag">Coming soon</div>
-          </a>
+            <div class="qa-action-label">My Progress</div>
+            <div class="qa-action-note">Coming soon</div>
+          </button>
+        </div>
+      </div>
 
-          <!-- My Profile -->
-          <a class="qa-action disabled" href="#" title="Coming soon">
-            <div class="qa-action-icon slate">
-              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="9" cy="6" r="3"/>
-                <path d="M3 15c0-3.314 2.686-6 6-6s6 2.686 6 6"/>
-              </svg>
-            </div>
-            <div class="qa-action-name">My Profile</div>
-            <div class="qa-action-desc">Update your details and manage your account settings.</div>
-            <div class="qa-coming-tag">Coming soon</div>
-          </a>
-
+      <!-- Courses card -->
+      <div class="qa-card">
+        <div class="qa-card-head">
+          <div>
+            <div class="qa-card-title">My Courses</div>
+            <div class="qa-card-sub">Your active course enrolments</div>
+          </div>
+          <span class="qa-card-badge" id="qa-courses-badge">0 courses</span>
+        </div>
+        <div class="qa-courses-empty" id="qa-courses-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+          </svg>
+          Courses will appear here once your plan is activated.<br/>
+          <span style="font-size:12px;color:var(--faint);margin-top:6px;display:block">Quiz engine launching in Phase 3.</span>
         </div>
       </div>
 
       <!-- Recent activity -->
-      <div class="qa-section-title" style="margin-top:24px">Recent Activity</div>
-      <div class="qa-card anim-2">
-        <div class="qa-feed" id="qa-feed">
-          <div class="qa-feed-empty" id="qa-feed-empty">
-            No activity yet — complete your first quiz to get started!
+      <div class="qa-card">
+        <div class="qa-card-head">
+          <div>
+            <div class="qa-card-title">Recent Activity</div>
+            <div class="qa-card-sub">Your latest study sessions</div>
           </div>
         </div>
+        <div class="qa-feed">
+          <div class="qa-feed-empty">No activity yet — start a quiz to see your history here.</div>
+        </div>
       </div>
+
     </div>
 
     <!-- Right sidebar -->
@@ -633,7 +495,7 @@
         <div class="qa-profile-head">
           <div class="qa-profile-avatar" id="qa-profile-avatar">?</div>
           <div class="qa-profile-name"  id="qa-profile-name">Loading…</div>
-          <div class="qa-profile-email" id="qa-profile-email">—</div>
+          <div class="qa-profile-email" id="qa-profile-email"></div>
         </div>
         <div class="qa-profile-body">
           <div class="qa-profile-row">
@@ -641,41 +503,37 @@
             <span class="qa-profile-value" id="qa-profile-programme">—</span>
           </div>
           <div class="qa-profile-row">
-            <span class="qa-profile-key">Subscription</span>
-            <span class="qa-profile-value pill trial" id="qa-profile-sub">Trial</span>
-          </div>
-          <div class="qa-profile-row">
-            <span class="qa-profile-key">Member since</span>
+            <span class="qa-profile-key">Joined</span>
             <span class="qa-profile-value" id="qa-profile-since">—</span>
           </div>
           <div class="qa-profile-row">
             <span class="qa-profile-key">Status</span>
             <span class="qa-profile-value" id="qa-profile-status">—</span>
           </div>
+          <div class="qa-profile-row">
+            <span class="qa-profile-key">Plan</span>
+            <span class="qa-profile-value pill trial" id="qa-profile-sub">—</span>
+          </div>
         </div>
       </div>
 
-      <!-- Notice -->
+      <!-- Notice card -->
       <div class="qa-notice">
-        <div class="qa-notice-title">🚀 Platform in Active Development</div>
+        <div class="qa-notice-title">🎉 Welcome to QAcademy!</div>
         <div class="qa-notice-body">
-          New features are being activated regularly. Quiz builder, learning
-          history, downloads, and Telegram integration are all coming soon.
-          Your account and progress are safe.
+          Your account is set up and ready. The quiz engine and full course library are coming in Phase 3.
+          Keep an eye on your email for updates.
         </div>
       </div>
 
       <!-- Subscription card -->
-      <div class="qa-card anim-3">
-        <div class="qa-card-head">
-          <div>
-            <div class="qa-card-head-title">Subscription</div>
-            <div class="qa-card-head-sub">Manage your plan</div>
-          </div>
+      <div class="qa-sub-card">
+        <div class="qa-sub-head">
+          <div class="qa-sub-head-title">Subscription</div>
         </div>
-        <div style="padding:16px 20px; display:flex; flex-direction:column; gap:12px;">
-          <div style="font-size:13px; color:var(--muted); line-height:1.55;">
-            You're currently on the <strong id="qa-plan-name">Welcome Trial</strong> plan.
+        <div class="qa-sub-body">
+          <div class="qa-sub-plan" id="qa-plan-name">Welcome Trial</div>
+          <div class="qa-sub-desc">
             Upgrade to unlock full access to all courses and features.
           </div>
           <button
@@ -704,30 +562,41 @@
 (function () {
   'use strict';
 
-  var AUTH_WORKER_URL = 'https://auth-worker.mybackpacc.workers.dev';
-  var TOKEN_KEY = 'qa_token';
+  // ============================================================
+  // CONFIG
+  // ============================================================
+  var API_URL   = '/api';
   var USER_KEY  = 'qa_user';
   var LOGIN_URL = 'login.html';
 
-  // ── DOM helpers ──
+  // ============================================================
+  // DOM helpers
+  // ============================================================
   function $(id) { return document.getElementById(id); }
   function setText(id, val) { var el = $(id); if (el) el.textContent = val || '—'; }
 
-  // ── Sign out ──
+  // ============================================================
+  // Sign out — POST /api/logout clears the cookie server-side
+  // ============================================================
   $('qa-signout').addEventListener('click', function () {
-    try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); } catch (_) {}
-    window.location.replace(LOGIN_URL);
+    try { localStorage.removeItem(USER_KEY); } catch (_) {}
+    fetch(API_URL + '/logout', {
+      method: 'POST',
+      credentials: 'include'
+    }).finally(function () {
+      window.location.replace(LOGIN_URL);
+    });
   });
 
-  // ── Format date ──
+  // ============================================================
+  // Helpers
+  // ============================================================
   function fmtDate(iso) {
     if (!iso) return '—';
-    try {
-      return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    } catch (_) { return '—'; }
+    try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); }
+    catch (_) { return '—'; }
   }
 
-  // ── Initials from name ──
   function initials(name) {
     if (!name) return '?';
     var parts = name.trim().split(/\s+/);
@@ -735,39 +604,33 @@
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
-  // ── Render user data ──
+  // ============================================================
+  // Render user data into the page
+  // ============================================================
   function renderUser(user) {
-    var name     = (user.name || user.username || 'Student').trim();
-    var email    = (user.email || '').trim();
-    var product  = (user.product_name || user.plan || 'Welcome Trial').trim();
+    var name      = (user.name || user.username || 'Student').trim();
+    var email     = (user.email || '').trim();
+    var product   = (user.product_name || user.plan || 'Welcome Trial').trim();
     var programme = (user.programme || user.program_id || '—').trim();
     var createdAt = user.created_at || user.joined_at || '';
-    var status   = (user.status || 'Active').trim();
+    var status    = (user.status || 'Active').trim();
+
+    var ini      = initials(name);
+    var isActive = product.toLowerCase().includes('pro') || product.toLowerCase().includes('full');
 
     // Top bar
-    var ini = initials(name);
     setText('qa-user-name', name);
     $('qa-avatar').textContent = ini;
+    var topBadge = $('qa-user-badge');
+    topBadge.textContent = isActive ? 'Active' : 'Trial';
+    topBadge.className = 'qa-user-badge ' + (isActive ? 'active' : 'trial');
 
     // Welcome banner
     setText('qa-welcome-name', name + '!');
     setText('qa-welcome-date', new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }));
-
-    // Subscription badge
-    var isActive = product.toLowerCase().includes('pro') || product.toLowerCase().includes('full');
-    var badgeEl  = $('qa-sub-badge');
-    if (isActive) {
-      badgeEl.textContent = product;
-      badgeEl.className = 'qa-sub-badge active';
-    } else {
-      badgeEl.textContent = product;
-      badgeEl.className = 'qa-sub-badge trial';
-    }
-
-    // Top bar badge
-    var topBadge = $('qa-user-badge');
-    topBadge.textContent = isActive ? 'Active' : 'Trial';
-    topBadge.className = 'qa-user-badge ' + (isActive ? 'active' : 'trial');
+    var badgeEl = $('qa-sub-badge');
+    badgeEl.textContent = product;
+    badgeEl.className = 'qa-sub-badge ' + (isActive ? 'active' : 'trial');
 
     // Profile card
     $('qa-profile-avatar').textContent = ini;
@@ -776,65 +639,60 @@
     setText('qa-profile-programme', programme);
     setText('qa-profile-since', fmtDate(createdAt));
     setText('qa-profile-status', status);
-
     var subEl = $('qa-profile-sub');
     subEl.textContent = product;
     subEl.className = 'qa-profile-value pill ' + (isActive ? 'active' : 'trial');
 
-    // Plan name in subscription card
+    // Plan name
     setText('qa-plan-name', product);
 
-    // Stats — placeholders until endpoints exist
+    // Stats — placeholders until Phase 3
     setText('stat-courses', '—');
     setText('stat-quizzes', '—');
     setText('stat-score',   '—');
     setText('stat-streak',  '—');
   }
 
-  // ── Boot ──
+  // ============================================================
+  // Boot — render from cache first, then verify via cookie
+  // ============================================================
   async function boot() {
-    // Try localStorage first for instant paint
+    // Fast paint from cached user
     var cached = null;
     try {
       var raw = localStorage.getItem(USER_KEY);
       if (raw) cached = JSON.parse(raw);
     } catch (_) {}
-
     if (cached) renderUser(cached);
 
-    // Then verify with worker for fresh data
-    var token = null;
-    try { token = (localStorage.getItem(TOKEN_KEY) || '').trim(); } catch (_) {}
-
-    if (!token) {
-      window.location.replace(LOGIN_URL);
-      return;
-    }
-
+    // Verify session via httpOnly cookie — no token needed in body
     try {
-      var res  = await fetch(AUTH_WORKER_URL + '/verify', {
+      var res  = await fetch(API_URL + '/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token })
+        credentials: 'include'
       });
       var data = await res.json();
 
       if (!data || !data.ok) {
-        // Session expired
         var code = (data && data.error) || '';
-        if (['missing_token','expired','not_found','invalid_token','user_inactive'].includes(code)) {
-          try { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); } catch (_) {}
+        if (['missing_token','expired','not_found','invalid_token','user_inactive','no_session'].includes(code)) {
+          try { localStorage.removeItem(USER_KEY); } catch (_) {}
           window.location.replace(LOGIN_URL);
           return;
         }
-      } else {
-        // Fresh user data — re-render and cache
-        var user = data.user || cached || {};
-        try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch (_) {}
-        renderUser(user);
+        // Unknown error — if we have cached data, stay on page
+        if (!cached) window.location.replace(LOGIN_URL);
+        return;
       }
+
+      // Fresh data — re-render and update cache
+      var user = data.user || cached || {};
+      try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch (_) {}
+      renderUser(user);
+
     } catch (e) {
-      // Network error — render from cache if we have it, otherwise redirect
+      // Network error — keep cached data if available, else redirect
       if (!cached) window.location.replace(LOGIN_URL);
     }
   }
