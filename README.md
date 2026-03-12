@@ -1,8 +1,8 @@
 # QAcademy Nurses Hub — Migration Workspace
 
-**Live platform:** qacademynurses.com ← untouched, never touch this  
-**Dev environment:** qacademy-alpha.pages.dev  
-**GitHub Repo:** mybackpacc-byte/qacademy-alpha  
+**Live platform:** qacademynurses.com ← untouched, never touch this
+**Dev environment:** qacademy-alpha.pages.dev
+**GitHub Repo:** mybackpacc-byte/qacademy-alpha
 
 ---
 
@@ -12,7 +12,7 @@ QAcademy Nurses Hub is an online exam prep platform for Ghanaian nursing student
 NMC licensure exams. It covers 5 programs (RN, RM, RPHN, RMHN, NACNAP) across 11 courses.
 Built by Samuel Owusu-Ansah with no coding background — just determination.
 
-> *"I had no coding knowledge. I just wanted to help nursing students prepare for their exams."*  
+> *"I had no coding knowledge. I just wanted to help nursing students prepare for their exams."*
 > — Samuel Owusu-Ansah, Creator of QAcademy Nurses Hub
 
 ---
@@ -22,9 +22,9 @@ Built by Samuel Owusu-Ansah with no coding background — just determination.
 | Layer | Tool | Notes |
 |---|---|---|
 | **Frontend** | Cloudflare Pages | qacademy-alpha.pages.dev |
-| **Backend / API** | Cloudflare Workers | Routed under `/api/*` on same Pages domain |
+| **Backend / API** | Cloudflare Pages Functions | Lives in `/app/pages/functions` — same domain, no separate Worker |
 | **Database** | Supabase (PostgreSQL) | qacademy-alpha project, West EU (Ireland) |
-| **Auth** | Supabase Auth | Email+password. Google OAuth Phase 1. |
+| **Auth** | Supabase Auth | Email+password. Google OAuth Phase 2. |
 | **Sessions** | HttpOnly Cookies | access_token + refresh_token, never in localStorage |
 | **Email** | Resend | noreply@qacademynurses.com |
 | **Payments** | Paystack | Phase 2 |
@@ -32,36 +32,53 @@ Built by Samuel Owusu-Ansah with no coding background — just determination.
 
 ---
 
+## Why Pages Functions (not a separate Worker)
+
+Everything lives in one repo and deploys together via Cloudflare Pages.
+No separate Worker to manage. No proxy layer needed.
+Frontend and API share the same domain automatically — which is required for HttpOnly cookies to work.
+
+When a student visits `qacademy-alpha.pages.dev/api/login`, Cloudflare Pages routes it directly
+to `app/pages/functions/api/login.js`. Clean and simple.
+
+---
+
 ## Why HttpOnly Cookies (not localStorage)
 
 The old AppScript system stored session tokens in localStorage — readable by JavaScript,
-vulnerable to XSS attacks. The new system uses HttpOnly cookies set by the Worker.
+vulnerable to XSS attacks. The new system uses HttpOnly cookies set by the Functions.
 The browser stores them invisibly. JavaScript never touches the token.
-
-For this to work, the frontend and Worker must share the same domain. We achieve this by
-routing `qacademy-alpha.pages.dev/api/*` to the Worker via Cloudflare Pages Functions.
 
 ---
 
 ## Repo Structure
 
 ```
-/old                                  ← original AppScript code (read-only reference)
+/old                                         ← original AppScript code (read-only reference)
+  /Appscripts/
+  /blogger/
+  /Sheets/
+  /Email templates/
+  ... (everything currently in repo root moves here)
+
 /app
-  /workers
-    /auth-worker
-      index.js                        ← request router
-      auth.js                         ← login, register, verify, logout
-      reset.js                        ← reset/request, reset/apply
-      admin.js                        ← create-user, assign-product
-      db.js                           ← all Supabase queries
-      email.js                        ← Resend email (keep unchanged)
-      wrangler.toml
-      package.json
   /pages
     /functions
       /api
-        [[route]].js                  ← proxies /api/* to Worker
+        login.js                             ← POST /api/login
+        verify.js                            ← POST /api/verify
+        logout.js                            ← POST /api/logout
+        register.js                          ← POST /api/register
+        /reset
+          request.js                         ← POST /api/reset/request
+          apply.js                           ← POST /api/reset/apply
+        /admin
+          create-user.js                     ← POST /api/admin/create-user
+          assign-product.js                  ← POST /api/admin/assign-product
+    /shared
+      db.js                                  ← all Supabase queries
+      email.js                               ← Resend email sending
+      cookies.js                             ← cookie helpers
     login.html
     register.html
     reset-request.html
@@ -71,7 +88,19 @@ routing `qacademy-alpha.pages.dev/api/*` to the Worker via Cloudflare Pages Func
 
 ---
 
-## Supabase — 32 Tables (already created in Supabase)
+## Cloudflare Pages — Environment Variables (Secrets)
+
+Set these in Cloudflare Dashboard → Pages → qacademy-alpha → Settings → Environment Variables:
+
+| Secret | Used by |
+|---|---|
+| `SUPABASE_URL` | All functions |
+| `SUPABASE_SERVICE_KEY` | All functions |
+| `RESEND_API_KEY` | login, register functions |
+
+---
+
+## Supabase — 32 Tables (already created)
 
 ### Main Portal (18)
 users, programs, courses, program_course_map, levels, products, subscriptions,
@@ -87,26 +116,16 @@ telegram_groups, telegram_allowlist, telegram_audit, telegram_links, telegram_li
 
 ---
 
-## Old AppScript Services → New Cloudflare Workers (migration map)
+## Old AppScript Services → New Pages Functions (migration map)
 
-| Old AppScript | New Worker | Phase |
+| Old AppScript | New Location | Phase |
 |---|---|---|
-| Portal_Authv2 | auth-worker | Phase 1 |
-| Payments_App | payments-worker | Phase 2 |
-| Builder_Fixed_Quizzes | quiz-worker | Phase 3 |
-| Portal_Messaging | messaging-worker | Phase 4 |
-| Offline_Pack | offline-worker | Phase 4 |
-| Telegram Worker | telegram-worker | Phase 5 |
-
----
-
-## Worker Secrets (add in Cloudflare dashboard)
-
-| Secret | Used by |
-|---|---|
-| `SUPABASE_URL` | All workers |
-| `SUPABASE_SERVICE_KEY` | All workers |
-| `RESEND_API_KEY` | auth-worker |
+| Portal_Authv2 | `app/pages/functions/api/` | Phase 1 |
+| Payments_App | `app/pages/functions/api/payments/` | Phase 2 |
+| Builder_Fixed_Quizzes | `app/pages/functions/api/quiz/` | Phase 3 |
+| Portal_Messaging | `app/pages/functions/api/messaging/` | Phase 4 |
+| Offline_Pack | `app/pages/functions/api/offline/` | Phase 4 |
+| Telegram Worker | `app/pages/functions/api/telegram/` | Phase 5 |
 
 ---
 
@@ -123,16 +142,16 @@ telegram_groups, telegram_allowlist, telegram_audit, telegram_links, telegram_li
 
 ## Phase 1 — Backend Endpoints
 
-| Endpoint | What it does | Status |
+| Endpoint | File | Status |
 |---|---|---|
-| `POST /api/login` | Email + password → set HttpOnly cookies | ⏳ |
-| `POST /api/verify` | Read cookie → return profile + subscriptions | ⏳ |
-| `POST /api/logout` | Clear HttpOnly cookies | ⏳ |
-| `POST /api/register` | Create Supabase user + public.users row + WELCOME_TRIAL | ⏳ |
-| `POST /api/reset/request` | Trigger Supabase branded reset email | ⏳ |
-| `POST /api/reset/apply` | Apply new password via Supabase token | ⏳ |
-| `POST /api/admin/create-user` | Admin creates a user manually | ⏳ |
-| `POST /api/admin/assign-product` | Admin assigns a product/subscription | ⏳ |
+| `POST /api/login` | `functions/api/login.js` | ⏳ |
+| `POST /api/verify` | `functions/api/verify.js` | ⏳ |
+| `POST /api/logout` | `functions/api/logout.js` | ⏳ |
+| `POST /api/register` | `functions/api/register.js` | ⏳ |
+| `POST /api/reset/request` | `functions/api/reset/request.js` | ⏳ |
+| `POST /api/reset/apply` | `functions/api/reset/apply.js` | ⏳ |
+| `POST /api/admin/create-user` | `functions/api/admin/create-user.js` | ⏳ |
+| `POST /api/admin/assign-product` | `functions/api/admin/assign-product.js` | ⏳ |
 
 ---
 
@@ -152,12 +171,12 @@ telegram_groups, telegram_allowlist, telegram_audit, telegram_links, telegram_li
 
 - **Always confirm plan with Samuel before writing final code**
 - All logic must match original AppScript behaviour — same error codes, same data shapes
-- Worker deployed via `wrangler deploy` from `app/workers/auth-worker/`
+- Deployed automatically via GitHub push → Cloudflare Pages CI/CD
 - Always `git pull` before touching files
 - Always `git push` after finishing a session
 - PowerShell used for all commands (Windows machine)
-- Supabase service role key used in Workers (bypasses RLS) — RLS added later
-- Keep `email.js` exactly as written
+- Supabase service role key used in Functions (bypasses RLS) — RLS added later
+- Keep `email.js` logic unchanged from original
 - Samuel has no coding background — always explain steps in plain English
 
 ---
@@ -174,16 +193,19 @@ telegram_groups, telegram_allowlist, telegram_audit, telegram_links, telegram_li
 
 ## ⏭️ NEXT SESSION — Resume Here
 
-**Phase 1 backend. Build auth-worker from scratch with HttpOnly cookie sessions.**
+**Phase 1 backend. Build Pages Functions from scratch with HttpOnly cookie sessions.**
 
 Build order:
-1. `package.json`
-2. `wrangler.toml`
-3. `db.js`
-4. `auth.js`
-5. `reset.js`
-6. `admin.js`
-7. `index.js`
-8. `[[route]].js` (Pages proxy)
-9. Test all endpoints
-10. Build frontend pages
+1. `app/pages/shared/cookies.js`
+2. `app/pages/shared/db.js`
+3. `app/pages/shared/email.js`
+4. `app/pages/functions/api/login.js`
+5. `app/pages/functions/api/verify.js`
+6. `app/pages/functions/api/logout.js`
+7. `app/pages/functions/api/register.js`
+8. `app/pages/functions/api/reset/request.js`
+9. `app/pages/functions/api/reset/apply.js`
+10. `app/pages/functions/api/admin/create-user.js`
+11. `app/pages/functions/api/admin/assign-product.js`
+12. Test all endpoints
+13. Build frontend pages
