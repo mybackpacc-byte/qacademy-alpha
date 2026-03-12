@@ -1,0 +1,8 @@
+name = "auth-worker"
+main = "index.js"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+COOKIE_NAME = "qa_session"
+COOKIE_DOMAIN = "qacademy-alpha.pages.dev"
