@@ -1,0 +1,9 @@
+{
+  "name": "qacademy-pages-functions",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Pages Functions for QAcademy Nurses Hub",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.99.1"
+  }
+}
