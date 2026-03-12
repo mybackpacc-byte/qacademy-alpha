@@ -36,7 +36,6 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Background ── */
     .qa-bg {
       position: fixed; inset: 0; z-index: 0;
       background:
@@ -63,397 +62,265 @@
     }
     @keyframes bgSpin { to { transform: rotate(360deg); } }
 
-    /* ── Shell ── */
-    .qa-shell {
-      position: relative; z-index: 1;
-      min-height: 100vh;
-      display: flex; flex-direction: column;
-    }
-
     /* ── Top bar ── */
     .qa-topbar {
-      position: sticky; top: 0; z-index: 10;
+      position: sticky; top: 0; z-index: 20;
       background: rgba(244,248,247,.92);
-      backdrop-filter: saturate(1.3) blur(12px);
-      border-bottom: 1px solid rgba(11,122,117,.10);
+      backdrop-filter: saturate(1.2) blur(10px);
+      border-bottom: 1px solid var(--line);
     }
     .qa-topbar-inner {
       max-width: var(--max); margin: 0 auto;
-      padding: 0 20px; height: 60px;
-      display: flex; align-items: center;
-      justify-content: space-between; gap: 12px;
+      padding: 12px 20px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
     }
-    .qa-brand {
-      display: flex; align-items: center; gap: 10px;
-    }
-    .qa-brand-mark {
-      width: 36px; height: 36px; border-radius: 10px;
+    .qa-brand { display: flex; gap: 10px; align-items: center; }
+    .qa-logo {
+      width: 36px; height: 36px; border-radius: 11px;
       background: linear-gradient(135deg, rgba(11,122,117,.16), rgba(133,153,152,.10));
       border: 1px solid rgba(11,122,117,.24);
       display: grid; place-items: center;
-      font-family: 'DM Serif Display', serif;
-      font-size: 14px; color: var(--teal);
-      font-weight: 400;
+      font-weight: 900; font-size: 13px; color: var(--teal);
     }
-    .qa-brand-text { font-size: 14px; font-weight: 800; color: var(--ink); }
-    .qa-brand-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
-
-    .qa-topbar-right { display: flex; align-items: center; gap: 10px; }
-
+    .qa-brand-name { font-size: 14px; font-weight: 700; }
+    .qa-subline { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+    .qa-topbar-actions { display: flex; gap: 8px; align-items: center; }
     .qa-user-chip {
-      display: none;
-      align-items: center; gap: 7px;
+      display: inline-flex; align-items: center; gap: 7px;
       padding: 5px 10px; border-radius: 999px;
-      border: 1px solid var(--line);
-      background: #fff;
-      font-size: 12.5px; color: var(--muted);
-      max-width: 240px; overflow: hidden;
+      border: 1px solid var(--line); background: #fff;
+      font-size: 12px; color: var(--ink);
+      max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
-    .qa-user-chip.show { display: flex; }
     .qa-user-dot {
       width: 7px; height: 7px; border-radius: 50%;
       background: var(--teal); flex-shrink: 0;
-      box-shadow: 0 0 5px rgba(11,122,117,.6);
-      animation: dotPulse 2s ease-in-out infinite;
     }
-    @keyframes dotPulse {
-      0%,100% { opacity:1; transform:scale(1); }
-      50%      { opacity:.6; transform:scale(1.3); }
+    .qa-btn {
+      appearance: none; border: 1px solid var(--line);
+      background: #fff; color: var(--ink);
+      padding: 8px 13px; border-radius: 11px; cursor: pointer;
+      font-weight: 700; font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.05);
+      transition: opacity .15s;
     }
-    .qa-user-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .qa-btn:hover { opacity: .85; }
+    .qa-btn.primary { background: var(--teal); border-color: rgba(11,122,117,.28); color: #fff; }
+    .qa-btn.danger  { border-color: rgba(192,57,43,.2); color: var(--danger); }
+    .qa-btn:disabled { opacity: .5; cursor: not-allowed; }
 
-    .qa-signout-btn {
-      padding: 7px 14px; border-radius: 999px;
-      border: 1px solid var(--line);
-      background: #fff; font-family: 'DM Sans', sans-serif;
-      font-size: 12.5px; font-weight: 700; color: var(--muted);
-      cursor: pointer; transition: border-color .15s, color .15s;
-    }
-    .qa-signout-btn:hover { border-color: var(--danger); color: var(--danger); }
-
-    /* ── Main content ── */
-    .qa-main {
-      flex: 1;
-      max-width: var(--max); width: 100%;
-      margin: 0 auto; padding: 28px 20px 40px;
+    /* ── Main shell ── */
+    .qa-shell {
+      position: relative; z-index: 1;
+      max-width: var(--max); margin: 0 auto;
+      padding: 28px 20px 48px;
     }
 
-    /* ── Status box ── */
-    .qa-status {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      box-shadow: 0 4px 16px rgba(11,122,117,.06);
-      padding: 16px 20px;
-      display: flex; align-items: center;
-      justify-content: space-between;
-      gap: 12px; flex-wrap: wrap;
-      margin-bottom: 20px;
-      opacity: 0; transform: translateY(10px);
-      animation: fadeUp .4s ease .15s forwards;
+    /* ── Status card ── */
+    .qa-status-card {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 18px; box-shadow: var(--shadow);
+      padding: 24px; margin-bottom: 20px;
+      display: flex; gap: 16px; align-items: flex-start;
+      justify-content: space-between; flex-wrap: wrap;
     }
-    @keyframes fadeUp { to { opacity:1; transform:translateY(0); } }
-
-    .qa-status-left { display: flex; align-items: center; gap: 12px; }
+    .qa-status-left { flex: 1; min-width: 0; }
+    .qa-status-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+    .qa-status-msg { font-size: 13px; color: var(--muted); line-height: 1.5; max-width: 600px; }
     .qa-spinner {
-      width: 20px; height: 20px; flex-shrink: 0;
-      border: 2.5px solid var(--line);
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2.5px solid rgba(0,0,0,.12);
       border-top-color: var(--teal);
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
+      animation: spin .8s linear infinite;
+      flex-shrink: 0; margin-top: 2px;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
     .qa-spinner.hidden { display: none; }
-    .qa-status-title { font-size: 14px; font-weight: 700; color: var(--ink); }
-    .qa-status-msg   { font-size: 12.5px; color: var(--muted); margin-top: 1px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    .qa-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+    .qa-retry {
+      display: none; align-items: center; gap: 6px;
+      font-size: 13px; font-weight: 700; color: var(--teal);
+      background: none; border: none; cursor: pointer; padding: 0;
+    }
+    .qa-retry.show { display: inline-flex; }
+    .qa-retry svg { width: 14px; height: 14px; }
+
+    /* Pills */
+    .qa-pills { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
     .qa-pill {
       display: inline-flex; align-items: center; gap: 5px;
-      padding: 4px 10px; border-radius: 999px;
-      font-size: 11.5px; font-weight: 700;
+      padding: 4px 9px; border-radius: 999px;
       border: 1px solid var(--line);
-      background: #f8fafa; color: var(--muted);
-      transition: all .2s;
+      background: rgba(0,0,0,.02);
+      font-size: 11.5px; color: rgba(26,39,36,.76); font-weight: 700;
     }
-    .qa-pill.ok   { background: var(--ok-bg);  border-color: #c4e0dd; color: var(--ok); }
-    .qa-pill.warn { background: var(--warn-bg); border-color: #fde68a; color: var(--warn); }
-    .qa-pill.bad  { background: #fdf3f2; border-color: #f5c6c2; color: var(--danger); }
-    .qa-pill-dot  { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .qa-pill.ok   { border-color: rgba(11,122,117,.22); background: var(--ok-bg);  color: var(--ok); }
+    .qa-pill.warn { border-color: rgba(180,83,9,.22);   background: var(--warn-bg); color: var(--warn); }
+    .qa-pill.bad  { border-color: rgba(192,57,43,.22);  background: #fdf3f2; color: var(--danger); }
 
-    /* Retry button */
-    .qa-retry-btn {
-      display: none;
-      padding: 7px 14px; border-radius: 999px;
-      border: 1px solid var(--line); background: #fff;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 12.5px; font-weight: 700; color: var(--teal);
-      cursor: pointer; transition: border-color .15s;
-    }
-    .qa-retry-btn:hover { border-color: var(--teal); }
-    .qa-retry-btn.show { display: inline-flex; }
-
-    /* ── Cards grid ── */
+    /* ── Action grid ── */
     .qa-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
       gap: 16px;
     }
 
-    .qa-card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      box-shadow: var(--shadow);
+    .qa-action-card {
+      background: var(--card); border: 1px solid var(--line);
+      border-radius: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.05);
       overflow: hidden;
-      opacity: 0; transform: translateY(14px);
+      display: flex; flex-direction: column;
     }
-    .qa-card:nth-child(1) { animation: fadeUp .45s ease .25s forwards; }
-    .qa-card:nth-child(2) { animation: fadeUp .45s ease .35s forwards; }
-
-    .qa-card-head {
-      padding: 18px 20px 14px;
+    .qa-action-head {
+      padding: 18px 18px 14px;
       border-bottom: 1px solid var(--line);
-      display: flex; align-items: flex-start;
-      justify-content: space-between; gap: 10px;
     }
-    .qa-card-icon {
+    .qa-action-icon {
       width: 42px; height: 42px; border-radius: 12px;
-      display: grid; place-items: center; flex-shrink: 0;
+      display: grid; place-items: center;
+      margin-bottom: 12px;
     }
-    .qa-card-icon.teal {
-      background: var(--ok-bg);
-      border: 1px solid #c4e0dd;
-    }
-    .qa-card-icon.purple {
-      background: #f3f0ff;
-      border: 1px solid #ddd6fe;
-    }
-    .qa-card-icon svg { width: 20px; height: 20px; }
-    .qa-card-title-wrap { flex: 1; }
-    .qa-card-title { font-size: 16px; font-weight: 800; color: var(--ink); margin-bottom: 3px; }
-    .qa-card-desc  { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+    .qa-action-icon svg { width: 20px; height: 20px; }
+    .qa-action-icon.teal { background: var(--ok-bg); color: var(--teal); border: 1px solid rgba(11,122,117,.15); }
+    .qa-action-icon.blue { background: #eff6ff; color: #2563eb; border: 1px solid rgba(37,99,235,.15); }
 
-    .qa-card-body { padding: 18px 20px 20px; }
+    .qa-action-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
+    .qa-action-sub   { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
 
-    .qa-card-big-title {
-      font-family: 'DM Serif Display', serif;
-      font-size: 22px; color: var(--ink);
-      margin-bottom: 6px; line-height: 1.2;
-    }
-    .qa-card-body-desc {
-      font-size: 13px; color: var(--muted);
-      line-height: 1.55; margin-bottom: 16px;
-      min-height: 38px;
-    }
-    .qa-divider {
-      height: 1px; background: var(--line);
-      margin-bottom: 16px; border-radius: 1px;
-    }
-
-    /* Action button */
-    .qa-action-btn {
-      width: 100%; padding: 12px;
-      border: none; border-radius: 12px;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 14.5px; font-weight: 700;
-      cursor: pointer; letter-spacing: .1px;
-      transition: background .15s, transform .1s, box-shadow .15s, opacity .15s;
-    }
-    .qa-action-btn.primary {
-      background: var(--teal); color: #fff;
-      box-shadow: 0 4px 14px rgba(11,122,117,.28), inset 0 -2px 0 rgba(0,0,0,.08);
-    }
-    .qa-action-btn.primary:hover:not(:disabled) {
-      background: var(--teal-dark);
-      transform: translateY(-1px);
-      box-shadow: 0 6px 20px rgba(11,122,117,.35);
-    }
-    .qa-action-btn.secondary {
-      background: #f3f0ff; color: #5b21b6;
-      border: 1px solid #ddd6fe;
-    }
-    .qa-action-btn.secondary:hover:not(:disabled) {
-      background: #ede9fe;
-      transform: translateY(-1px);
-    }
-    .qa-action-btn:active:not(:disabled) { transform: translateY(0); }
-    .qa-action-btn:disabled { opacity: .45; cursor: not-allowed; transform: none !important; }
-
-    .qa-action-note {
-      margin-top: 10px;
-      font-size: 12px; color: #8aaaa7;
-      line-height: 1.45; min-height: 16px;
-    }
-
-    /* TA placeholder badge */
-    .qa-coming-soon {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 3px 10px; border-radius: 999px;
-      font-size: 11px; font-weight: 700;
-      background: #fffbeb; border: 1px solid #fde68a;
-      color: var(--warn); letter-spacing: .3px;
-      text-transform: uppercase;
-    }
-
-    /* Error/info box inside card */
     .qa-card-alert {
-      display: none;
-      padding: 10px 14px; border-radius: 10px;
-      font-size: 13px; line-height: 1.45;
-      margin-bottom: 14px;
-      align-items: flex-start; gap: 10px;
+      display: none; margin: 12px 18px 0;
+      padding: 10px 13px; border-radius: 10px;
+      font-size: 12.5px; line-height: 1.45;
     }
-    .qa-card-alert.show { display: flex; }
-    .qa-card-alert.error {
-      background: #fdf3f2; border: 1px solid #f5c6c2; color: var(--danger);
-    }
-    .qa-card-alert.info {
-      background: var(--ok-bg); border: 1px solid #c4e0dd; color: var(--ok);
-    }
-    .qa-card-alert svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+    .qa-card-alert.show { display: block; }
+    .qa-card-alert.info    { background: #eff6ff; border: 1px solid rgba(37,99,235,.18); color: #2563eb; }
+    .qa-card-alert.error   { background: #fdf3f2; border: 1px solid rgba(192,57,43,.18); color: var(--danger); }
+    .qa-card-alert.warning { background: var(--warn-bg); border: 1px solid rgba(180,83,9,.2); color: var(--warn); }
 
-    /* Footer */
-    .qa-footer {
-      text-align: center;
-      margin-top: 20px;
-      font-size: 12px; color: #9ab5b2;
+    .qa-action-foot {
+      padding: 14px 18px 18px;
+      margin-top: auto;
+    }
+    .qa-action-btn {
+      width: 100%; padding: 11px;
+      background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);
+      color: #fff; border: none; border-radius: 11px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      transition: opacity .15s;
+      box-shadow: 0 4px 12px rgba(11,122,117,.25);
+    }
+    .qa-action-btn:hover:not(:disabled) { opacity: .9; }
+    .qa-action-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .qa-action-btn.secondary {
+      background: #fff;
+      border: 1.5px solid var(--line);
+      color: var(--ink);
+      box-shadow: none;
     }
 
-    /* ── Responsive ── */
-    @media (max-width: 680px) {
-      .qa-grid { grid-template-columns: 1fr; }
-      .qa-topbar-inner { padding: 0 14px; }
-      .qa-main { padding: 18px 14px 32px; }
-      .qa-user-chip { max-width: 140px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .qa-bg::before, .qa-card, .qa-status,
-      .qa-spinner, .qa-user-dot { animation: none; }
+    @media (max-width: 600px) {
+      .qa-shell { padding: 20px 14px 40px; }
+      .qa-topbar-inner { padding: 10px 14px; }
+      .qa-user-chip { display: none; }
     }
   </style>
 </head>
 <body>
 
-<div class="qa-bg" aria-hidden="true"></div>
+<div class="qa-bg"></div>
 
-<div class="qa-shell">
-
-  <!-- ── Top bar ── -->
-  <header class="qa-topbar">
-    <div class="qa-topbar-inner">
-      <div class="qa-brand">
-        <div class="qa-brand-mark">QA</div>
-        <div>
-          <div class="qa-brand-text">QAcademy Nurses Hub</div>
-          <div class="qa-brand-sub" id="qa-subline">Checking your session…</div>
-        </div>
-      </div>
-      <div class="qa-topbar-right">
-        <div class="qa-user-chip" id="qa-user-chip">
-          <span class="qa-user-dot"></span>
-          <span class="qa-user-name" id="qa-user-name">Signed in</span>
-        </div>
-        <button class="qa-signout-btn" id="qa-signout">Sign out</button>
+<!-- Top bar -->
+<header class="qa-topbar">
+  <div class="qa-topbar-inner">
+    <div class="qa-brand">
+      <div class="qa-logo">QA</div>
+      <div>
+        <div class="qa-brand-name">QAcademy Nurses Hub</div>
+        <div class="qa-subline" id="qa-subline">Checking your session…</div>
       </div>
     </div>
-  </header>
+    <div class="qa-topbar-actions">
+      <div class="qa-user-chip" id="qa-user-chip" style="display:none">
+        <div class="qa-user-dot"></div>
+        <span id="qa-user-name"></span>
+      </div>
+      <button class="qa-btn danger" id="qa-signout">Sign out</button>
+    </div>
+  </div>
+</header>
 
-  <!-- ── Main ── -->
-  <main class="qa-main">
+<main class="qa-shell">
 
-    <!-- Status box -->
-    <div class="qa-status" id="qa-status">
-      <div class="qa-status-left">
-        <div class="qa-spinner" id="qa-spinner"></div>
-        <div>
-          <div class="qa-status-title" id="qa-status-title">Checking access…</div>
-          <div class="qa-status-msg"   id="qa-status-msg">Please wait a moment.</div>
+  <!-- Status card -->
+  <div class="qa-status-card">
+    <div class="qa-status-left">
+      <div class="qa-status-title" id="qa-status-title">Verifying your session…</div>
+      <div class="qa-status-msg"   id="qa-status-msg">Please wait a moment.</div>
+      <div class="qa-pills">
+        <span class="qa-pill warn" id="qa-pill-auth">Auth: checking…</span>
+        <span class="qa-pill" id="qa-pill-ta">Portal: —</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex-shrink:0">
+      <div class="qa-spinner" id="qa-spinner"></div>
+      <button class="qa-retry" id="qa-retry">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M13.5 8A5.5 5.5 0 112.5 5.5"/>
+          <path d="M2.5 2v3.5H6"/>
+        </svg>
+        Retry
+      </button>
+    </div>
+  </div>
+
+  <!-- Action cards -->
+  <div class="qa-grid">
+
+    <!-- Dashboard card -->
+    <div class="qa-action-card">
+      <div class="qa-action-head">
+        <div class="qa-action-icon teal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="qa-action-title">My Dashboard</div>
+        <div class="qa-action-sub">View your profile, active courses, and subscription.</div>
+        <div class="qa-card-alert" id="qa-lic-alert">
+          <span id="qa-lic-alert-text"></span>
         </div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <div class="qa-pills">
-          <div class="qa-pill" id="qa-pill-auth"><span class="qa-pill-dot"></span>Auth: —</div>
-          <div class="qa-pill" id="qa-pill-ta"><span class="qa-pill-dot"></span>Teacher Assess: —</div>
-        </div>
-        <button class="qa-retry-btn" id="qa-retry">Retry</button>
+      <div class="qa-action-foot">
+        <button class="qa-action-btn" id="qa-btn-lic" disabled>Go to Dashboard</button>
       </div>
     </div>
 
-    <!-- Cards grid -->
-    <div class="qa-grid">
-
-      <!-- ── Card 1: Licensure Portal ── -->
-      <div class="qa-card">
-        <div class="qa-card-head">
-          <div class="qa-card-icon teal">
-            <svg viewBox="0 0 20 20" fill="none" stroke="#0b7a75" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10 2L2 7v11h6v-5h4v5h6V7L10 2z"/>
-            </svg>
-          </div>
-          <div class="qa-card-title-wrap">
-            <div class="qa-card-title">Licensure Portal</div>
-            <div class="qa-card-desc">Your NMC exam prep area — courses, quizzes, history, announcements.</div>
-          </div>
-          <div class="qa-pill ok"><span class="qa-pill-dot"></span>Ready</div>
+    <!-- Courses card -->
+    <div class="qa-action-card">
+      <div class="qa-action-head">
+        <div class="qa-action-icon blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 016.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>
+          </svg>
         </div>
-        <div class="qa-card-body">
-          <div class="qa-card-big-title">My NMC Licensure</div>
-          <div class="qa-card-body-desc" id="qa-lic-desc">
-            Access your dashboard, quiz builder, and learning history.
-          </div>
-          <div class="qa-card-alert error" id="qa-lic-alert">
-            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm.75 9.75h-1.5v-1.5h1.5v1.5zm0-3h-1.5v-4h1.5v4z"/></svg>
-            <span id="qa-lic-alert-text"></span>
-          </div>
-          <div class="qa-divider"></div>
-          <button class="qa-action-btn primary" id="qa-btn-lic" disabled>
-            Open Licensure Dashboard
-          </button>
-          <div class="qa-action-note" id="qa-lic-note"></div>
+        <div class="qa-action-title">My Courses</div>
+        <div class="qa-action-sub">Access your quiz bank and start practising.</div>
+        <div class="qa-card-alert" id="qa-ta-alert">
+          <span id="qa-ta-alert-text"></span>
         </div>
       </div>
-
-      <!-- ── Card 2: Teacher Assess ── -->
-      <div class="qa-card">
-        <div class="qa-card-head">
-          <div class="qa-card-icon purple">
-            <svg viewBox="0 0 20 20" fill="none" stroke="#7c3aed" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="14" height="14" rx="2"/>
-              <path d="M7 8h6M7 12h4"/>
-            </svg>
-          </div>
-          <div class="qa-card-title-wrap">
-            <div class="qa-card-title">Teacher Assess</div>
-            <div class="qa-card-desc">Classes, quizzes, question bank, library picker, and results.</div>
-          </div>
-          <div class="qa-pill" id="qa-pill-ta-state"><span class="qa-pill-dot"></span>Checking…</div>
-        </div>
-        <div class="qa-card-body">
-          <div class="qa-card-big-title" id="qa-ta-title">My Teacher Assess</div>
-          <div class="qa-card-body-desc" id="qa-ta-desc">
-            If you're a verified teacher, you'll open the Teacher Dashboard.
-            Otherwise you'll go to My Classes.
-          </div>
-          <div class="qa-card-alert info" id="qa-ta-info">
-            <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm.75 10.75h-1.5v-5h1.5v5zm0-6.5h-1.5v-1.5h1.5v1.5z"/></svg>
-            <span id="qa-ta-info-text"></span>
-          </div>
-          <div class="qa-divider"></div>
-          <button class="qa-action-btn secondary" id="qa-btn-ta" disabled>
-            Open Teacher Assess
-          </button>
-          <div class="qa-action-note" id="qa-ta-note"></div>
-        </div>
+      <div class="qa-action-foot">
+        <button class="qa-action-btn secondary" id="qa-btn-ta" disabled>Coming Soon</button>
       </div>
-
     </div>
 
-    <div class="qa-footer">QAcademy Nurses Hub &nbsp;•&nbsp; Router</div>
+  </div>
 
-  </main>
-</div>
+</main>
 
 <script>
 (function () {
@@ -462,23 +329,10 @@
   // ============================================================
   // CONFIG
   // ============================================================
-  var AUTH_WORKER_URL = 'https://auth-worker.mybackpacc.workers.dev';
-
-  // Page URLs — update these as pages are built
-  var URL_DASHBOARD    = 'dashboard.html';
-  var URL_MY_CLASSES   = 'my-classes.html';      // Phase 6 placeholder
-  var URL_TEACHER_DASH = 'teacher-dashboard.html'; // Phase 6 placeholder
-  var URL_LOGIN        = 'login.html';
-
-  // Teacher Assess API — set this when Phase 6 is built
-  // Leave as empty string for now — router will skip TA check
-  var TA_API_URL = '';
-
-  // ============================================================
-  // Storage keys
-  // ============================================================
-  var TOKEN_KEY = 'qa_token';
-  var USER_KEY  = 'qa_user';
+  var API_URL       = '/api';
+  var URL_LOGIN     = 'login.html';
+  var URL_DASHBOARD = 'dashboard.html';
+  var USER_KEY      = 'qa_user';
 
   // ============================================================
   // DOM helpers
@@ -492,11 +346,7 @@
 
   function setPill(id, text, cls) {
     var el = $(id);
-    if (!el) return;
-    // Keep the dot span, update text
-    var dot = el.querySelector('.qa-pill-dot');
     el.textContent = text;
-    if (dot) el.prepend(dot);
     el.className = 'qa-pill' + (cls ? ' ' + cls : '');
   }
 
@@ -525,25 +375,15 @@
   }
 
   // ============================================================
-  // Token helpers
+  // Session helpers — no TOKEN_KEY, cookie handles auth
   // ============================================================
-  function getToken() {
-    try { return (localStorage.getItem(TOKEN_KEY) || '').trim(); } catch (_) { return ''; }
-  }
   function clearSession() {
-    try {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
-    } catch (_) {}
+    try { localStorage.removeItem(USER_KEY); } catch (_) {}
   }
 
-  // ============================================================
-  // Safe return_to (prevent open redirect)
-  // ============================================================
   function safeReturnTo(raw) {
     raw = String(raw || '').trim();
-    if (!raw) return '';
-    if (raw[0] !== '/') return '';
+    if (!raw || raw[0] !== '/') return '';
     if (raw.startsWith('//')) return '';
     if (raw.toLowerCase().includes('javascript:')) return '';
     return raw;
@@ -555,15 +395,20 @@
   }
 
   // ============================================================
-  // Sign out
+  // Sign out — POST to /api/logout to clear the cookie
   // ============================================================
   $('qa-signout').addEventListener('click', function () {
     clearSession();
-    window.location.replace(URL_LOGIN);
+    fetch(API_URL + '/logout', {
+      method: 'POST',
+      credentials: 'include'
+    }).finally(function () {
+      window.location.replace(URL_LOGIN);
+    });
   });
 
   // ============================================================
-  // Retry
+  // Retry button
   // ============================================================
   $('qa-retry').addEventListener('click', function () {
     runRouter();
@@ -578,43 +423,25 @@
     enableBtn('qa-btn-lic', false);
     enableBtn('qa-btn-ta', false);
 
-    setPill('qa-pill-auth',     'Auth: checking…', 'warn');
-    setPill('qa-pill-ta',       'Teacher Assess: checking…', 'warn');
-    setPill('qa-pill-ta-state', 'Checking…', 'warn');
+    setPill('qa-pill-auth', 'Auth: checking…', 'warn');
+    setPill('qa-pill-ta',   'Portal: checking…', 'warn');
 
-    // ── Step 1: Check token exists ──
-    var token = getToken();
-    if (!token) {
-      showSpinner(false);
-      showRetry(true);
-      $('qa-subline').textContent = 'Signed out';
-      setStatus('Sign in required', 'No session found in this browser. Please sign in again.');
-      setPill('qa-pill-auth',     'Auth: no token', 'bad');
-      setPill('qa-pill-ta',       'Teacher Assess: —', '');
-      setPill('qa-pill-ta-state', 'N/A', '');
-      showCardAlert('qa-lic-alert', 'qa-lic-alert-text',
-        'You need to sign in first. Please go back to the login page.', 'error');
-      enableBtn('qa-btn-lic', true);
-      $('qa-btn-lic').onclick = function () { window.location.replace(URL_LOGIN); };
-      $('qa-btn-lic').textContent = 'Go to Login';
-      return;
-    }
-
-    // ── Step 2: Handle return_to from query string ──
+    // ── Handle return_to ──
     var rt = safeReturnTo(getQS('return_to'));
     if (rt) {
       try { sessionStorage.setItem('qa_return_to', rt); } catch (_) {}
     }
 
-    // ── Step 3: Verify token with auth worker ──
+    // ── Verify session via cookie ──
     setStatus('Verifying your session…', 'Checking your account.');
 
     var verifyResult = null;
     try {
-      var res = await fetch(AUTH_WORKER_URL + '/verify', {
+      var res = await fetch(API_URL + '/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token })
+        credentials: 'include'
+        // No body needed — cookie is sent automatically
       });
       verifyResult = await res.json();
     } catch (e) {
@@ -623,17 +450,15 @@
 
     if (!verifyResult || verifyResult.ok !== true) {
       var errCode = (verifyResult && verifyResult.error) || 'verify_failed';
-      // Clear token on known invalid codes
-      if (['missing_token','expired','not_found','invalid_token','user_inactive'].includes(errCode)) {
+      if (['missing_token','expired','not_found','invalid_token','user_inactive','no_session'].includes(errCode)) {
         clearSession();
       }
       showSpinner(false);
       showRetry(true);
       $('qa-subline').textContent = 'Access denied';
       setStatus('Session problem', 'Please sign in again.');
-      setPill('qa-pill-auth',     'Auth: ' + errCode, 'bad');
-      setPill('qa-pill-ta',       'Teacher Assess: —', '');
-      setPill('qa-pill-ta-state', 'N/A', '');
+      setPill('qa-pill-auth', 'Auth: ' + errCode, 'bad');
+      setPill('qa-pill-ta',   'Portal: —', '');
       showCardAlert('qa-lic-alert', 'qa-lic-alert-text',
         'Your session has expired or is invalid. Please sign in again.', 'error');
       enableBtn('qa-btn-lic', true);
@@ -643,119 +468,59 @@
     }
 
     // ── Auth OK ──
-    var user = verifyResult.user || {};
+    var user        = verifyResult.user || {};
     var displayName = (user.name || user.username || 'Signed in').trim();
     var email       = (user.email || '').trim();
 
-    $('qa-user-name').textContent = email ? (displayName + ' · ' + email) : displayName;
-    $('qa-user-chip').classList.add('show');
-    $('qa-subline').textContent = 'Choose where to go';
+    // Show user chip
+    $('qa-user-name').textContent = email ? displayName + ' · ' + email : displayName;
+    $('qa-user-chip').style.display = '';
+    $('qa-subline').textContent = 'Signed in';
 
-    setPill('qa-pill-auth', 'Auth: OK', 'ok');
-
-    // Save updated user to localStorage
+    // Cache user for fast paint on dashboard
     try { localStorage.setItem(USER_KEY, JSON.stringify(user)); } catch (_) {}
 
-    // ── Step 4: Handle return_to if present ──
-    var savedRt = '';
-    try { savedRt = safeReturnTo(sessionStorage.getItem('qa_return_to') || ''); } catch (_) {}
-    if (savedRt && !savedRt.includes('router.html')) {
-      try { sessionStorage.removeItem('qa_return_to'); } catch (_) {}
-      setStatus('Continuing…', 'Taking you to your requested page.');
-      showSpinner(true);
-      window.location.replace(savedRt);
-      return;
-    }
+    setPill('qa-pill-auth', 'Auth: verified', 'ok');
 
-    // ── Step 5: Teacher Assess role check ──
-    // TA API not configured yet — skip check and route everyone to licensure
-    if (!TA_API_URL) {
-      setPill('qa-pill-ta',       'Teacher Assess: pending setup', 'warn');
-      setPill('qa-pill-ta-state', 'Pending', 'warn');
-      $('qa-ta-desc').textContent =
-        'Teacher Assess is coming soon. When ready, verified teachers will go to the Teacher Dashboard and students to My Classes.';
-      showCardAlert('qa-ta-info', 'qa-ta-info-text',
-        'Teacher Assess is not yet configured. It will be available in a future update.', 'info');
-      enableBtn('qa-btn-ta', false);
-      $('qa-ta-note').textContent = 'Coming soon — check back later.';
+    // ── Check access ──
+    var access  = verifyResult.access || {};
+    var courses = verifyResult.courses || [];
+    var hasAccess = access.has_access === true;
 
-      // Licensure is fully ready
-      setPill('qa-pill-ta', 'Teacher Assess: coming soon', 'warn');
-      enableBtn('qa-btn-lic', true);
-      $('qa-btn-lic').onclick = function () { window.location.replace(URL_DASHBOARD); };
-
-      setStatus('Ready', 'Select Licensure Portal to continue.');
-      showSpinner(false);
-
-      // Auto-route to dashboard after short pause (smooth UX)
-      setTimeout(function () {
-        window.location.replace(URL_DASHBOARD);
-      }, 1200);
-      return;
-    }
-
-    // ── TA API IS configured (Phase 6) ──
-    setStatus('Checking Teacher Assess role…', 'Almost there.');
-
-    var taResult = null;
-    try {
-      var taRes = await fetch(TA_API_URL + '/teacher/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token })
-      });
-      taResult = await taRes.json();
-    } catch (e) {
-      taResult = { ok: false, error: 'network_error' };
+    if (hasAccess) {
+      setPill('qa-pill-ta', 'Portal: active', 'ok');
+      showCardAlert('qa-lic-alert', 'qa-lic-alert-text', '', '');
+    } else {
+      setPill('qa-pill-ta', 'Portal: trial', 'warn');
+      showCardAlert('qa-lic-alert', 'qa-lic-alert-text',
+        'You are on a free trial. Upgrade to unlock full access.', 'warning');
     }
 
     showSpinner(false);
 
-    var isTeacher   = (taResult && taResult.ok === true);
-    var taPending   = (taResult && taResult.error &&
-      (taResult.error.includes('not_approved') || taResult.error.includes('pending')));
-
-    if (isTeacher) {
-      // Verified teacher
-      setPill('qa-pill-ta',       'Teacher Assess: Teacher', 'ok');
-      setPill('qa-pill-ta-state', 'Teacher', 'ok');
-      $('qa-ta-title').textContent = 'My Teacher Dashboard';
-      $('qa-ta-desc').textContent  = "You're verified as a teacher. This will open your Teacher Dashboard.";
-      enableBtn('qa-btn-ta', true);
-      $('qa-btn-ta').textContent = 'Open Teacher Dashboard';
-      $('qa-btn-ta').onclick = function () { window.location.replace(URL_TEACHER_DASH); };
-
-      setStatus('Ready', 'Welcome back! Choose where to go.');
-
-    } else if (taPending) {
-      // Request submitted but not approved yet
-      setPill('qa-pill-ta',       'Teacher Assess: pending', 'warn');
-      setPill('qa-pill-ta-state', 'Pending', 'warn');
-      $('qa-ta-desc').textContent = "Your teacher access request is pending approval. You can still use My Classes.";
-      $('qa-ta-note').textContent = 'Teacher access pending admin approval.';
-      enableBtn('qa-btn-ta', true);
-      $('qa-btn-ta').textContent = 'Open My Classes';
-      $('qa-btn-ta').onclick = function () { window.location.replace(URL_MY_CLASSES); };
-
-      setStatus('Ready', 'Choose where to go.');
-
-    } else {
-      // Regular student
-      setPill('qa-pill-ta',       'Teacher Assess: Student', 'ok');
-      setPill('qa-pill-ta-state', 'Student', 'ok');
-      $('qa-ta-desc').textContent = "You'll be taken to My Classes (student access for Teacher Assess).";
-      enableBtn('qa-btn-ta', true);
-      $('qa-btn-ta').textContent = 'Open My Classes';
-      $('qa-btn-ta').onclick = function () { window.location.replace(URL_MY_CLASSES); };
-
-      setStatus('Ready', 'Choose where to go.');
+    // ── Check return_to ──
+    var savedRt = '';
+    try { savedRt = safeReturnTo(sessionStorage.getItem('qa_return_to') || ''); } catch (_) {}
+    if (savedRt) {
+      try { sessionStorage.removeItem('qa_return_to'); } catch (_) {}
+      setStatus('Redirecting…', 'Taking you to your destination.');
+      setTimeout(function () { window.location.replace(savedRt); }, 400);
+      return;
     }
 
+    // ── Enable dashboard button ──
+    setStatus('Welcome back, ' + displayName + '!', 'Your session is active. Choose where to go.');
     enableBtn('qa-btn-lic', true);
-    $('qa-btn-lic').onclick = function () { window.location.replace(URL_DASHBOARD); };
+    $('qa-btn-lic').onclick = function () {
+      window.location.replace(URL_DASHBOARD);
+    };
+
+    // Courses button — coming soon
+    showCardAlert('qa-ta-alert', 'qa-ta-alert-text',
+      'Quiz courses are coming in Phase 3. Stay tuned!', 'info');
   }
 
-  // ── Kick off ──
+  // ── Boot ──
   runRouter();
 
 })();
