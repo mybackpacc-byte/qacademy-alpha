@@ -1,5 +1,0 @@
-telegram_user_id ,qa_user_key,group_key ,allowed ,updated_utc,note ,qa_user_id
-1234315791,sam@qacademy.com,PREMIUM_2026,FALSE,2026-01-14T11:18:17.584Z,relink_revoked,U_3712233b3b
-1234315791,sam@qacademy.com,RN_2026,FALSE,2026-01-14T11:18:17.584Z,relink_revoked,U_3712233b3b
-8516681749,sam@qacademy.com,PREMIUM_2026,TRUE,2026-01-14T11:19:06.474Z,relink_revoked,U_3712233b3b
-8516681749,sam@qacademy.com,RN_2026,TRUE,2026-01-14T11:19:06.474Z,relink_revoked,U_3712233b3b
