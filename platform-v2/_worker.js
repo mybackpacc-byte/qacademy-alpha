@@ -43,6 +43,7 @@ export default {
       switch (action) {
         case 'login':         return await handleLogin(request, env, origin);
         case 'login-google':  return await handleGoogleLogin(request, env, origin);
+        case 'callback':      return await handleCallback(request, env, origin);
         case 'verify':        return await handleVerify(request, env, origin);
         case 'logout':        return await handleLogout(request, env, origin);
         default:
@@ -115,44 +116,55 @@ async function handleLogin(request, env, origin) {
 
 // ════════════════════════════════════════════════════════════════════════════
 // ACTION: /auth/login-google
+// Redirects browser to Supabase Google OAuth
 // ════════════════════════════════════════════════════════════════════════════
 async function handleGoogleLogin(request, env, origin) {
-  const body    = await parseBody(request);
-  const idToken = (body.id_token || '').trim();
+  const url      = new URL(request.url);
+  const returnTo = url.searchParams.get('return_to') || '/dashboard.html';
 
-  if (!idToken) {
-    return jsonResponse({ ok: false, error: 'missing_id_token' }, 400, origin);
+  // Build Supabase OAuth URL
+  const redirectTo = `${url.origin}/auth/callback?return_to=${encodeURIComponent(returnTo)}`;
+  const oauthUrl   = `${env.SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;
+
+  return Response.redirect(oauthUrl, 302);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// ACTION: /auth/callback
+// Supabase redirects here after Google OAuth with a code
+// ════════════════════════════════════════════════════════════════════════════
+async function handleCallback(request, env, origin) {
+  const url      = new URL(request.url);
+  const code     = url.searchParams.get('code');
+  const returnTo = url.searchParams.get('return_to') || '/dashboard.html';
+
+  if (!code) {
+    return Response.redirect('/login.html?error=oauth_failed', 302);
   }
 
-  // Exchange Google ID token with Supabase Auth
-  const authRes = await fetch(
-    `${env.SUPABASE_URL}/auth/v1/token?grant_type=id_token`,
-    {
-      method:  'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey':       env.SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify({ provider: 'google', id_token: idToken })
-    }
-  );
+  // Exchange code for session
+  const tokenRes = await fetch(`${env.SUPABASE_URL}/auth/v1/token?grant_type=pkce`, {
+    method:  'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey':       env.SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify({ auth_code: code })
+  });
 
-  const authData = await authRes.json();
+  const tokenData = await tokenRes.json();
 
-  if (!authRes.ok || !authData.access_token) {
-    console.error('Google auth error:', authData);
-    return jsonResponse({ ok: false, error: 'invalid_google_token' }, 401, origin);
+  if (!tokenRes.ok || !tokenData.access_token) {
+    console.error('OAuth callback error:', tokenData);
+    return Response.redirect('/login.html?error=oauth_failed', 302);
   }
 
   // Ensure user exists in public.users
-  await ensurePublicUser(env, authData.user);
+  await ensurePublicUser(env, tokenData.user);
 
-  const response = jsonResponse({
-    ok:      true,
-    profile: await getPublicUserProfile(env, authData.user.id)
-  }, 200, origin);
-
-  setCookies(response, authData.access_token, authData.refresh_token);
+  // Set cookies and redirect to dashboard
+  const response = Response.redirect(returnTo, 302);
+  setCookies(response, tokenData.access_token, tokenData.refresh_token);
   return response;
 }
 
