@@ -472,15 +472,12 @@
 
 </div>
 
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-
 <script>
 (function () {
   'use strict';
 
   const AUTH_BASE        = '/auth';
   const DASHBOARD_URL    = '/dashboard.html';
-  const GOOGLE_CLIENT_ID = '117220903038-1qe508lr01t59mjabeavcl640hraigs4.apps.googleusercontent.com';
 
   const elIdentifier = document.getElementById('identifier');
   const elPassword   = document.getElementById('password');
@@ -609,59 +606,25 @@
     }
   }
 
-  // Google Sign-In
-  function initGoogle() {
-    if (!window.google?.accounts) { setTimeout(initGoogle, 500); return; }
-    window.google.accounts.id.initialize({
-      client_id:   GOOGLE_CLIENT_ID,
-      callback:    handleGoogleCredential,
-      auto_select: false,
-    });
-  }
-
-  async function handleGoogleCredential(response) {
-    clearStatus();
-    setBusy(true);
-    showStatus('info', 'Verifying Google sign-in…');
-    try {
-      const res  = await fetch(`${AUTH_BASE}/login-google`, {
-        method:      'POST',
-        credentials: 'include',
-        headers:     { 'Content-Type': 'application/json' },
-        body:        JSON.stringify({ id_token: response.credential })
-      });
-      const data = await res.json();
-
-      if (!data || !data.ok) {
-        showStatus('error', errorMessage(data?.error || 'server_error'));
-        return;
-      }
-
-      showStatus('success', 'Signed in with Google. Redirecting…');
-      setTimeout(() => { location.href = getReturnTo(); }, 600);
-
-    } catch (err) {
-      showStatus('error', errorMessage('server_error'));
-    } finally {
-      setBusy(false);
-    }
-  }
-
+  // Google Sign-In — redirect to Supabase OAuth
   elBtnGoogle.addEventListener('click', function () {
-    if (!window.google?.accounts) {
-      showStatus('error', 'Google Sign-In is loading. Please try again.');
-      return;
-    }
-    window.google.accounts.id.prompt();
+    const returnTo = getReturnTo();
+    location.href = `/auth/login-google?return_to=${encodeURIComponent(returnTo)}`;
   });
+
+  // Show error from OAuth callback if present
+  (function () {
+    const qs = new URLSearchParams(location.search);
+    if (qs.get('error') === 'oauth_failed') {
+      showStatus('error', 'Google sign-in failed. Please try again.');
+    }
+  })();
 
   elBtnLogin.addEventListener('click', doLogin);
   [elIdentifier, elPassword].forEach(el => {
     el.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
     el.addEventListener('input',   () => { setFieldError(el, false); clearStatus(); });
   });
-
-  window.addEventListener('load', initGoogle);
 })();
 </script>
 
