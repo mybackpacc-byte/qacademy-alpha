@@ -1,25 +1,17 @@
 /**
  * QAcademy Alpha — Cloudflare Worker
- * Handles all authentication: login, Google Sign-In, verify, logout
- * Uses HttpOnly cookies (never exposes tokens to JavaScript)
+ * Authentication via Supabase Auth
  *
  * Environment variables (set in Cloudflare Pages dashboard):
  *   SUPABASE_URL         = https://pyfupmmwptcpvxxxopxn.supabase.co
  *   SUPABASE_SERVICE_KEY = your service role secret key
- *   GOOGLE_CLIENT_ID     = 117220903038-1qe508lr01t59mjabeavcl640hraigs4.apps.googleusercontent.com
+ *   SUPABASE_ANON_KEY    = your anon/public key
  */
 
-const COOKIE_NAME   = 'qa_session';
-const TOKEN_TTL_MS  = 12 * 60 * 60 * 1000; // 12 hours in milliseconds
-const COOKIE_TTL_S  = 12 * 60 * 60;         // 12 hours in seconds
+const COOKIE_NAME  = 'qa_session';
+const COOKIE_TTL_S = 12 * 60 * 60; // 12 hours
 
-// ─── Rate limiting windows ───────────────────────────────────────────────────
-const RL_SHORT_WINDOW_MS  = 10 * 60 * 1000;  // 10 minutes
-const RL_SHORT_MAX        = 5;                // max 5 failed attempts per 10 min
-const RL_LONG_WINDOW_MS   = 24 * 60 * 60 * 1000; // 24 hours
-const RL_LONG_MAX         = 20;               // max 20 failed attempts per 24h
-
-// ─── CORS headers ────────────────────────────────────────────────────────────
+// ─── CORS ────────────────────────────────────────────────────────────────────
 function corsHeaders(origin) {
   return {
     'Access-Control-Allow-Origin':      origin || '*',
@@ -29,18 +21,18 @@ function corsHeaders(origin) {
   };
 }
 
-// ─── Main fetch handler ──────────────────────────────────────────────────────
+// ─── Main handler ─────────────────────────────────────────────────────────────
 export default {
   async fetch(request, env) {
     const url    = new URL(request.url);
     const origin = request.headers.get('Origin') || '';
 
-    // Handle preflight
+    // Preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
     }
 
-    // Only handle /auth/* routes — pass everything else to static assets
+    // Pass all non-auth routes to static assets
     if (!url.pathname.startsWith('/auth/')) {
       return env.ASSETS.fetch(request);
     }
@@ -65,67 +57,59 @@ export default {
 
 
 // ════════════════════════════════════════════════════════════════════════════
-// ACTION: /auth/login  (email/username + password)
+// ACTION: /auth/login  (email or username + password)
 // ════════════════════════════════════════════════════════════════════════════
 async function handleLogin(request, env, origin) {
   const body       = await parseBody(request);
   const identifier = (body.identifier || '').trim().toLowerCase();
   const password   = (body.password   || '');
-  const ua         = request.headers.get('User-Agent') || '';
-  const ip         = request.headers.get('CF-Connecting-IP') || '';
 
   if (!identifier || !password) {
     return jsonResponse({ ok: false, error: 'missing_credentials' }, 400, origin);
   }
 
-  const isEmail = identifier.includes('@');
-
-  // 1) Look up user
-  const user = isEmail
-    ? await getUserByEmail(env, identifier)
-    : await getUserByUsername(env, identifier);
-
-  // 2) Rate limit check (always check before verifying password)
-  const rlBlocked = await checkRateLimit(env, {
-    identifier,
-    user_id:  user ? user.user_id : '',
-    ip,
-    kind:     isEmail ? 'LOGIN_EMAIL' : 'LOGIN_USERNAME'
-  });
-
-  if (rlBlocked) {
-    await logAuthEvent(env, {
-      kind:       isEmail ? 'LOGIN_EMAIL' : 'LOGIN_USERNAME',
-      identifier, user_id: user ? user.user_id : '',
-      ip, ua, ok: false,
-      error_code: 'too_many_attempts'
-    });
-    return jsonResponse({ ok: false, error: 'too_many_attempts' }, 429, origin);
+  // If identifier is not an email, look up the email by username
+  let email = identifier;
+  if (!identifier.includes('@')) {
+    const user = await getUserByUsername(env, identifier);
+    if (!user) {
+      return jsonResponse({ ok: false, error: 'invalid_login' }, 401, origin);
+    }
+    email = user.email;
   }
 
-  // 3) Validate user exists and is active
-  if (!user || !user.active) {
-    await logAuthEvent(env, {
-      kind: isEmail ? 'LOGIN_EMAIL' : 'LOGIN_USERNAME',
-      identifier, user_id: '', ip, ua, ok: false,
-      error_code: 'invalid_login', note: !user ? 'no_user' : 'user_inactive'
-    });
-    return jsonResponse({ ok: false, error: 'invalid_login' }, 401, origin);
+  // Sign in via Supabase Auth
+  const authRes = await fetch(
+    `${env.SUPABASE_URL}/auth/v1/token?grant_type=password`,
+    {
+      method:  'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey':       env.SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ email, password })
+    }
+  );
+
+  const authData = await authRes.json();
+
+  if (!authRes.ok || !authData.access_token) {
+    const errMsg = (authData.error_description || authData.msg || '').toLowerCase();
+    let error = 'invalid_login';
+    if (errMsg.includes('email not confirmed')) error = 'email_not_confirmed';
+    return jsonResponse({ ok: false, error }, 401, origin);
   }
 
-  // 4) Verify password: SHA-256(salt + password) — must match old system exactly
-  const expectedHash = await sha256WebSafe(user.salt + password);
-  if (expectedHash !== user.password_hash) {
-    await logAuthEvent(env, {
-      kind: isEmail ? 'LOGIN_EMAIL' : 'LOGIN_USERNAME',
-      identifier, user_id: user.user_id, ip, ua, ok: false,
-      error_code: 'invalid_login', note: 'bad_password'
-    });
-    return jsonResponse({ ok: false, error: 'invalid_login' }, 401, origin);
-  }
+  // Ensure user exists in public.users
+  await ensurePublicUser(env, authData.user);
 
-  // 5) Issue token + set HttpOnly cookie
-  return await issueSessionAndRespond(env, user, ua, ip, 'password', origin);
+  const response = jsonResponse({
+    ok:      true,
+    profile: await getPublicUserProfile(env, authData.user.id)
+  }, 200, origin);
+
+  setCookies(response, authData.access_token, authData.refresh_token);
+  return response;
 }
 
 
@@ -133,85 +117,75 @@ async function handleLogin(request, env, origin) {
 // ACTION: /auth/login-google
 // ════════════════════════════════════════════════════════════════════════════
 async function handleGoogleLogin(request, env, origin) {
-  const body     = await parseBody(request);
-  const idToken  = (body.id_token || '').trim();
-  const ua       = request.headers.get('User-Agent') || '';
-  const ip       = request.headers.get('CF-Connecting-IP') || '';
+  const body    = await parseBody(request);
+  const idToken = (body.id_token || '').trim();
 
   if (!idToken) {
     return jsonResponse({ ok: false, error: 'missing_id_token' }, 400, origin);
   }
 
-  // 1) Verify Google ID token
-  const googlePayload = await verifyGoogleToken(idToken, env.GOOGLE_CLIENT_ID);
-  if (!googlePayload) {
+  // Exchange Google ID token with Supabase Auth
+  const authRes = await fetch(
+    `${env.SUPABASE_URL}/auth/v1/token?grant_type=id_token`,
+    {
+      method:  'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey':       env.SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ provider: 'google', id_token: idToken })
+    }
+  );
+
+  const authData = await authRes.json();
+
+  if (!authRes.ok || !authData.access_token) {
+    console.error('Google auth error:', authData);
     return jsonResponse({ ok: false, error: 'invalid_google_token' }, 401, origin);
   }
 
-  const email = (googlePayload.email || '').toLowerCase();
-  if (!email) {
-    return jsonResponse({ ok: false, error: 'no_email_from_google' }, 401, origin);
-  }
+  // Ensure user exists in public.users
+  await ensurePublicUser(env, authData.user);
 
-  // 2) Look up user by email
-  const user = await getUserByEmail(env, email);
-  if (!user || !user.active) {
-    await logAuthEvent(env, {
-      kind: 'LOGIN_GOOGLE', identifier: email,
-      user_id: '', ip, ua, ok: false,
-      error_code: !user ? 'no_account' : 'user_inactive'
-    });
-    return jsonResponse({
-      ok: false,
-      error: !user ? 'no_account' : 'user_inactive'
-    }, 401, origin);
-  }
+  const response = jsonResponse({
+    ok:      true,
+    profile: await getPublicUserProfile(env, authData.user.id)
+  }, 200, origin);
 
-  // 3) Issue session
-  return await issueSessionAndRespond(env, user, ua, ip, 'GOOGLE', origin);
+  setCookies(response, authData.access_token, authData.refresh_token);
+  return response;
 }
 
 
 // ════════════════════════════════════════════════════════════════════════════
-// ACTION: /auth/verify  (called by every protected page on load)
+// ACTION: /auth/verify
 // ════════════════════════════════════════════════════════════════════════════
 async function handleVerify(request, env, origin) {
-  const token = getTokenFromCookie(request);
+  const token = getCookie(request, COOKIE_NAME);
   if (!token) {
     return jsonResponse({ ok: false, error: 'no_session' }, 401, origin);
   }
 
-  const tokenRow = await getActiveToken(env, token);
-  if (!tokenRow) {
+  // Verify JWT with Supabase Auth
+  const userRes = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      'apikey':        env.SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${token}`,
+    }
+  });
+
+  if (!userRes.ok) {
     return jsonResponse({ ok: false, error: 'invalid_or_expired' }, 401, origin);
   }
 
-  // Update last_seen_utc
-  await supabasePatch(env, `tokens?token=eq.${encodeURIComponent(token)}`, {
-    last_seen_utc: new Date().toISOString()
-  });
-
-  // Fetch user profile
-  const user = await getUserById(env, tokenRow.user_id);
-  if (!user || !user.active) {
-    return jsonResponse({ ok: false, error: 'user_inactive' }, 401, origin);
+  const authUser = await userRes.json();
+  if (!authUser || !authUser.id) {
+    return jsonResponse({ ok: false, error: 'invalid_or_expired' }, 401, origin);
   }
 
-  return jsonResponse({
-    ok: true,
-    user: {
-      user_id:    user.user_id,
-      username:   user.username,
-      name:       user.name,
-      forename:   user.forename,
-      surname:    user.surname,
-      email:      user.email,
-      role:       user.role,
-      program_id: user.program_id,
-      avatar_url: user.avatar_url || '',
-      must_change_password: !!user.must_change_password,
-    }
-  }, 200, origin);
+  const profile = await getPublicUserProfile(env, authUser.id);
+
+  return jsonResponse({ ok: true, user: profile }, 200, origin);
 }
 
 
@@ -219,142 +193,100 @@ async function handleVerify(request, env, origin) {
 // ACTION: /auth/logout
 // ════════════════════════════════════════════════════════════════════════════
 async function handleLogout(request, env, origin) {
-  const token = getTokenFromCookie(request);
+  const token = getCookie(request, COOKIE_NAME);
 
   if (token) {
-    // Deactivate token in Supabase
-    await supabasePatch(env, `tokens?token=eq.${encodeURIComponent(token)}`, {
-      active: false
+    await fetch(`${env.SUPABASE_URL}/auth/v1/logout`, {
+      method:  'POST',
+      headers: {
+        'apikey':        env.SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${token}`,
+      }
     });
   }
 
-  // Clear the cookie
   const response = jsonResponse({ ok: true }, 200, origin);
-  response.headers.set('Set-Cookie',
+  response.headers.append('Set-Cookie',
     `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
   );
+  response.headers.append('Set-Cookie',
+    `qa_refresh=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
+  );
   return response;
 }
 
 
 // ════════════════════════════════════════════════════════════════════════════
-// HELPERS — Session + Token
+// HELPERS — public.users sync
 // ════════════════════════════════════════════════════════════════════════════
 
-async function issueSessionAndRespond(env, user, ua, ip, loginVia, origin) {
-  // Generate token: SHA-256 of (random UUID + timestamp) — matches old system format
-  const rawToken   = await sha256WebSafe(crypto.randomUUID() + new Date().toISOString());
-  const issuedAt   = new Date();
-  const expiresAt  = new Date(issuedAt.getTime() + TOKEN_TTL_MS);
+async function ensurePublicUser(env, authUser) {
+  if (!authUser || !authUser.id) return;
 
-  const deviceLabel = deriveDeviceLabel(ua);
-  const uaHash      = await sha256WebSafe(ua);
-  const ipHash      = ip ? await sha256WebSafe(ip) : '';
+  const email = (authUser.email || '').toLowerCase();
 
-  // Write token to Supabase
-  await supabaseInsert(env, 'tokens', {
-    token:          rawToken,
-    user_id:        user.user_id,
-    kind:           'LOGIN',
-    issued_utc:     issuedAt.toISOString(),
-    expires_utc:    expiresAt.toISOString(),
-    ua_hash:        uaHash,
-    ip_hash:        ipHash,
-    last_seen_utc:  issuedAt.toISOString(),
-    device_label:   deviceLabel,
-    login_via:      loginVia,
-    active:         true
-  });
-
-  // Update user last_login_utc
-  await supabasePatch(env, `users?user_id=eq.${user.user_id}`, {
-    last_login_utc: issuedAt.toISOString()
-  });
-
-  await logAuthEvent(env, {
-    kind:       loginVia === 'GOOGLE' ? 'LOGIN_GOOGLE' : 'LOGIN_EMAIL',
-    identifier: user.email,
-    user_id:    user.user_id,
-    ip, ua, ok: true, error_code: 'ok'
-  });
-
-  // Build response with HttpOnly cookie
-  const response = jsonResponse({
-    ok: true,
-    profile: {
-      user_id:    user.user_id,
-      username:   user.username,
-      name:       user.name,
-      email:      user.email,
-      role:       user.role,
-      program_id: user.program_id,
-      avatar_url: user.avatar_url || '',
-      must_change_password: !!user.must_change_password,
-    }
-  }, 200, origin);
-
-  // Set the HttpOnly session cookie
-  response.headers.set('Set-Cookie',
-    `${COOKIE_NAME}=${rawToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${COOKIE_TTL_S}`
+  // Check if user already exists by auth_id first, then email
+  let rows = await supabaseSelect(env,
+    `users?auth_id=eq.${encodeURIComponent(authUser.id)}&limit=1`
   );
 
-  return response;
-}
+  if (rows && rows.length > 0) return; // already linked, nothing to do
 
-function getTokenFromCookie(request) {
-  const cookieHeader = request.headers.get('Cookie') || '';
-  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${COOKIE_NAME}=([^;]+)`));
-  return match ? match[1] : null;
-}
-
-
-// ════════════════════════════════════════════════════════════════════════════
-// HELPERS — Supabase queries
-// ════════════════════════════════════════════════════════════════════════════
-
-async function supabaseFetch(env, path, options = {}) {
-  const url = `${env.SUPABASE_URL}/rest/v1/${path}`;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      'apikey':        env.SUPABASE_SERVICE_KEY,
-      'Authorization': `Bearer ${env.SUPABASE_SERVICE_KEY}`,
-      'Content-Type':  'application/json',
-      'Prefer':        'return=minimal',
-      ...(options.headers || {})
-    }
-  });
-  return res;
-}
-
-async function supabaseSelect(env, path) {
-  const res = await supabaseFetch(env, path, { method: 'GET', headers: { 'Prefer': '' } });
-  if (!res.ok) return null;
-  const rows = await res.json();
-  return Array.isArray(rows) ? rows : null;
-}
-
-async function supabaseInsert(env, table, data) {
-  return supabaseFetch(env, table, {
-    method:  'POST',
-    body:    JSON.stringify(data),
-    headers: { 'Prefer': 'return=minimal' }
-  });
-}
-
-async function supabasePatch(env, path, data) {
-  return supabaseFetch(env, path, {
-    method:  'PATCH',
-    body:    JSON.stringify(data),
-    headers: { 'Prefer': 'return=minimal' }
-  });
-}
-
-async function getUserByEmail(env, email) {
-  const rows = await supabaseSelect(env,
+  // Check by email (existing user not yet linked to Supabase Auth)
+  rows = await supabaseSelect(env,
     `users?email=eq.${encodeURIComponent(email)}&limit=1`
   );
-  return rows && rows[0] ? rows[0] : null;
+
+  if (rows && rows.length > 0) {
+    // Link existing user to Supabase Auth
+    await supabasePatch(env,
+      `users?email=eq.${encodeURIComponent(email)}`,
+      { auth_id: authUser.id }
+    );
+    return;
+  }
+
+  // Brand new user — create public.users row
+  const meta     = authUser.user_metadata || {};
+  const name     = meta.full_name || meta.name || email.split('@')[0];
+  const forename = meta.given_name  || name.split(' ')[0] || '';
+  const surname  = meta.family_name || name.split(' ').slice(1).join(' ') || '';
+  const userId   = 'U_' + authUser.id.replace(/-/g, '').slice(0, 10);
+
+  await supabaseInsert(env, 'users', {
+    user_id:      userId,
+    auth_id:      authUser.id,
+    email,
+    name,
+    forename,
+    surname,
+    username:     email.split('@')[0].toLowerCase().replace(/[^a-z0-9_]/g, ''),
+    avatar_url:   meta.avatar_url || meta.picture || '',
+    role:         'STUDENT',
+    active:       true,
+    created_utc:  new Date().toISOString(),
+    signup_source: 'SUPABASE_AUTH',
+  });
+}
+
+async function getPublicUserProfile(env, authId) {
+  const rows = await supabaseSelect(env,
+    `users?auth_id=eq.${encodeURIComponent(authId)}&limit=1`
+  );
+  if (!rows || !rows[0]) return null;
+  const u = rows[0];
+  return {
+    user_id:              u.user_id,
+    username:             u.username,
+    name:                 u.name,
+    forename:             u.forename,
+    surname:              u.surname,
+    email:                u.email,
+    role:                 u.role,
+    program_id:           u.program_id,
+    avatar_url:           u.avatar_url || '',
+    must_change_password: !!u.must_change_password,
+  };
 }
 
 async function getUserByUsername(env, username) {
@@ -364,117 +296,71 @@ async function getUserByUsername(env, username) {
   return rows && rows[0] ? rows[0] : null;
 }
 
-async function getUserById(env, userId) {
-  const rows = await supabaseSelect(env,
-    `users?user_id=eq.${encodeURIComponent(userId)}&limit=1`
-  );
-  return rows && rows[0] ? rows[0] : null;
-}
-
-async function getActiveToken(env, token) {
-  const now = new Date().toISOString();
-  const rows = await supabaseSelect(env,
-    `tokens?token=eq.${encodeURIComponent(token)}&active=eq.true&expires_utc=gt.${now}&limit=1`
-  );
-  return rows && rows[0] ? rows[0] : null;
-}
-
 
 // ════════════════════════════════════════════════════════════════════════════
-// HELPERS — Rate limiting
+// HELPERS — Supabase REST
 // ════════════════════════════════════════════════════════════════════════════
 
-async function checkRateLimit(env, { identifier, user_id, ip, kind }) {
-  const now     = new Date();
-  const shortCutoff = new Date(now.getTime() - RL_SHORT_WINDOW_MS).toISOString();
-  const longCutoff  = new Date(now.getTime() - RL_LONG_WINDOW_MS).toISOString();
-
-  // Count recent failures by this identifier (email/username)
-  const byIdentifier = await supabaseSelect(env,
-    `auth_events?identifier=eq.${encodeURIComponent(identifier)}&ok=eq.false&ts_utc=gt.${shortCutoff}`
-  );
-
-  if (byIdentifier && byIdentifier.length >= RL_SHORT_MAX) return true;
-
-  // Count long-window failures by IP
-  if (ip) {
-    const ipHash = await sha256WebSafe(ip);
-    const byIp = await supabaseSelect(env,
-      `auth_events?ip_hash=eq.${encodeURIComponent(ipHash)}&ok=eq.false&ts_utc=gt.${longCutoff}`
-    );
-    if (byIp && byIp.length >= RL_LONG_MAX) return true;
-  }
-
-  return false;
+async function supabaseSelect(env, path) {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/${path}`, {
+    method:  'GET',
+    headers: {
+      'apikey':        env.SUPABASE_SERVICE_KEY,
+      'Authorization': `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+    }
+  });
+  if (!res.ok) return null;
+  const rows = await res.json();
+  return Array.isArray(rows) ? rows : null;
 }
 
-async function logAuthEvent(env, { kind, identifier, user_id, ip, ua, ok, error_code, note }) {
-  const ipHash = ip ? await sha256WebSafe(ip) : '';
-  const uaHash = ua ? await sha256WebSafe(ua) : '';
+async function supabaseInsert(env, table, data) {
+  return fetch(`${env.SUPABASE_URL}/rest/v1/${table}`, {
+    method:  'POST',
+    headers: {
+      'apikey':        env.SUPABASE_SERVICE_KEY,
+      'Authorization': `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      'Content-Type':  'application/json',
+      'Prefer':        'return=minimal',
+    },
+    body: JSON.stringify(data)
+  });
+}
 
-  await supabaseInsert(env, 'auth_events', {
-    kind,
-    identifier,
-    user_id:    user_id || null,
-    ip_hash:    ipHash,
-    ua_hash:    uaHash,
-    ok,
-    error_code: error_code || '',
-    note:       note || '',
-    ts_utc:     new Date().toISOString()
+async function supabasePatch(env, path, data) {
+  return fetch(`${env.SUPABASE_URL}/rest/v1/${path}`, {
+    method:  'PATCH',
+    headers: {
+      'apikey':        env.SUPABASE_SERVICE_KEY,
+      'Authorization': `Bearer ${env.SUPABASE_SERVICE_KEY}`,
+      'Content-Type':  'application/json',
+      'Prefer':        'return=minimal',
+    },
+    body: JSON.stringify(data)
   });
 }
 
 
 // ════════════════════════════════════════════════════════════════════════════
-// HELPERS — Google token verification
+// HELPERS — Cookies + Utilities
 // ════════════════════════════════════════════════════════════════════════════
 
-async function verifyGoogleToken(idToken, clientId) {
-  try {
-    // Use Google's tokeninfo endpoint to verify
-    const res = await fetch(
-      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`
+function setCookies(response, accessToken, refreshToken) {
+  response.headers.append('Set-Cookie',
+    `${COOKIE_NAME}=${accessToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${COOKIE_TTL_S}`
+  );
+  if (refreshToken) {
+    response.headers.append('Set-Cookie',
+      `qa_refresh=${refreshToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`
     );
-    if (!res.ok) return null;
-    const payload = await res.json();
-
-    // Validate audience matches our client ID
-    if (payload.aud !== clientId) return null;
-
-    // Validate token is not expired
-    if (payload.exp && Date.now() / 1000 > parseInt(payload.exp)) return null;
-
-    return payload;
-  } catch {
-    return null;
   }
 }
 
-
-// ════════════════════════════════════════════════════════════════════════════
-// HELPERS — Crypto
-// ════════════════════════════════════════════════════════════════════════════
-
-async function sha256WebSafe(input) {
-  const encoder = new TextEncoder();
-  const data     = encoder.encode(input);
-  const hashBuf  = await crypto.subtle.digest('SHA-256', data);
-  const bytes    = new Uint8Array(hashBuf);
-
-  // Base64url encode (web-safe, no padding) — matches old Apps Script format
-  let binary = '';
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+function getCookie(request, name) {
+  const header = request.headers.get('Cookie') || '';
+  const match  = header.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  return match ? match[1] : null;
 }
-
-
-// ════════════════════════════════════════════════════════════════════════════
-// HELPERS — Utilities
-// ════════════════════════════════════════════════════════════════════════════
 
 async function parseBody(request) {
   const ct = request.headers.get('Content-Type') || '';
@@ -482,10 +368,9 @@ async function parseBody(request) {
     try { return await request.json(); } catch { return {}; }
   }
   if (ct.includes('application/x-www-form-urlencoded')) {
-    const text   = await request.text();
-    const params = new URLSearchParams(text);
-    const obj    = {};
-    for (const [k, v] of params) obj[k] = v;
+    const text = await request.text();
+    const obj  = {};
+    for (const [k, v] of new URLSearchParams(text)) obj[k] = v;
     return obj;
   }
   return {};
@@ -499,22 +384,4 @@ function jsonResponse(data, status, origin) {
       ...corsHeaders(origin)
     }
   });
-}
-
-function deriveDeviceLabel(ua) {
-  if (!ua) return '';
-  let platform = 'Unknown';
-  if (/android/i.test(ua))                        platform = 'Android';
-  else if (/iphone|ipad|ipod/i.test(ua))          platform = 'iOS';
-  else if (/windows/i.test(ua))                   platform = 'Windows';
-  else if (/macintosh|mac os x/i.test(ua))        platform = 'macOS';
-  else if (/linux/i.test(ua))                     platform = 'Linux';
-
-  let browser = 'Browser';
-  if (/edg/i.test(ua))                            browser = 'Edge';
-  else if (/chrome/i.test(ua))                    browser = 'Chrome';
-  else if (/safari/i.test(ua) && !/chrome/i.test(ua)) browser = 'Safari';
-  else if (/firefox/i.test(ua))                   browser = 'Firefox';
-
-  return `${platform} · ${browser}`;
 }
