@@ -143,20 +143,20 @@ async function handleCallback(request, env, origin) {
   }
 
   // Exchange code for session
-  const tokenRes = await fetch(`${env.SUPABASE_URL}/auth/v1/token?grant_type=pkce`, {
+  const tokenRes = await fetch(`${env.SUPABASE_URL}/auth/v1/token?grant_type=authorization_code`, {
     method:  'POST',
     headers: {
       'Content-Type': 'application/json',
       'apikey':       env.SUPABASE_ANON_KEY,
     },
-    body: JSON.stringify({ auth_code: code })
+    body: JSON.stringify({ code, redirect_to: `${url.origin}/auth/callback` })
   });
 
   const tokenData = await tokenRes.json();
 
   if (!tokenRes.ok || !tokenData.access_token) {
-    console.error('OAuth callback error:', tokenData);
-    return Response.redirect('/login.html?error=oauth_failed', 302);
+    console.error('OAuth callback error:', JSON.stringify(tokenData));
+    return Response.redirect(`/login.html?error=oauth_failed&msg=${encodeURIComponent(tokenData.error_description || tokenData.msg || 'unknown')}`, 302);
   }
 
   // Ensure user exists in public.users
