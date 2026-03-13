@@ -9,12 +9,10 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
   <style>
-    /* ── Variables ─────────────────────────────────────────────── */
     :root {
       --brand:        #0b7a75;
       --brand-dark:   #085f5b;
       --brand-light:  #e6f4f3;
-      --accent:       #f0a500;
       --text:         #0f172a;
       --muted:        #64748b;
       --border:       #e2e8f0;
@@ -25,10 +23,8 @@
       --surface:      #ffffff;
       --bg:           #f0f7f6;
       --radius:       14px;
-      --shadow:       0 4px 24px rgba(11,122,117,0.10), 0 1px 4px rgba(0,0,0,0.06);
     }
 
-    /* ── Reset ──────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     html, body {
@@ -39,14 +35,13 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Layout ─────────────────────────────────────────────────── */
     .page {
       min-height: 100vh;
       display: grid;
       grid-template-columns: 1fr 1fr;
     }
 
-    /* ── Left panel (brand) ─────────────────────────────────────── */
+    /* ── Brand panel ── */
     .brand-panel {
       background: var(--brand);
       display: flex;
@@ -67,16 +62,13 @@
       pointer-events: none;
     }
 
-    /* Decorative circle */
     .brand-panel::after {
       content: '';
       position: absolute;
-      width: 420px;
-      height: 420px;
+      width: 420px; height: 420px;
       border-radius: 50%;
       border: 1.5px solid rgba(255,255,255,0.12);
-      bottom: -120px;
-      right: -100px;
+      bottom: -120px; right: -100px;
       pointer-events: none;
     }
 
@@ -89,15 +81,13 @@
     }
 
     .brand-logo-mark {
-      width: 40px;
-      height: 40px;
+      width: 40px; height: 40px;
       background: rgba(255,255,255,0.15);
       border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 20px;
-      backdrop-filter: blur(8px);
       border: 1px solid rgba(255,255,255,0.2);
     }
 
@@ -105,12 +95,10 @@
       font-family: 'DM Serif Display', serif;
       font-size: 17px;
       color: #fff;
-      letter-spacing: 0.01em;
       line-height: 1.2;
     }
 
     .brand-logo-sub {
-      font-family: 'DM Sans', sans-serif;
       font-size: 11px;
       color: rgba(255,255,255,0.65);
       font-weight: 400;
@@ -118,10 +106,7 @@
       text-transform: uppercase;
     }
 
-    .brand-body {
-      position: relative;
-      z-index: 1;
-    }
+    .brand-body { position: relative; z-index: 1; }
 
     .brand-headline {
       font-family: 'DM Serif Display', serif;
@@ -131,10 +116,7 @@
       margin-bottom: 20px;
     }
 
-    .brand-headline em {
-      font-style: italic;
-      color: rgba(255,255,255,0.75);
-    }
+    .brand-headline em { font-style: italic; color: rgba(255,255,255,0.75); }
 
     .brand-desc {
       font-size: 15px;
@@ -155,14 +137,12 @@
       font-family: 'DM Serif Display', serif;
       font-size: 28px;
       color: #fff;
-      line-height: 1;
     }
 
     .brand-stat-label {
       font-size: 12px;
       color: rgba(255,255,255,0.55);
       margin-top: 4px;
-      letter-spacing: 0.02em;
     }
 
     .brand-footer {
@@ -172,7 +152,7 @@
       z-index: 1;
     }
 
-    /* ── Right panel (form) ─────────────────────────────────────── */
+    /* ── Form panel ── */
     .form-panel {
       display: flex;
       align-items: center;
@@ -195,7 +175,6 @@
     .form-title {
       font-family: 'DM Serif Display', serif;
       font-size: 28px;
-      color: var(--text);
       margin-bottom: 6px;
     }
 
@@ -205,7 +184,7 @@
       margin-bottom: 32px;
     }
 
-    /* ── Google button ──────────────────────────────────────────── */
+    /* Google button */
     .btn-google {
       width: 100%;
       display: flex;
@@ -221,27 +200,15 @@
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
-      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-      position: relative;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
 
-    .btn-google:hover {
-      border-color: var(--brand);
-      box-shadow: 0 0 0 3px rgba(11,122,117,0.08);
-    }
+    .btn-google:hover { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(11,122,117,0.08); }
+    .btn-google:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    .btn-google:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
+    .google-icon { width: 18px; height: 18px; flex-shrink: 0; }
 
-    .google-icon {
-      width: 18px;
-      height: 18px;
-      flex-shrink: 0;
-    }
-
-    /* ── Divider ────────────────────────────────────────────────── */
+    /* Divider */
     .divider {
       display: flex;
       align-items: center;
@@ -253,24 +220,20 @@
       text-transform: uppercase;
     }
 
-    .divider::before,
-    .divider::after {
+    .divider::before, .divider::after {
       content: '';
       flex: 1;
       height: 1px;
       background: var(--border);
     }
 
-    /* ── Form fields ────────────────────────────────────────────── */
-    .field {
-      margin-bottom: 16px;
-    }
+    /* Fields */
+    .field { margin-bottom: 16px; }
 
     .field label {
       display: block;
       font-size: 13px;
       font-weight: 500;
-      color: var(--text);
       margin-bottom: 6px;
     }
 
@@ -297,32 +260,22 @@
       box-shadow: 0 0 0 3px rgba(220,38,38,0.08);
     }
 
-    /* Password wrapper */
-    .pw-wrap {
-      position: relative;
-    }
-
-    .pw-wrap input {
-      padding-right: 42px;
-    }
+    .pw-wrap { position: relative; }
+    .pw-wrap input { padding-right: 42px; }
 
     .pw-toggle {
       position: absolute;
-      right: 12px;
-      top: 50%;
+      right: 12px; top: 50%;
       transform: translateY(-50%);
-      background: none;
-      border: none;
+      background: none; border: none;
       cursor: pointer;
       color: var(--muted);
       padding: 4px;
-      line-height: 1;
       transition: color 0.15s;
     }
 
     .pw-toggle:hover { color: var(--brand); }
 
-    /* Caps lock warning */
     .caps-warn {
       display: none;
       font-size: 12px;
@@ -334,7 +287,6 @@
       margin-top: 6px;
     }
 
-    /* Forgot password link */
     .forgot-link {
       display: block;
       text-align: right;
@@ -343,12 +295,11 @@
       text-decoration: none;
       margin-top: -8px;
       margin-bottom: 20px;
-      transition: color 0.15s;
     }
 
-    .forgot-link:hover { color: var(--brand-dark); text-decoration: underline; }
+    .forgot-link:hover { text-decoration: underline; }
 
-    /* ── Submit button ──────────────────────────────────────────── */
+    /* Submit button */
     .btn-primary {
       width: 100%;
       padding: 12px 20px;
@@ -360,13 +311,11 @@
       font-size: 15px;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+      transition: background 0.15s, box-shadow 0.15s;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      position: relative;
-      overflow: hidden;
     }
 
     .btn-primary:hover:not(:disabled) {
@@ -374,17 +323,11 @@
       box-shadow: 0 4px 16px rgba(11,122,117,0.3);
     }
 
-    .btn-primary:active:not(:disabled) { transform: scale(0.99); }
-
-    .btn-primary:disabled {
-      opacity: 0.65;
-      cursor: not-allowed;
-    }
+    .btn-primary:disabled { opacity: 0.65; cursor: not-allowed; }
 
     .btn-spinner {
       display: none;
-      width: 16px;
-      height: 16px;
+      width: 16px; height: 16px;
       border: 2px solid rgba(255,255,255,0.35);
       border-top-color: #fff;
       border-radius: 50%;
@@ -396,7 +339,7 @@
     .btn-primary.loading .btn-text { opacity: 0.7; }
     .btn-primary.loading .btn-spinner { display: block; }
 
-    /* ── Status message ─────────────────────────────────────────── */
+    /* Status */
     .status-msg {
       display: none;
       padding: 11px 14px;
@@ -406,28 +349,10 @@
       margin-bottom: 16px;
     }
 
-    .status-msg.error {
-      display: block;
-      background: var(--danger-bg);
-      color: var(--danger);
-      border: 1px solid #fecaca;
-    }
+    .status-msg.error   { display: block; background: var(--danger-bg); color: var(--danger); border: 1px solid #fecaca; }
+    .status-msg.success { display: block; background: var(--success-bg); color: var(--success); border: 1px solid #a7f3d0; }
+    .status-msg.info    { display: block; background: var(--brand-light); color: var(--brand-dark); border: 1px solid #b2dedd; }
 
-    .status-msg.success {
-      display: block;
-      background: var(--success-bg);
-      color: var(--success);
-      border: 1px solid #a7f3d0;
-    }
-
-    .status-msg.info {
-      display: block;
-      background: var(--brand-light);
-      color: var(--brand-dark);
-      border: 1px solid #b2dedd;
-    }
-
-    /* ── Footer note ─────────────────────────────────────────────── */
     .form-footer {
       margin-top: 24px;
       text-align: center;
@@ -435,23 +360,13 @@
       color: var(--muted);
     }
 
-    .form-footer a {
-      color: var(--brand);
-      text-decoration: none;
-      font-weight: 500;
-    }
-
+    .form-footer a { color: var(--brand); text-decoration: none; font-weight: 500; }
     .form-footer a:hover { text-decoration: underline; }
 
-    /* ── Responsive ─────────────────────────────────────────────── */
     @media (max-width: 768px) {
       .page { grid-template-columns: 1fr; }
       .brand-panel { display: none; }
-      .form-panel {
-        padding: 32px 24px;
-        align-items: flex-start;
-        padding-top: 60px;
-      }
+      .form-panel { padding: 32px 24px; align-items: flex-start; padding-top: 60px; }
     }
   </style>
 </head>
@@ -459,7 +374,7 @@
 
 <div class="page">
 
-  <!-- ── Left: Brand panel ── -->
+  <!-- Brand panel -->
   <div class="brand-panel">
     <div class="brand-logo">
       <div class="brand-logo-mark">🏥</div>
@@ -486,7 +401,7 @@
         </div>
         <div>
           <div class="brand-stat-value">1000+</div>
-          <div class="brand-stat-label">Practice questions</div>
+          <div class="brand-stat-label">Questions</div>
         </div>
         <div>
           <div class="brand-stat-value">24/7</div>
@@ -495,27 +410,24 @@
       </div>
     </div>
 
-    <div class="brand-footer">
-      © 2026 QAcademy Nurses Hub · All rights reserved
-    </div>
+    <div class="brand-footer">© 2026 QAcademy Nurses Hub · All rights reserved</div>
   </div>
 
-  <!-- ── Right: Login form ── -->
+  <!-- Form panel -->
   <div class="form-panel">
     <div class="form-wrap">
 
       <h2 class="form-title">Welcome back</h2>
       <p class="form-sub">Sign in to your QAcademy account</p>
 
-      <!-- Status message box -->
       <div id="statusMsg" class="status-msg" role="alert"></div>
 
-      <!-- Google Sign-In button -->
+      <!-- Google button -->
       <button class="btn-google" id="btnGoogle" type="button">
         <svg class="google-icon" viewBox="0 0 24 24">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
           <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
         </svg>
         Continue with Google
@@ -523,30 +435,17 @@
 
       <div class="divider">or sign in with password</div>
 
-      <!-- Email/Username field -->
       <div class="field">
         <label for="identifier">Email or username</label>
-        <input
-          type="text"
-          id="identifier"
-          name="identifier"
-          autocomplete="username"
-          placeholder="e.g. akosua@gmail.com or akosua01"
-          spellcheck="false"
-        />
+        <input type="text" id="identifier" autocomplete="username"
+               placeholder="e.g. akosua@gmail.com or akosua01" spellcheck="false" />
       </div>
 
-      <!-- Password field -->
       <div class="field">
         <label for="password">Password</label>
         <div class="pw-wrap">
-          <input
-            type="password"
-            id="password"
-            name="password"
-            autocomplete="current-password"
-            placeholder="Your password"
-          />
+          <input type="password" id="password" autocomplete="current-password"
+                 placeholder="Your password" />
           <button class="pw-toggle" id="pwToggle" type="button" aria-label="Show password">
             <svg id="eyeIcon" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -559,7 +458,6 @@
 
       <a href="/forgot-password.html" class="forgot-link">Forgot password?</a>
 
-      <!-- Submit -->
       <button class="btn-primary" id="btnLogin" type="button">
         <span class="btn-text">Sign in</span>
         <span class="btn-spinner"></span>
@@ -574,19 +472,16 @@
 
 </div>
 
-<!-- Google Sign-In SDK -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <script>
 (function () {
   'use strict';
 
-  /* ── Config ─────────────────────────────────────────────────── */
-  const AUTH_BASE       = '/auth';
-  const DASHBOARD_URL   = '/dashboard.html';
+  const AUTH_BASE        = '/auth';
+  const DASHBOARD_URL    = '/dashboard.html';
   const GOOGLE_CLIENT_ID = '117220903038-1qe508lr01t59mjabeavcl640hraigs4.apps.googleusercontent.com';
 
-  /* ── Elements ───────────────────────────────────────────────── */
   const elIdentifier = document.getElementById('identifier');
   const elPassword   = document.getElementById('password');
   const elBtnLogin   = document.getElementById('btnLogin');
@@ -596,23 +491,17 @@
   const elCapsWarn   = document.getElementById('capsWarn');
   const elEyeIcon    = document.getElementById('eyeIcon');
 
-  /* ── Return-to support ──────────────────────────────────────── */
   function getReturnTo() {
     try {
-      const qs = new URLSearchParams(location.search);
-      const rt = (qs.get('return_to') || '').trim();
-      // Only allow same-site relative paths
+      const rt = new URLSearchParams(location.search).get('return_to') || '';
       if (!rt || rt[0] !== '/' || rt.startsWith('//')) return DASHBOARD_URL;
-      if (rt.toLowerCase().includes('javascript:')) return DASHBOARD_URL;
       return rt;
     } catch (_) { return DASHBOARD_URL; }
   }
 
-  /* ── Status messages ────────────────────────────────────────── */
   function showStatus(kind, msg) {
     elStatusMsg.className = `status-msg ${kind}`;
     elStatusMsg.textContent = msg;
-    elStatusMsg.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   function clearStatus() {
@@ -624,30 +513,27 @@
     el.classList.toggle('error', hasError);
   }
 
-  /* ── Error code → human message ────────────────────────────── */
   function errorMessage(code) {
     const map = {
-      invalid_login:           'Incorrect email/username or password.',
-      missing_credentials:     'Please enter your email/username and password.',
-      user_inactive:           'Your account has been deactivated. Please contact support.',
-      user_expired:            'Your account access has expired. Please renew your subscription.',
-      too_many_attempts:       'Too many failed attempts. Please wait 10 minutes before trying again.',
-      too_many_attempts_24h:   'Too many failed attempts today. Please try again tomorrow or reset your password.',
-      no_account:              'No QAcademy account found for this Google email. Please register first.',
-      invalid_google_token:    'Google sign-in failed. Please try again.',
-      server_error:            'Something went wrong on our end. Please try again in a moment.',
+      invalid_login:         'Incorrect email/username or password.',
+      missing_credentials:   'Please enter your email/username and password.',
+      user_inactive:         'Your account has been deactivated. Please contact support.',
+      email_not_confirmed:   'Please confirm your email address before signing in.',
+      too_many_attempts:     'Too many failed attempts. Please wait before trying again.',
+      no_account:            'No QAcademy account found for this Google email.',
+      invalid_google_token:  'Google sign-in failed. Please try again.',
+      server_error:          'Something went wrong. Please try again in a moment.',
     };
     return map[code] || 'Something went wrong. Please try again.';
   }
 
-  /* ── Set busy state ─────────────────────────────────────────── */
   function setBusy(busy) {
     elBtnLogin.disabled  = busy;
     elBtnGoogle.disabled = busy;
     elBtnLogin.classList.toggle('loading', busy);
   }
 
-  /* ── Password visibility toggle ─────────────────────────────── */
+  // Password toggle
   elPwToggle.addEventListener('click', function () {
     const isText = elPassword.type === 'text';
     elPassword.type = isText ? 'password' : 'text';
@@ -656,29 +542,25 @@
       : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
   });
 
-  /* ── Caps Lock detection ─────────────────────────────────────── */
+  // Caps lock
   elPassword.addEventListener('keyup', function (e) {
     elCapsWarn.style.display = e.getModifierState('CapsLock') ? 'block' : 'none';
   });
 
-  /* ── Pre-fill username from registration redirect ───────────── */
-  (function initRegBanner() {
+  // Pre-fill after registration
+  (function () {
     try {
       const qs = new URLSearchParams(location.search);
       if (qs.get('reg') !== '1') return;
       const u = (qs.get('u') || '').trim();
-      if (u) {
-        elIdentifier.value = u;
-        elPassword.focus();
-        showStatus('success', `Account created ✓ Your username is ${u}. Please sign in.`);
-      } else {
-        showStatus('success', 'Account created ✓ Please sign in to continue.');
-        elIdentifier.focus();
-      }
+      if (u) { elIdentifier.value = u; elPassword.focus(); }
+      showStatus('success', u
+        ? `Account created ✓ Your username is ${u}. Please sign in.`
+        : 'Account created ✓ Please sign in to continue.');
     } catch (_) {}
   })();
 
-  /* ── Email/password login ────────────────────────────────────── */
+  // Email/password login
   async function doLogin() {
     const identifier = elIdentifier.value.trim();
     const password   = elPassword.value;
@@ -701,50 +583,38 @@
     }
 
     setBusy(true);
-
     try {
-      const res = await fetch(`${AUTH_BASE}/login`, {
+      const res  = await fetch(`${AUTH_BASE}/login`, {
         method:      'POST',
         credentials: 'include',
         headers:     { 'Content-Type': 'application/json' },
         body:        JSON.stringify({ identifier, password })
       });
-
       const data = await res.json();
 
       if (!data || !data.ok) {
-        const code = (data && data.error) || 'server_error';
-        showStatus('error', errorMessage(code));
+        showStatus('error', errorMessage(data?.error || 'server_error'));
         setFieldError(elIdentifier, true);
         setFieldError(elPassword, true);
         return;
       }
 
       showStatus('success', 'Signed in successfully. Redirecting…');
-
-      setTimeout(() => {
-        location.href = getReturnTo();
-      }, 600);
+      setTimeout(() => { location.href = getReturnTo(); }, 600);
 
     } catch (err) {
-      console.error('Login error:', err);
       showStatus('error', errorMessage('server_error'));
     } finally {
       setBusy(false);
     }
   }
 
-  /* ── Google Sign-In ──────────────────────────────────────────── */
-  function initGoogleSignIn() {
-    if (!window.google || !window.google.accounts) {
-      // SDK not loaded yet, retry
-      setTimeout(initGoogleSignIn, 500);
-      return;
-    }
-
+  // Google Sign-In
+  function initGoogle() {
+    if (!window.google?.accounts) { setTimeout(initGoogle, 500); return; }
     window.google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback:  handleGoogleCredential,
+      client_id:   GOOGLE_CLIENT_ID,
+      callback:    handleGoogleCredential,
       auto_select: false,
     });
   }
@@ -753,20 +623,17 @@
     clearStatus();
     setBusy(true);
     showStatus('info', 'Verifying Google sign-in…');
-
     try {
-      const res = await fetch(`${AUTH_BASE}/login-google`, {
+      const res  = await fetch(`${AUTH_BASE}/login-google`, {
         method:      'POST',
         credentials: 'include',
         headers:     { 'Content-Type': 'application/json' },
         body:        JSON.stringify({ id_token: response.credential })
       });
-
       const data = await res.json();
 
       if (!data || !data.ok) {
-        const code = (data && data.error) || 'server_error';
-        showStatus('error', errorMessage(code));
+        showStatus('error', errorMessage(data?.error || 'server_error'));
         return;
       }
 
@@ -774,7 +641,6 @@
       setTimeout(() => { location.href = getReturnTo(); }, 600);
 
     } catch (err) {
-      console.error('Google login error:', err);
       showStatus('error', errorMessage('server_error'));
     } finally {
       setBusy(false);
@@ -782,35 +648,20 @@
   }
 
   elBtnGoogle.addEventListener('click', function () {
-    if (!window.google || !window.google.accounts) {
-      showStatus('error', 'Google Sign-In is loading. Please try again in a moment.');
+    if (!window.google?.accounts) {
+      showStatus('error', 'Google Sign-In is loading. Please try again.');
       return;
     }
     window.google.accounts.id.prompt();
   });
 
-  /* ── Event listeners ─────────────────────────────────────────── */
   elBtnLogin.addEventListener('click', doLogin);
-
-  // Allow Enter key to submit
   [elIdentifier, elPassword].forEach(el => {
-    el.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') doLogin();
-    });
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+    el.addEventListener('input',   () => { setFieldError(el, false); clearStatus(); });
   });
 
-  // Clear errors on input
-  [elIdentifier, elPassword].forEach(el => {
-    el.addEventListener('input', function () {
-      setFieldError(el, false);
-      clearStatus();
-    });
-  });
-
-  /* ── Init ────────────────────────────────────────────────────── */
-  // Init Google Sign-In after SDK loads
-  window.addEventListener('load', initGoogleSignIn);
-
+  window.addEventListener('load', initGoogle);
 })();
 </script>
 
