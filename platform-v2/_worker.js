@@ -40,9 +40,9 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
     }
 
-    // Only handle /auth/* routes
+    // Only handle /auth/* routes — pass everything else to static assets
     if (!url.pathname.startsWith('/auth/')) {
-      return new Response('Not found', { status: 404 });
+      return env.ASSETS.fetch(request);
     }
 
     const action = url.pathname.replace('/auth/', '').replace(/\/$/, '');
